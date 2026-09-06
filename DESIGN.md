@@ -111,6 +111,16 @@ launch paths, and inverse projection. GPU effects are presentation-only.
 Validation: 26 Node tests pass, including projection inverses at desktop/mobile
 sizes and circular/escape preview geometry; JavaScript syntax checks pass.
 
+### 07 — First playable interface
+
+Review needs: expose the actual game immediately; connect every primary control to
+the worker; keep the canvas visible on phones; handle loading and errors clearly.
+Implemented: responsive orbital workspace, creation form, physics-derived counters,
+mission explanation, journal, playback controls, help, reset confirmation, sandbox,
+and worker request/error handling. Static checks verify DOM IDs and built assets.
+Validation: production build, 26 headless Node tests, JS syntax, DOM contracts,
+and all local entrypoint references pass. Touch picking follows in the next review.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;

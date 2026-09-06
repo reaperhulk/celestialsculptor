@@ -1,0 +1,15 @@
+import { readdir, readFile } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
+import assert from 'node:assert/strict';
+for(const name of await readdir('web'))if(name.endsWith('.js')){
+  const r=spawnSync(process.execPath,['--check',`web/${name}`],{stdio:'inherit'});
+  assert.equal(r.status,0,`Syntax: ${name}`);
+}
+const html=await readFile('web/index.html','utf8');
+const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);
+assert.equal(ids.length,new Set(ids).size,'Duplicate DOM identifiers');
+const app=await readFile('web/app.js','utf8');
+for(const [,id] of app.matchAll(/\$\('([^']+)'\)/g))assert.ok(ids.includes(id),`Missing DOM element: ${id}`);
+for(const [,path] of html.matchAll(/(?:src|href)="\.\/([^"]+)"/g))await readFile(`dist/${path}`);
+assert.ok((await readFile('dist/pkg/celestial_wasm_bg.wasm')).length>8,'WASM artifact is missing');
+console.log('Web modules, DOM contracts, and built entrypoints verified.');
