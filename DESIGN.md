@@ -537,6 +537,12 @@ Review needs: CI passed 56 cases but Firefox and WebKit inherited the global Chr
 Implemented: Move Chromium channel and GL options into Chromium projects only and add a configuration regression against cross-engine leakage.
 Validation: Configuration regression passes and Playwright discovers the complete matrix without launching a browser locally.
 
+### 71 — Reproduce portable backups and bug reports directly in the CLI
+
+Review needs: The new report carried a replay but required manual JSON extraction before headless reproduction.
+Implemented: Teach the CLI to unwrap versioned backups and reports with a bounded 600-KB document read, retaining the raw replay limit.
+Validation: Process-level tests execute an exported report and reject unsupported backup versions and oversized documents.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;

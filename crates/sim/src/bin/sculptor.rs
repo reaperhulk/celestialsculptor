@@ -46,11 +46,14 @@ fn run() -> Result<(), String> {
                 .get(2)
                 .ok_or("Usage: sculptor replay experiment.json")?;
             let mut content = String::new();
-            fs::File::open(path).map_err(|e| e.to_string())?.take(512_001).read_to_string(&mut content).map_err(|e| e.to_string())?;
-            if content.len() > 512_000 {
-                return Err("Replay exceeds 512 KB".into());
-            }
-            let replay: Replay = serde_json::from_str(&content).map_err(|e| e.to_string())?;
+            fs::File::open(path).map_err(|e| e.to_string())?.take(600_001).read_to_string(&mut content).map_err(|e| e.to_string())?;
+            if content.len() > 600_000 {return Err("Document exceeds 600 KB".into());}
+            let mut value:serde_json::Value=serde_json::from_str(&content).map_err(|e|e.to_string())?;
+            if value["format"]=="celestial-archive" {
+                if value["version"]!=1 {return Err("Unsupported backup version".into());}
+                value=value["replay"].take();
+            } else if content.len()>512_000 {return Err("Replay exceeds 512 KB".into());}
+            let replay: Replay = serde_json::from_value(value).map_err(|e| e.to_string())?;
             let w = World::from_replay(replay)?;
             println!(
                 "{}",
