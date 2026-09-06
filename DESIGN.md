@@ -615,6 +615,12 @@ Review needs: The original property test used one launch and did not explore seq
 Implemented: Generate up to nine timed placements and burns across 64 seeded cases, then verify finite outcomes and exact JSON replay reconstruction.
 Validation: All generated stateful histories pass; the failing seed would be retained by proptest if a regression is found.
 
+### 84 — Measure actual orbital return times against Kepler predictions
+
+Review needs: The prior period test checked the diagnostic formula but did not independently measure an integrated orbit.
+Implemented: Detect interpolated returns across the initial direction for 18 circular and elliptical systems across radii and stellar masses.
+Validation: Measured simulation periods agree with independent Kepler predictions within 0.1 percent in every supported case.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
