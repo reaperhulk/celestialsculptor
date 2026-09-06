@@ -121,6 +121,16 @@ and worker request/error handling. Static checks verify DOM IDs and built assets
 Validation: production build, 26 headless Node tests, JS syntax, DOM contracts,
 and all local entrypoint references pass. Touch picking follows in the next review.
 
+### 08 — Direct manipulation and keyboard input
+
+Review needs: make the orbital plane interactive on touch and mouse; support
+precise keyboard placement; avoid accidental scrolling; revert canceled star edits.
+Implemented: world picking, drag-to-position preview, pinch/wheel zoom, keyboard
+play/pause/rewind/place/zoom, canvas arrow adjustments, input-focus safeguards, and
+transactional star-reset cancellation. Pointer cancellation clears gesture state.
+Validation: 28 Node tests pass; placement limits and nearest-body picking are
+tested independently of the renderer; build and static web checks pass.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;

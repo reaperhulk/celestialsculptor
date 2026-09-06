@@ -1,4 +1,5 @@
 import { Renderer } from './renderer.js';
+import { installInput } from './input.js';
 
 const $=id=>document.getElementById(id);
 let state=null, missions=[], mission=0, sequence=0, renderer, ready=false, toastTimer;
@@ -36,6 +37,7 @@ function setMissionUI(){
   $('next-mission').hidden=true;updateDraft();
 }
 async function reset(next=mission){
+  if(!ready)return;
   mission=next;
   if(mission!==null&&mission<2)$('star-mass').value='1';
   setMissionUI();renderer?.trails.clear();
@@ -84,13 +86,15 @@ worker.onmessage=async({data})=>{
   else if(data.type==='error')toast(data.message);
 };
 worker.onerror=()=>fail('The simulation could not start. Reload to try again.');
-function confirmReset(callback){
+function confirmReset(callback,onCancel=()=>{}){
   if(!state||state.bodies.length===1){callback();return;}
-  $('confirm-dialog').showModal();$('confirm-ok').onclick=()=>{$('confirm-dialog').close();callback();};
+  $('confirm-dialog').showModal();let accepted=false;
+  $('confirm-dialog').onclose=()=>{if(!accepted)onCancel();};
+  $('confirm-ok').onclick=()=>{accepted=true;$('confirm-dialog').close();callback();};
 }
 $('confirm-cancel').onclick=()=>$('confirm-dialog').close();
 $('sandbox').onclick=()=>confirmReset(()=>reset(null));$('campaign').onclick=()=>confirmReset(()=>reset(0));
-$('clear').onclick=()=>confirmReset(()=>reset());$('star-mass').onchange=()=>confirmReset(()=>reset());
+$('clear').onclick=()=>confirmReset(()=>reset());$('star-mass').onchange=()=>confirmReset(()=>reset(),()=>{$('star-mass').value=String(state.config.star_mass);});
 $('launch-form').onsubmit=event=>{event.preventDefault();if(ready)action('command',{command:{type:'launch',...draft()}});};
 $('seed-belt').onclick=()=>action('command',{command:{type:'seed_belt',radius:Number($('radius').value)}});
 for(const id of ['kind','radius','speed','angle'])$(id).addEventListener('input',updateDraft);
@@ -102,5 +106,23 @@ $('zoom-in').onclick=()=>{if(renderer)renderer.zoom=Math.max(1,renderer.zoom*.8)
 for(const button of document.querySelectorAll('[data-panel]'))if(button.tagName==='BUTTON')button.onclick=()=>{document.body.dataset.panel=button.dataset.panel;for(const other of document.querySelectorAll('.mobile-tabs button'))other.classList.toggle('active',other===button);};
 $('help').onclick=()=>$('help-dialog').showModal();for(const button of document.querySelectorAll('.dialog-close'))button.onclick=()=>$('help-dialog').close();
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&ready)action('play',{value:false});});
+if(renderer)installInput($('universe'),renderer,{
+  onDraft:({radius,angle})=>{$('radius').value=radius.toFixed(2);$('angle').value=String(Math.round(angle));updateDraft();},
+  onSelect:inspect,
+});
+document.addEventListener('keydown',event=>{
+  if(!ready||document.querySelector('dialog[open]')||/INPUT|SELECT|TEXTAREA|BUTTON/.test(event.target.tagName))return;
+  if(event.code==='Space'){event.preventDefault();$('play').click();}
+  else if(event.key.toLowerCase()==='r')$('rewind').click();
+  else if(event.key.toLowerCase()==='l')$('launch-form').requestSubmit();
+  else if(event.key==='+'||event.key==='=')$('zoom-in').click();
+  else if(event.key==='-')$('zoom-out').click();
+  else if(event.target===$('universe')&&event.key.startsWith('Arrow')){
+    event.preventDefault();
+    if(event.key==='ArrowLeft'||event.key==='ArrowRight')$('angle').value=String((Number($('angle').value)+(event.key==='ArrowLeft'?5:355))%360);
+    else $('radius').value=Math.max(.25,Math.min(6,Number($('radius').value)+(event.key==='ArrowUp'?.05:-.05))).toFixed(2);
+    updateDraft();
+  }
+});
 function frame(time){renderer?.draw(time/1000);requestAnimationFrame(frame);}requestAnimationFrame(frame);
 updateDraft();
