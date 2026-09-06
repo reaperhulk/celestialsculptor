@@ -97,7 +97,7 @@ export class Renderer {
     if(!gl) throw new Error('WebGL 2 is unavailable. Enable hardware acceleration or try another browser.');
     this.gl=gl; this.init();
     canvas.addEventListener('webglcontextlost',event=>{event.preventDefault();this.lost=true;this.onError('Graphics paused. Waiting for the graphics device to recover.');});
-    canvas.addEventListener('webglcontextrestored',()=>{this.lost=false;this.init();this.onError('Graphics restored.');});
+    canvas.addEventListener('webglcontextrestored',()=>{try{this.init();this.lost=false;this.onError('Graphics restored.');}catch(error){this.lost=true;this.onError('Graphics could not recover. Your experiment is intact; export it before reloading. '+error.message);}});
   }
   program(vertex,fragment) {
     const gl=this.gl,p=gl.createProgram();

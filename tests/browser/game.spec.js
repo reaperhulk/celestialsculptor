@@ -49,3 +49,12 @@ test('sandbox starting points create editable paused systems',async({page})=>{
  await expect(page.locator('#planet-count')).toHaveText('3');await expect(page.locator('#play')).toHaveText('▶ Run');
  await expect(page.locator('#mission-name')).toHaveText('Your universe');
 });
+test('graphics context loss leaves physics usable and recovery resumes drawing',async({page})=>{
+ await page.locator('#launch').click();
+ await page.evaluate(()=>{const gl=document.querySelector('canvas').getContext('webgl2');window.restoreGraphics=gl.getExtension('WEBGL_lose_context');if(!window.restoreGraphics)throw Error('Context-loss test extension missing');window.restoreGraphics.loseContext();});
+ await expect(page.locator('#toast')).toContainText('Graphics paused');
+ await page.locator('#step').click();await expect(page.locator('#sim-years')).toHaveText('0.03');await expect(page.locator('#planet-count')).toHaveText('1');
+ await page.evaluate(()=>window.restoreGraphics.restoreContext());await expect(page.locator('#toast')).toContainText('Graphics restored');
+ await expect.poll(()=>page.evaluate(()=>document.querySelector('canvas').getContext('webgl2').isContextLost())).toBe(false);
+ await page.locator('#step').click();await expect(page.locator('#sim-years')).toHaveText('0.06');
+});

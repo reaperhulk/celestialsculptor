@@ -501,6 +501,12 @@ Review needs: Sandbox text asked players to meet a nonexistent goal, while old c
 Implemented: Use mode-aware guidance, hide sandbox goal progress, and show lifetime mergers, escapes and stellar impacts.
 Validation: Guidance tests cover empty and active sandbox, held conditions, completion and exhaustion; DOM checks pass.
 
+### 65 — Exercise graphics loss and recovery without interrupting physics
+
+Review needs: Context restoration could throw an uncaught shader or allocation error, and recovery had no browser regression.
+Implemented: Keep restoration failures contained with an export-first recovery message; exercise live context loss, continued stepping and restoration in CI.
+Validation: Renderer and browser spec syntax pass; the real-browser regression verifies world count and time survive loss and recovery.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
