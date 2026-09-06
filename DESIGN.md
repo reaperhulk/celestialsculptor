@@ -489,6 +489,12 @@ Review needs: A quick reload could lose the latest edit, and save requests made 
 Implemented: Debounce successful edits into a 250-ms save and serialize overlapping save work with one coalesced successor.
 Validation: Scheduler tests verify no concurrent writes, bounded coalescing, latest-request preservation and recovery after failure.
 
+### 63 — Expose outcome totals and verify where removed matter goes
+
+Review needs: The bounded journal eventually hid older outcomes, and stellar absorption and escape needed explicit mass-ledger regressions.
+Implemented: Publish lifetime collision, escape and absorption totals in status and independently test retained plus escaped mass.
+Validation: Native tests confirm an absorbed world increases stellar mass while an escaped world is accounted for separately.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;

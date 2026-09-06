@@ -210,6 +210,9 @@ pub struct ToolAvailability {
 }
 #[derive(Clone, Debug, Serialize)]
 pub struct Status {
+    pub collisions: u32,
+    pub ejections: u32,
+    pub absorbed: u32,
     pub available_slots: usize,
     pub actions_remaining: usize,
     pub tools: [ToolAvailability; 4],
@@ -657,6 +660,9 @@ impl World {
     }
     pub fn status(&self) -> Status {
         let mut s = Status {
+            collisions: self.collisions,
+            ejections: self.ejections,
+            absorbed: self.absorbed,
             available_slots: MAX_BODIES - self.bodies.len(),
             actions_remaining: 2048 - self.commands.len(),
             tools: [Kind::Rocky, Kind::Ice, Kind::Giant, Kind::Dust].map(|kind| ToolAvailability {

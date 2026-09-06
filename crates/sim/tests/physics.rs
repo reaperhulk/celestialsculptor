@@ -151,3 +151,25 @@ fn allowed_radius_and_stellar_mass_extremes_remain_stable() {
         }
     }
 }
+#[test]
+fn stellar_absorption_retains_mass_and_escape_records_removed_mass() {
+    for (speed, escape) in [(0.0, false), (1.8, true)] {
+        let mut w = sandbox();
+        launch(&mut w, 1.0, 0.0, speed);
+        let initial = w.bodies.iter().map(|body| body.mass).sum::<f64>();
+        w.advance(2048);
+        let retained = w.bodies.iter().map(|body| body.mass).sum::<f64>();
+        assert!((retained + w.escaped_mass - initial).abs() < 1e-14);
+        assert_eq!(w.bodies.len(), 1);
+        if escape {
+            assert_eq!(w.status().ejections, 1);
+            assert!((w.escaped_mass - EARTH).abs() < 1e-15);
+            assert_eq!(w.status().absorbed, 0);
+        } else {
+            assert_eq!(w.status().absorbed, 1);
+            assert_eq!(w.status().ejections, 0);
+            assert_eq!(w.escaped_mass, 0.0);
+            assert!(w.bodies[0].mass > 1.0);
+        }
+    }
+}
