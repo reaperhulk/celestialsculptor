@@ -199,7 +199,8 @@
         "count": 6,
         "chaos": 0.7
       }
-    ]
+    ],
+    "focus": 1
   },
   {
     "id": "resonant-pair",
@@ -228,7 +229,8 @@
         "angle": 1.5707963267948966,
         "speed": 1
       }
-    ]
+    ],
+    "speed": 16
   },
   {
     "id": "resonance-capture",
@@ -246,6 +248,48 @@
         "style": "resonance",
         "count": 4,
         "chaos": 0.5
+      }
+    ],
+    "speed": 16
+  },
+  {
+    "id": "resonant-moons",
+    "name": "Clockwork moons",
+    "description": "Two moons share a 2:1 rhythm around their giant. Run for four years, then compare their bounded resonant angle in Orbital resonances.",
+    "version": 3,
+    "focus": 1,
+    "speed": 4,
+    "config": {
+      "seed": 42,
+      "mission": null,
+      "star_mass": 1
+    },
+    "commands": [
+      {
+        "type": "launch_mass",
+        "kind": "giant",
+        "mass": 318,
+        "radius": 3,
+        "angle": 0,
+        "speed": 1
+      },
+      {
+        "type": "launch_moon",
+        "parent": 1,
+        "kind": "rocky",
+        "mass": 0.3,
+        "distance": 0.035,
+        "angle": 3.141592653589793,
+        "speed": 0.9746794344808963
+      },
+      {
+        "type": "launch_moon",
+        "parent": 1,
+        "kind": "rocky",
+        "mass": 0.3,
+        "distance": 0.0525,
+        "angle": 1.5707963267948966,
+        "speed": 1
       }
     ]
   }

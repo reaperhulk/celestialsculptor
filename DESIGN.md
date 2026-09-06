@@ -65,7 +65,7 @@ analytic launch previews. A missing GPU does not prevent form-driven experiments
 Players can launch four body kinds, seed belts or configurable disks, apply
 budgeted radial/tangential burns, adjust stellar mass and seed, inspect orbital
 periods and extrema, and undo or rewind. Ten sequential discoveries coexist with
-an always-open sandbox, nine editable starting points and five seeded generator styles. Outcomes and saves are
+an always-open sandbox, ten editable starting points and five seeded generator styles. Outcomes and saves are
 local. Backups and bug reports are portable, importable, and directly reproducible
 with the native CLI. Matter is a gameplay budget; burns are external interventions
 and are excluded from conservation claims across edits.
@@ -874,3 +874,19 @@ physics/campaign/replay tests, release WASM build, artifact checks and 118 Node 
 The new event regression verifies a removed escaping body's location and exact
 reconstruction. Browser coverage verifies Undo through the formation UI; the final
 release continues through shader, interaction, viewport and exact-artifact Pages gates.
+
+### 107 — Make satellite resonance directly explorable
+
+Review needs: the resonance detector supports moons, but players lacked an authored
+satellite example and moon phase/speed controls for constructing their own variations.
+Implemented: Clockwork moons, a 2:1 satellite pair with a focused giant camera;
+starting-point metadata selects useful playback speeds and opens resonance readings.
+Moon creation now exposes initial angle and speed independently of orbital direction
+and axial spin. Existing moon-family starting points also focus their host.
+Validation: the satellite pair develops observed libration by four years in actual
+WASM and keeps both moons bound with a bounded angle through 40 years in the native
+recipe gate. Its saved commands reconstruct the same outcome. Browser engine tests
+verify satellite libration in Chromium, Firefox and WebKit using the shared recipe.
+The phone browser profile now uses DPR 3 and the tablet DPR 2; the performance
+regression checks the high-quality canvas cap of DPR 2. These exercise retina
+coordinate/rendering paths without presenting CI emulation as physical hardware.

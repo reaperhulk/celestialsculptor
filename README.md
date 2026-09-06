@@ -41,6 +41,8 @@ Use the ✦ generator for seeded quiet systems, chaotic neighbors, accretion nur
 moon families, or a migrating pair that can enter resonance. Select a planet to add
 a prograde or retrograde moon. Orbital direction and axial spin are independent.
 The resonance panel distinguishes nearby period ratios from observed libration.
+Try **Clockwork moons** to watch a satellite pair develop a 2:1 rhythm. Moon phase
+and speed are editable, so the starting points can become your own experiments.
 
 [Open with device FPS enabled](https://langui.sh/celestialsculptor/?fps=1), or enable
 **View → FPS and frame timing**. The overlay reports rendered FPS, p95 frame interval,

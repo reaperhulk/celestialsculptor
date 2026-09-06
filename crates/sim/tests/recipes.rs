@@ -3,7 +3,7 @@ use celestial_sim::*;
 fn sandbox_recipes_exhibit_their_advertised_outcomes() {
     let recipes: Vec<serde_json::Value> =
         serde_json::from_str(include_str!("../../../web/recipes.json")).unwrap();
-    assert_eq!(recipes.len(), 9);
+    assert_eq!(recipes.len(), 10);
     for recipe in recipes {
         let config: Config = serde_json::from_value(recipe["config"].clone()).unwrap();
         assert_eq!(config.mission, None);
@@ -14,6 +14,8 @@ fn sandbox_recipes_exhibit_their_advertised_outcomes() {
         }
         w.advance(if recipe["id"] == "resonance-capture" {
             512 * 80
+        } else if recipe["id"] == "resonant-moons" {
+            512 * 40
         } else if recipe["id"] == "resonant-pair" {
             512 * 30
         } else {
@@ -35,6 +37,13 @@ fn sandbox_recipes_exhibit_their_advertised_outcomes() {
             "gravity-assist" => assert_eq!(w.assisted_ejections, 1),
             "opposing-worlds" => assert!(w.collisions > 0 && w.absorbed > 0),
             "moon-family" => assert!(w.status().moons >= 2),
+            "resonant-moons" => {
+                assert_eq!(w.status().moons, 2);
+                assert!(w
+                    .resonances
+                    .iter()
+                    .any(|r| r.inner == 2 && r.outer == 3 && r.librating));
+            }
             "resonant-pair" | "resonance-capture" => {
                 assert!(w.resonances.iter().any(|r| r.librating))
             }

@@ -12,6 +12,7 @@ test('custom masses, retrograde moons and independent axial spin work through th
 });
 test('FPS can be enabled with a URL flag and disabled in view settings',async({page})=>{
  await page.goto('./?fps=1');await expect(page.locator('#play')).toBeEnabled();await expect(page.locator('#fps-overlay')).toContainText('fps');await expect.poll(()=>page.evaluate(()=>window.__celestialPerformance?.fps||0)).toBeGreaterThan(0);
+ expect(await page.evaluate(()=>window.__celestialPerformance.dpr)).toBe(await page.evaluate(()=>Math.min(2,devicePixelRatio)));
  await page.locator('#display').click();await page.locator('#show-fps').uncheck();await page.locator('#close-display').click();await expect(page.locator('#fps-overlay')).toBeHidden();
 });
 test('the star stays selectable while time advances',async({page})=>{
