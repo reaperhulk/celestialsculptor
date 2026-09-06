@@ -1,4 +1,15 @@
-use celestial_sim::{Command, Config, Replay, World, MISSIONS};
+use celestial_sim::{Body, Command, Config, Event, Orbit, Replay, Status, World, MISSIONS};
+use serde::Serialize;
+
+#[derive(Serialize)]
+struct Snapshot<'a> {
+    bodies: &'a [Body],
+    status: Status,
+    events: &'a [Event],
+    tick: u64,
+    config: &'a Config,
+    orbits: Vec<(u32, Orbit)>,
+}
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
@@ -31,7 +42,21 @@ impl Simulation {
         Ok(())
     }
     pub fn snapshot(&self) -> String {
-        serde_json::json!({ "bodies": self.world.bodies, "status": self.world.status(), "events": self.world.events, "tick": self.world.tick, "config": self.world.config, "orbits": self.world.bodies.iter().skip(1).map(|b| (b.id, self.world.orbit(b))).collect::<Vec<_>>() }).to_string()
+        serde_json::to_string(&Snapshot {
+            bodies: &self.world.bodies,
+            status: self.world.status(),
+            events: &self.world.events,
+            tick: self.world.tick,
+            config: &self.world.config,
+            orbits: self
+                .world
+                .bodies
+                .iter()
+                .skip(1)
+                .map(|body| (body.id, self.world.orbit(body)))
+                .collect(),
+        })
+        .expect("finite snapshot")
     }
     pub fn flags(&self) -> u8 {
         u8::from(self.world.completed) | (u8::from(self.world.exhausted()) << 1)

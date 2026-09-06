@@ -627,6 +627,12 @@ Review needs: Correct replay outputs did not establish that repeated resets, imp
 Implemented: Exercise 160 dense simulation lifecycles with actual WASM and compare heap size after allocator warmup.
 Validation: Imports, snapshots, rewinds, undo and free operations remain within one WASM page of the warmed heap size.
 
+### 86 — Serialize worker snapshots directly from borrowed simulation data
+
+Review needs: Snapshot benchmarks showed avoidable allocation and copying from constructing a complete intermediate JSON value tree.
+Implemented: Use a typed borrowing snapshot serializer, retaining only the small derived orbit list instead of cloning every body and event into JSON values.
+Validation: Actual-WASM parity, lifecycle and full Node suites pass; native/WASM and snapshot benchmarks complete with the new serializer.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;

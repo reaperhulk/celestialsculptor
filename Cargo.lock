@@ -49,6 +49,7 @@ name = "celestial-wasm"
 version = "0.1.0"
 dependencies = [
  "celestial-sim",
+ "serde",
  "serde_json",
  "wasm-bindgen",
 ]
