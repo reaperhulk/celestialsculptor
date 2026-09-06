@@ -29,6 +29,7 @@ export class Runtime {
             this.speed = message.value; break;
           case 'step': this.playing = false; this.sim.advance(16); break;
           case 'rewind': this.sim.rewind(); this.playing = false; this.debt = 0; break;
+          case 'undo': this.sim.undo(); this.playing = false; this.debt = 0; break;
           case 'export': this.send({type: 'export', id, replay: this.sim.export_replay()}); return;
           case 'import': this.sim.import_replay(message.replay); this.playing = false; this.debt = 0; break;
           case 'snapshot': break;

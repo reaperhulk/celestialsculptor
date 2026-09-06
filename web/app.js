@@ -183,6 +183,7 @@ $('seed-belt').onclick=()=>action('command',{command:{type:'seed_belt',radius:Nu
 for(const id of ['kind','radius','speed','angle'])$(id).addEventListener('input',updateDraft);
 for(const id of ['radius','speed'])$(id+'-range').oninput=()=>{$(id).value=$(id+'-range').value;updateDraft();};
 $('play').onclick=()=>action('play',{value:!state?.playing});$('step').onclick=()=>action('step');$('rewind').onclick=()=>action('rewind');
+$('undo').onclick=()=>action('undo').then(()=>renderer?.trails.clear());
 $('time-speed').onchange=()=>action('speed',{value:Number($('time-speed').value)});
 $('view').onclick=()=>{if(renderer){renderer.tilt=renderer.tilt===1?.62:1;$('view').textContent=renderer.tilt===1?'Tilt view':'Top view';}};
 $('display').onclick=()=>$('display-dialog').showModal();$('close-display').onclick=()=>$('display-dialog').close();

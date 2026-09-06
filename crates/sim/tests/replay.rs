@@ -78,6 +78,50 @@ fn dense_experiments_stop_at_a_replayable_work_budget() {
     assert_eq!(w, before);
     assert!(w.status().exhausted);
 }
+#[test]
+fn rewind_restores_initial_setup_instead_of_flattening_later_interventions() {
+    let mut w = world(42);
+    w.apply(Command::Launch {
+        kind: Kind::Rocky,
+        radius: 1.0,
+        angle: 0.0,
+        speed: 1.0,
+    })
+    .unwrap();
+    let setup = w.clone();
+    w.advance(128);
+    w.apply(Command::Launch {
+        kind: Kind::Ice,
+        radius: 2.0,
+        angle: 1.0,
+        speed: 1.0,
+    })
+    .unwrap();
+    w.rewind().unwrap();
+    assert_eq!(w, setup);
+}
+#[test]
+fn undo_rebuilds_history_without_the_last_placement() {
+    let mut w = world(42);
+    w.apply(Command::Launch {
+        kind: Kind::Rocky,
+        radius: 1.0,
+        angle: 0.0,
+        speed: 1.0,
+    })
+    .unwrap();
+    let mut expected = w.clone();
+    expected.advance(200);
+    w.advance(100);
+    w.apply(Command::SeedBelt { radius: 2.5 }).unwrap();
+    w.advance(100);
+    w.undo().unwrap();
+    assert_eq!(w, expected);
+    let mut empty = world(42);
+    let before = empty.clone();
+    assert!(empty.undo().is_err());
+    assert_eq!(empty, before);
+}
 
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(64))]

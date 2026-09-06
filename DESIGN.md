@@ -267,6 +267,12 @@ Review needs: Mutable action tags can change the build environment independently
 Implemented: Verified immutable SHAs for every external action, readable version comments, and explicit Rust toolchain inputs when using pinned action revisions.
 Validation: GitHub source refs were resolved directly; YAML parsing and a complete action-SHA audit pass.
 
+### 26 — Make rewinds faithful and add placement undo
+
+Review needs: Flattening later interventions into tick zero can exceed body limits and does not restore the original setup; experimenting also needs a simple undo.
+Implemented: Core-owned rewind retaining only initial commands, atomic undo by replay reconstruction, a placement-undo control, and clearer help text.
+Validation: Initial-setup fidelity, undo replay equivalence, empty-undo atomicity, native tests, and WASM/controller tests pass.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;

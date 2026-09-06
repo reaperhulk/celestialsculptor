@@ -49,13 +49,10 @@ impl Simulation {
         Ok(())
     }
     pub fn rewind(&mut self) -> Result<(), JsValue> {
-        let mut replay = self.world.replay();
-        for command in &mut replay.commands {
-            command.tick = 0;
-        }
-        replay.end_tick = 0;
-        self.world = World::from_replay(replay).map_err(js_error)?;
-        Ok(())
+        self.world.rewind().map_err(js_error)
+    }
+    pub fn undo(&mut self) -> Result<(), JsValue> {
+        self.world.undo().map_err(js_error)
     }
 }
 

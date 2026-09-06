@@ -602,6 +602,22 @@ impl World {
             end_tick: self.tick,
         }
     }
+    pub fn rewind(&mut self) -> Result<(), String> {
+        let mut replay = self.replay();
+        replay.commands.retain(|action| action.tick == 0);
+        replay.end_tick = 0;
+        *self = Self::from_replay(replay)?;
+        Ok(())
+    }
+    pub fn undo(&mut self) -> Result<(), String> {
+        let mut replay = self.replay();
+        replay
+            .commands
+            .pop()
+            .ok_or("No sculpting actions to undo")?;
+        *self = Self::from_replay(replay)?;
+        Ok(())
+    }
     fn tick_work(&self) -> u64 {
         let n = self.bodies.len() as u64;
         (n * n.saturating_sub(1) / 2).max(1)
