@@ -573,6 +573,12 @@ Review needs: The work-cap regression set the counter manually and did not prove
 Implemented: Advance a 64-body system to exhaustion, reconstruct its full replay, reject an extra tick, and verify further stepping is inert.
 Validation: The real bounded-work regression passes without modifying simulation counters or relying on wall-clock thresholds.
 
+### 77 — Stop batch advancement immediately at the experiment limit
+
+Review needs: The natural-exhaustion test exposed billions of no-op step calls after the work limit when native callers requested a very large batch.
+Implemented: Break the batch loop as soon as the experiment is exhausted, preserving state while bounding actual execution work.
+Validation: The unchanged u32::MAX batch and replay regression passes with early termination; all workspace tests pass.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;

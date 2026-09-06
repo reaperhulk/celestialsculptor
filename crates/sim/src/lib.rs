@@ -551,6 +551,9 @@ impl World {
     }
     pub fn advance(&mut self, ticks: u32) {
         for _ in 0..ticks {
+            if self.exhausted() {
+                break;
+            }
             self.step();
         }
     }
