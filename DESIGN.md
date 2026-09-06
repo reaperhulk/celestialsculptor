@@ -742,9 +742,16 @@ Review needs: The generated u32 bridge silently truncated fractional and nonfini
 Implemented: Validate finite integral tick counts explicitly and bound configuration/command payloads before parsing.
 Validation: The complete headless verification passes, including atomic rejection of negative, fractional, nonfinite and oversized inputs through actual WASM.
 
+### 100 — Audit the complete 100-iteration foundation and release gates
+
+Review needs: The final handoff needed a machine-checkable record that every requested iteration included review, implementation and verification.
+Implemented: Add a continuous numbered-history audit to local verification and CI, record the completed scope and future expansion boundaries, and run the full release checks.
+Validation: All 100 review records pass the audit; formatting, Clippy, native tests, actual-WASM/Node tests, artifact contracts and performance benchmarks pass locally. GitHub Actions repeats the browser and deployment gates for this commit.
+
 ## Next review targets
 
-Replay/import resource limits and deterministic generation; campaign solvability;
-native/WASM parity; worker lifecycle; WebGL rendering; touch and keyboard control;
-progression and save resilience; CI artifact gating and deployment; performance,
-accessibility, edge cases, and regression coverage discovered during play.
+The 100-iteration foundation is complete. Optional later expansions include
+inclined three-dimensional orbits, an in-game mission editor, resonance-focused
+lessons, and larger systems with separately benchmarked spatial acceleration.
+Future changes should preserve the headless-first verification contract, review
+saved-replay compatibility, and retain the exact-artifact Pages release path.

@@ -44,6 +44,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - run: node scripts/audit-design.mjs
       - run: npm ci --ignore-scripts
       - name: Cache wasm-bindgen CLI
         id: bindgen-cache

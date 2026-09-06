@@ -82,3 +82,5 @@ cost. Timing benchmarks remain informational because CI runners vary: compare
 8/32/64-body stepping and snapshot costs in the Actions summary and downloaded
 `performance-results` artifact. The game separately bounds bodies, ticks, commands,
 work units, trail vertices, request lifetime and audio voices.
+
+`npm run audit` checks the complete numbered design history for continuity and review, implementation and validation evidence. It is also part of `npm run verify` and CI.

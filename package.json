@@ -14,7 +14,8 @@
     "check": "node scripts/check.mjs",
     "bench": "node scripts/benchmark.mjs",
     "verify": "node scripts/verify.mjs",
-    "report": "node scripts/release-report.mjs"
+    "report": "node scripts/release-report.mjs",
+    "audit": "node scripts/audit-design.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.55.0"
