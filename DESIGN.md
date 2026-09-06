@@ -101,6 +101,16 @@ tick accumulator, explicit speed presets, step/rewind/export/import, and complet
 pause. Runtime tests instantiate the real compiled WASM engine.
 Validation: 24 Node tests pass, including controller lifecycle and backpressure.
 
+### 06 — Orbital WebGL presentation
+
+Review needs: show physical outcomes clearly; preview launch conditions; keep
+picking correct under tilt and resizing; avoid external image/network dependencies.
+Implemented: WebGL 2 procedural sphere shading, stellar corona, star field,
+habitable annulus, AU grid, bounded trails, selection rings, analytic two-body
+launch paths, and inverse projection. GPU effects are presentation-only.
+Validation: 26 Node tests pass, including projection inverses at desktop/mobile
+sizes and circular/escape preview geometry; JavaScript syntax checks pass.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
