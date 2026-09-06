@@ -162,6 +162,17 @@ or third-party media requests are required.
 Validation: module syntax, production build, and the 32-test headless suite pass.
 Audio playback remains gesture-gated and is covered by later browser lifecycle QA.
 
+### 12 — Gated GitHub Pages release pipeline
+
+Review needs: build once and deploy only tested output; protect PR runs from
+deployment credentials; identify the published revision; document first-time setup.
+Implemented: native → WASM/web → Pages job dependencies, artifacts, cache/toolchain
+pins, least-privilege deploy permissions, revision metadata, public asset smoke
+check, and development/release instructions. Deployment requires the repository's
+one-time Pages source setting, which the connected API does not expose.
+Validation: local native and WASM gates pass; workflow is pushed for Actions
+verification. Public deployment verification waits for Pages enablement.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
