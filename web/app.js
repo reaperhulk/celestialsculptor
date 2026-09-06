@@ -1,8 +1,10 @@
 import { Renderer } from './renderer.js';
 import { installInput } from './input.js';
+import { readProfile, writeProfile, canPlay, nextMission, award } from './progression.js';
 
 const $=id=>document.getElementById(id);
 let state=null, missions=[], mission=0, sequence=0, renderer, ready=false, toastTimer;
+let profile=readProfile(localStorage),awardedThisRun=false;
 const pending=new Map();
 function toast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,5000);}
 function fail(message){$('loading').hidden=false;$('loading').querySelector('p').textContent=message;$('play').disabled=true;}
@@ -38,7 +40,9 @@ function setMissionUI(){
 }
 async function reset(next=mission){
   if(!ready)return;
+  if(next!==null&&!canPlay(profile,next)){toast('Complete the previous challenges first.');return;}
   mission=next;
+  awardedThisRun=false;
   if(mission!==null&&mission<2)$('star-mass').value='1';
   setMissionUI();renderer?.trails.clear();
   await action('reset',{config:{seed:42,mission,star_mass:Number($('star-mass').value)}});
@@ -61,6 +65,14 @@ function renderState(next){
   state=next;renderer?.setState(next);$('universe').dataset.tick=String(next.tick);
   if(performance.now()-lastUI<80&&!next.id)return;lastUI=performance.now();
   const s=next.status,m=mission===null?null:missions[mission];
+  if(s.completed&&mission!==null&&!awardedThisRun){
+    awardedThisRun=true;profile=award(profile,mission);
+    if(!writeProfile(localStorage,profile))toast('Discovery earned. Device storage is unavailable, so progress will last for this session.');
+    else toast(`Discovery: ${m.unlock}`);
+  }
+  $('next-mission').hidden=!s.completed||mission===null;
+  $('next-mission').textContent=mission===9?'Explore the sandbox':'Next challenge';
+  $('collection').textContent=`${profile.completed.length} / 10 discoveries`;
   $('sim-years').textContent=s.years.toFixed(2);$('matter').textContent=s.remaining.toLocaleString(undefined,{maximumFractionDigits:2});
   $('planet-count').textContent=String(s.planets);$('calm-count').textContent=String(s.calm);$('habitable-count').textContent=String(s.habitable);
   $('goal-progress').value=s.progress;$('goal-time').textContent=m?(m.hold_years?`${s.held_years.toFixed(1)} / ${m.hold_years} yr`:s.completed?'Complete':'Discovery'):'Free play';
@@ -78,7 +90,7 @@ function renderState(next){
 worker.onmessage=async({data})=>{
   if(data.type==='ready'){
     missions=data.missions;ready=true;if(renderer)$('loading').hidden=true;
-    document.body.dataset.ready='true';await reset();
+    document.body.dataset.ready='true';await reset(nextMission(profile));
   }else if(data.type==='state'){renderState(data);}
   else if(data.type==='fatal'){fail(data.message);}
   const request=pending.get(data.id);
@@ -93,7 +105,21 @@ function confirmReset(callback,onCancel=()=>{}){
   $('confirm-ok').onclick=()=>{accepted=true;$('confirm-dialog').close();callback();};
 }
 $('confirm-cancel').onclick=()=>$('confirm-dialog').close();
-$('sandbox').onclick=()=>confirmReset(()=>reset(null));$('campaign').onclick=()=>confirmReset(()=>reset(0));
+$('sandbox').onclick=()=>confirmReset(()=>reset(null));
+$('campaign').onclick=()=>{
+  if(!ready)return;
+  $('mission-list').replaceChildren();
+  missions.forEach((m,i)=>{
+    const button=document.createElement('button');button.className='mission-choice';button.disabled=!canPlay(profile,i);
+    const number=document.createElement('span');number.className='mission-number';number.textContent=profile.completed.includes(i)?'✓':String(i+1).padStart(2,'0');
+    const label=document.createElement('span');const title=document.createElement('strong');title.textContent=m.name;
+    const brief=document.createElement('small');brief.textContent=button.disabled?'Complete the preceding challenge':m.brief;label.append(title,brief);button.append(number,label);
+    button.onclick=()=>{$('mission-dialog').close();confirmReset(()=>reset(i));};$('mission-list').append(button);
+  });
+  $('mission-dialog').showModal();
+};
+$('close-missions').onclick=()=>$('mission-dialog').close();
+$('next-mission').onclick=()=>reset(mission===9?null:mission+1);
 $('clear').onclick=()=>confirmReset(()=>reset());$('star-mass').onchange=()=>confirmReset(()=>reset(),()=>{$('star-mass').value=String(state.config.star_mass);});
 $('launch-form').onsubmit=event=>{event.preventDefault();if(ready)action('command',{command:{type:'launch',...draft()}});};
 $('seed-belt').onclick=()=>action('command',{command:{type:'seed_belt',radius:Number($('radius').value)}});

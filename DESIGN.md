@@ -131,6 +131,16 @@ transactional star-reset cancellation. Pointer cancellation clears gesture state
 Validation: 28 Node tests pass; placement limits and nearest-body picking are
 tested independently of the renderer; build and static web checks pass.
 
+### 09 — Challenge map and persistent discoveries
+
+Review needs: connect all ten challenges into progression; persist earned goals;
+prevent skipping prerequisites; let completed challenges be revisited; ensure
+pointer-generated values remain valid HTML form inputs.
+Implemented: challenge map, sequential unlocks, idempotent discovery awards,
+next-goal action, sandbox finale, validated profile storage, and finer numeric steps.
+Validation: 30 Node tests pass, including a complete ten-award progression and
+corrupt/denied storage. Build and static UI contracts pass.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
