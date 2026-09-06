@@ -345,6 +345,12 @@ Review needs: A corrupt primary could overwrite the last good backup, and backup
 Implemented: Validate the previous snapshot before rotation and isolate optional backup writes from primary saving.
 Validation: Storage regressions verify corrupt-primary recovery and a full backup quota without losing the new primary.
 
+### 39 — Release pending actions immediately when the worker fails
+
+Review needs: Fatal worker errors left actions waiting fifteen seconds and accepted more work after failure.
+Implemented: Extract a bounded request channel with synchronous-post error cleanup, out-of-order matching, timeout disposal, and fatal shutdown.
+Validation: Three channel tests cover response ordering, worker death, post failures and timeouts; app syntax checked.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;

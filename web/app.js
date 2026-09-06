@@ -5,24 +5,21 @@ import {deviceStorage,parseReplay,saveExperiment,savedExperiments,archiveExperim
 import {Soundscape} from './audio.js';
 import {shouldPresent} from './presentation.js';
 import {parseSeed} from './conditions.js';
+import {RequestChannel} from './channel.js';
 
 const $=id=>document.getElementById(id);
-let state=null, missions=[], mission=0, sequence=0, renderer, ready=false, toastTimer;
+let state=null, missions=[], mission=0, renderer, ready=false, toastTimer;
 const storage=deviceStorage();
 const sound=new Soundscape();let heardEvents=new Set();
 let profile=readProfile(storage),awardedThisRun=false,saveBusy=false,saveEpoch=0;
-const pending=new Map();
+
 function toast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,5000);}
 function fail(message){$('loading').hidden=false;$('loading').querySelector('p').textContent=message;$('play').disabled=true;}
 try { renderer=new Renderer($('universe'),toast); } catch(error){fail(error.message);}
 const worker=new Worker(new URL('./worker.js',import.meta.url),{type:'module'});
-function send(type,data={}){
-  const id=++sequence;
-  return new Promise((resolve,reject)=>{
-    const timeout=setTimeout(()=>{pending.delete(id);reject(new Error('The simulation did not respond. Try reloading your experiment.'));},15000);
-    pending.set(id,{resolve,reject,timeout});worker.postMessage({type,id,...data});
-  });
-}
+const channel=new RequestChannel(message=>worker.postMessage(message));
+function send(type,data={}){return channel.send(type,data);}
+function workerFailed(message){ready=false;channel.close(message);fail(message);}
 function action(type,data={}){return send(type,data).catch(error=>toast(error.message));}
 function draft(){return {kind:$('kind').value,radius:Number($('radius').value),angle:Number($('angle').value)*Math.PI/180,speed:Number($('speed').value)/100};}
 function updateDraft(){
@@ -132,12 +129,10 @@ worker.onmessage=async({data})=>{
     }
     if(!restored)await reset(nextMission(profile));
   }else if(data.type==='state'){renderState(data);}
-  else if(data.type==='fatal'){fail(data.message);}
-  const request=pending.get(data.id);
-  if(request){clearTimeout(request.timeout);pending.delete(data.id);data.type==='error'?request.reject(new Error(data.message)):request.resolve(data);}
-  else if(data.type==='error')toast(data.message);
+  else if(data.type==='fatal'){workerFailed(data.message);}
+  if(!channel.receive(data)&&data.type==='error')toast(data.message);
 };
-worker.onerror=()=>fail('The simulation could not start. Reload to try again.');
+worker.onerror=()=>workerFailed('The simulation could not start. Reload to try again.');
 function confirmReset(callback,onCancel=()=>{}){
   if(!state||state.bodies.length===1){callback();return;}
   $('confirm-dialog').showModal();let accepted=false;
