@@ -196,6 +196,7 @@ pub struct Orbit {
 }
 #[derive(Clone, Debug, Serialize)]
 pub struct Status {
+    pub objectives: [Option<Objective>; 3],
     pub exhausted: bool,
     pub years: f64,
     pub remaining: f64,
@@ -210,6 +211,12 @@ pub struct Status {
     pub completed: bool,
     pub zone_inner: f64,
     pub zone_outer: f64,
+}
+#[derive(Clone, Copy, Debug, Serialize)]
+pub struct Objective {
+    pub label: &'static str,
+    pub current: usize,
+    pub target: usize,
 }
 
 impl World {
@@ -582,6 +589,7 @@ impl World {
     }
     pub fn status(&self) -> Status {
         let mut s = Status {
+            objectives: [None; 3],
             exhausted: self.exhausted(),
             years: self.tick as f64 * DT,
             remaining: (self.budget() - self.spent).max(0.0),
@@ -609,19 +617,35 @@ impl World {
             s.giants += usize::from(body.kind == Kind::Giant && o.calm);
         }
         if let Some(m) = self.config.mission {
-            s.condition = match m {
-                0 => s.calm >= 1,
-                1 => s.habitable >= 1,
-                2 => s.calm >= 3,
-                3 => self.collisions >= 1,
-                4 => self.ejections >= 1,
-                5 => s.habitable >= 2,
-                6 => s.giants >= 1 && s.calm >= 4 && s.calm - s.giants >= 3,
-                7 => s.debris >= 10,
-                8 => s.calm >= 6,
-                9 => s.calm >= 5 && s.giants >= 1 && s.habitable >= 1,
-                _ => false,
+            let goal = |label, current, target| {
+                Some(Objective {
+                    label,
+                    current,
+                    target,
+                })
             };
+            s.objectives = match m {
+                0 => [goal("Calm worlds", s.calm, 1), None, None],
+                1 => [goal("Potential gardens", s.habitable, 1), None, None],
+                2 => [goal("Calm worlds", s.calm, 3), None, None],
+                3 => [goal("Collisions", self.collisions as usize, 1), None, None],
+                4 => [goal("Escapes", self.ejections as usize, 1), None, None],
+                5 => [goal("Potential gardens", s.habitable, 2), None, None],
+                6 => [
+                    goal("Calm gas giants", s.giants, 1),
+                    goal("Calm small worlds", s.calm - s.giants, 3),
+                    None,
+                ],
+                7 => [goal("Calm fragments", s.debris, 10), None, None],
+                8 => [goal("Calm worlds", s.calm, 6), None, None],
+                9 => [
+                    goal("Calm worlds", s.calm, 5),
+                    goal("Calm gas giants", s.giants, 1),
+                    goal("Potential gardens", s.habitable, 1),
+                ],
+                _ => [None; 3],
+            };
+            s.condition = s.objectives.iter().flatten().all(|g| g.current >= g.target);
             s.progress = if self.completed {
                 1.0
             } else if MISSIONS[m].hold_years > 0.0 {

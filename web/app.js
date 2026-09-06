@@ -79,7 +79,7 @@ function inspect(){
   if(body)$('inspect-body').value=String(body.id);
 }
 $('inspect-body').onchange=()=>{if(renderer)renderer.selected=Number($('inspect-body').value);inspect();};
-let lastUI=0,lastEventSignature='';
+let lastUI=0,lastEventSignature='',lastObjectives='';
 function renderState(next){
   const present=shouldPresent(state,next,lastUI,performance.now());
   if(next.config.mission!==mission){mission=next.config.mission;awardedThisRun=false;setMissionUI();}
@@ -89,6 +89,8 @@ function renderState(next){
   state=next;renderer?.setState(next);$('universe').dataset.tick=String(next.tick);
   if(!present)return;lastUI=performance.now();
   const s=next.status,m=mission===null?null:missions[mission];
+  const objectives=JSON.stringify(s.objectives);
+  if(objectives!==lastObjectives){lastObjectives=objectives;$('objectives').replaceChildren();for(const goal of s.objectives.filter(Boolean)){const li=document.createElement('li'),label=document.createElement('span'),value=document.createElement('strong');label.textContent=goal.label;value.textContent=`${goal.current} / ${goal.target}`;li.classList.toggle('met',goal.current>=goal.target);li.append(label,value);$('objectives').append(li);}}
   if(s.completed&&mission!==null&&!awardedThisRun){
     awardedThisRun=true;profile=award(profile,mission);
     if(!writeProfile(storage,profile))toast('Discovery earned. Device storage is unavailable, so progress will last for this session.');

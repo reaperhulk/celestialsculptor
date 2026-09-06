@@ -84,3 +84,20 @@ fn crossing_the_green_zone_is_not_a_habitable_orbit() {
     .unwrap();
     assert!(!w.orbit(&w.bodies[1]).habitable);
 }
+#[test]
+fn final_challenge_exposes_all_three_independent_requirements() {
+    let w = World::new(Config {
+        mission: Some(9),
+        ..Config::default()
+    })
+    .unwrap();
+    let s = w.status();
+    let goals: Vec<_> = s.objectives.iter().flatten().collect();
+    assert_eq!(goals.len(), 3);
+    assert_eq!(
+        goals.iter().map(|g| g.target).collect::<Vec<_>>(),
+        vec![5, 1, 1]
+    );
+    assert!(goals.iter().all(|g| g.current == 0));
+    assert!(!s.condition);
+}

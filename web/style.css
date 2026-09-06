@@ -37,3 +37,5 @@ body{padding-top:env(safe-area-inset-top)}
 .seed-row{margin:16px 0 9px;flex-wrap:wrap}#seed{width:112px;text-align:left}
 
 #disk-tools{border-top:1px solid var(--line);margin-top:20px;padding-top:16px}summary{cursor:pointer;font-size:14px;color:var(--amber);min-height:35px}#disk-form>label{display:block;margin-top:12px}#disk-form>input[type=number]{display:block;width:100%;text-align:left;margin:6px 0 12px}#disk-form p{font-size:13px}#disk-form button{width:100%}#disk-disorder-value{font-size:14px;color:var(--amber)}
+
+.objectives{list-style:none;padding:0;margin:18px 0}.objectives li{display:flex;justify-content:space-between;gap:10px;font-size:14px;line-height:1.4;padding:7px 0;border-bottom:1px solid var(--line)}.objectives strong{white-space:nowrap;font-family:ui-monospace,monospace;font-weight:400}.objectives li.met{color:var(--green)}

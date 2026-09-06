@@ -321,6 +321,12 @@ Review needs: The journal still said the star was waiting after worlds were plac
 Implemented: Authoritative placement and disk/belt seeding entries with distances and speeds, retained through replay and bounded to 24 events.
 Validation: Journal bounds and replay identity tests pass alongside native and WASM scenario suites.
 
+### 35 — Show authoritative progress for each goal requirement
+
+Review needs: Multi-part challenges did not show whether world count, giant count, or habitability was preventing success.
+Implemented: A fixed-size Rust objective set used directly to evaluate goals and a live requirement checklist in the mission panel, with no per-tick heap allocation.
+Validation: All authored winning/losing scenarios and a three-part final-goal regression pass; WASM parity and web contracts pass.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
