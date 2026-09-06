@@ -27,4 +27,36 @@ uses numerical tolerances, not a promise of bit-identical chaotic trajectories.
 Mission conditions and continuous hold timers are evaluated in Rust. The renderer
 cannot complete a mission. All dimensions use AU, years, and solar masses internally.
 
-Implementation and test pipeline are being built incrementally on `main`.
+## Play
+
+[Open Celestial Sculptor](https://langui.sh/celestialsculptor/). Start with the first
+challenge or open the sandbox and choose a starting point. Place a world at 1 AU
+and 100% speed, then Run. Select worlds to inspect their entire orbit. Later tools
+include debris disks and budgeted orbital burns. Rewind restores the initial setup;
+Undo removes the latest edit and reconstructs the experiment.
+
+## Build and verify
+
+Install Node 22 or newer and Rust through rustup. The repository pins Rust 1.90.0
+and its WASM target. Install the matching binding generator and dependencies:
+
+```sh
+cargo install wasm-bindgen-cli --version 0.2.104 --locked
+npm ci --ignore-scripts
+npm run verify
+npm run serve
+```
+
+Open `http://localhost:4173/celestialsculptor/`. The complete `verify` command runs
+formatting, lint, native physics and campaign tests, a release WASM build, artifact
+checks, and Node tests of the actual WASM engine. It needs no browser or GPU.
+Use `npm run bench` for an informational performance report. See
+[CONTRIBUTING.md](CONTRIBUTING.md) for browser tests and publishing.
+
+To reproduce a downloaded experiment, backup or bug report:
+
+```sh
+cargo run --release --locked -p celestial-sim --bin sculptor -- replay celestial-experiment.json
+```
+
+[DESIGN.md](DESIGN.md) records architecture, scientific limits and every review iteration.

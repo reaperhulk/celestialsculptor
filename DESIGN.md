@@ -597,6 +597,12 @@ Review needs: Individually valid disk fields could combine into an invalid radia
 Implemented: Show the whole disk range, validate combined conditions before submission, and explain matter, action and body limits from Rust status.
 Validation: Disk guidance tests cover edge overlap, empty fields, exact capacity and budget boundaries; build checks pass.
 
+### 81 — Provide one command for the complete graphics-independent verification loop
+
+Review needs: Contributors had to remember several commands and could accidentally skip native rules, WASM parity or artifact checks.
+Implemented: Add npm run verify with fail-fast formatting, lint, native tests, build, static contracts and Node tests; document play and local startup.
+Validation: The complete documented headless verification command passes from the repository root.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
