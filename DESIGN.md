@@ -351,6 +351,12 @@ Review needs: Fatal worker errors left actions waiting fifteen seconds and accep
 Implemented: Extract a bounded request channel with synchronous-post error cleanup, out-of-order matching, timeout disposal, and fatal shutdown.
 Validation: Three channel tests cover response ordering, worker death, post failures and timeouts; app syntax checked.
 
+### 40 — Compare advanced interventions across native and WebAssembly
+
+Review needs: Existing campaign parity fixtures predated variable-width disks and orbital burns.
+Implemented: Replay timed disk formation, burns and giant placement at three stellar masses through both actual engines; verify reimport is exact.
+Validation: Three advanced native/WASM parity cases pass, including event equality and position/velocity tolerances.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
