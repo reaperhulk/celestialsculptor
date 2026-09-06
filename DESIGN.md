@@ -477,6 +477,12 @@ Review needs: Refreshing authoritative placement availability recreated identica
 Implemented: Cache analytic preview paths by distance, angle and speed, independent of body color and live status.
 Validation: One thousand unchanged drafts reuse the same geometry; changed and invalid drafts invalidate it correctly.
 
+### 61 — Run the physics engine in Chromium Firefox and WebKit
+
+Review needs: Node and Chromium parity did not exercise the other major browser WebAssembly engines.
+Implemented: Add Firefox and WebKit engine projects using real compiled WASM, with all sandbox recipes and exact replay reconstruction.
+Validation: Browser configuration and spec syntax pass locally; the expanded Actions gate installs and runs all three browser engines.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
