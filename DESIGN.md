@@ -567,6 +567,12 @@ Review needs: Syntax and entrypoint checks could pass while a newly imported mod
 Implemented: Verify every source asset matches the build and resolve literal module, worker and fetched-data references inside the artifact.
 Validation: Dependency-reference tests and a fresh complete build pass the strengthened static gate.
 
+### 76 — Verify a dense experiment can reach its real work limit and replay
+
+Review needs: The work-cap regression set the counter manually and did not prove a naturally exhausted run remained exportable.
+Implemented: Advance a 64-body system to exhaustion, reconstruct its full replay, reject an extra tick, and verify further stepping is inert.
+Validation: The real bounded-work regression passes without modifying simulation counters or relying on wall-clock thresholds.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;

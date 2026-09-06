@@ -152,3 +152,22 @@ proptest! {
         prop_assert_eq!(w, rebuilt);
     }
 }
+
+#[test]
+fn naturally_exhausted_dense_run_is_exportable_and_cannot_import_past_its_limit() {
+    let mut w = celestial_sim::benchmark::system(64);
+    w.advance(u32::MAX);
+    assert!(w.exhausted());
+    assert!(w.work_units <= MAX_WORK_UNITS);
+    assert!(w.tick < MAX_TICKS);
+    let replay = w.replay();
+    assert_eq!(w, World::from_replay(replay.clone()).unwrap());
+    let mut too_far = replay;
+    too_far.end_tick += 1;
+    assert!(World::from_replay(too_far)
+        .unwrap_err()
+        .contains("work limit"));
+    let before = w.clone();
+    w.advance(512);
+    assert_eq!(w, before);
+}
