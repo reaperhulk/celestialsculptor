@@ -1,6 +1,10 @@
 import { spawnSync, execFileSync } from 'node:child_process';
 import { cp, mkdir, rm, writeFile } from 'node:fs/promises';
 import {assetManifest} from './integrity.mjs';
+import {verifyToolchainContracts} from './contracts.mjs';
+import assert from 'node:assert/strict';
+const versions=await verifyToolchainContracts();
+assert.equal(execFileSync('wasm-bindgen',['--version'],{encoding:'utf8'}).trim(),`wasm-bindgen ${versions.bindgen}`,'Install the binding generator version pinned in crates/wasm/Cargo.toml');
 
 function run(command, args) {
   const r = spawnSync(command, args, { stdio: 'inherit' });

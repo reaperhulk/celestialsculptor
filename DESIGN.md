@@ -603,6 +603,12 @@ Review needs: Contributors had to remember several commands and could accidental
 Implemented: Add npm run verify with fail-fast formatting, lint, native tests, build, static contracts and Node tests; document play and local startup.
 Validation: The complete documented headless verification command passes from the repository root.
 
+### 82 — Detect toolchain and release metadata drift before building
+
+Review needs: Rust, npm, the binding generator and CI repeated version pins that could diverge during maintenance.
+Implemented: Validate application versions, Rust pins, exact wasm-bindgen CLI compatibility and immutable Actions references; lock CI lint dependency resolution.
+Validation: The new contract verifier and a fresh build pass with the installed generator and checked-in lockfiles.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
