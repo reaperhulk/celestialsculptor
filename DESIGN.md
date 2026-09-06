@@ -639,6 +639,12 @@ Review needs: A primary could pass shallow JSON checks while containing invalid 
 Implemented: Rotate only a primary successfully written by this session, leaving the existing recovery snapshot intact when disk contents are untrusted.
 Validation: Storage regressions cover semantically invalid JSON, successful subsequent rotation and the earlier quota/corruption cases.
 
+### 88 — Fail browser tests on uncaught errors throughout each interaction
+
+Review needs: The original browser error check inspected only startup, allowing later event-handler failures to pass unnoticed.
+Implemented: Use a shared browser fixture that captures and asserts uncaught application errors after the full test, including fallback and cross-engine flows.
+Validation: Playwright discovers all tests with the shared fixture; coverage now spans the entire interaction lifetime.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;

@@ -1,4 +1,4 @@
-import {test,expect} from '@playwright/test';
+import {test,expect} from './fixtures.js';
 test('browser WebAssembly executes every sandbox recipe and round-trips its commands',async({page})=>{
  await page.goto('./');await expect(page.locator('body')).toHaveAttribute('data-ready','true');
  const outcomes=await page.evaluate(async()=>{

@@ -1,4 +1,4 @@
-import {test,expect} from '@playwright/test';
+import {test,expect} from './fixtures.js';
 test('capture the playable desktop and phone presentation for release review',async({page},testInfo)=>{
  test.skip(!['desktop','phone'].includes(testInfo.project.name),'Two representative review images cover the responsive layouts.');
  await page.goto('./');await expect(page.locator('#play')).toBeEnabled();await page.locator('#sandbox').click();
