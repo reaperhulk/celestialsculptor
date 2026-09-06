@@ -177,7 +177,7 @@ proptest! {
  #[test]
  fn generated_multi_body_histories_survive_timed_edits_and_json_roundtrips(
   seed in any::<u32>(),
-  edits in prop::collection::vec((0.3f64..5.8,0.0f64..6.28,0.5f64..1.8,0u32..128),1..10)
+  edits in prop::collection::vec((0.3f64..5.8,0.0f64..std::f64::consts::TAU,0.5f64..1.8,0u32..128),1..10)
  ){
   let mut w=world(seed);
   for (radius,angle,speed,delay) in edits {

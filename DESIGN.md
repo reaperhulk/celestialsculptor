@@ -645,6 +645,12 @@ Review needs: The original browser error check inspected only startup, allowing 
 Implemented: Use a shared browser fixture that captures and asserts uncaught application errors after the full test, including fallback and cross-engine flows.
 Validation: Playwright discovers all tests with the shared fixture; coverage now spans the entire interaction lifetime.
 
+### 89 — Use the exact angular domain in generated histories after lint feedback
+
+Review needs: CI correctly rejected an approximate full-turn constant introduced by the new property generator.
+Implemented: Use the standard TAU constant so generated angles cover the exact full circle and satisfy the required lint gate.
+Validation: Workspace formatting and warning-free Clippy pass, followed by the generated multi-body replay test.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
