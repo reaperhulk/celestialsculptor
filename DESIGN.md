@@ -908,3 +908,14 @@ parent-relative trails and parent changes, worst-case guide/impact buffer capaci
 and timing from a restored checkpoint. Release 106 passed the full browser and
 Pages gates; its desktop/phone moon and notebook screenshots directly motivated
 these corrections. The updated release repeats those screenshots and retina checks.
+
+### 109 — Repair the nested moon-control browser regression
+
+Review needs: release 107's browser run matched both Create a moon and the newly
+nested Orbit phase & speed summary, making the existing strict selector ambiguous.
+Implemented: target the moon panel's direct summary explicitly, preserving the full
+retrograde-moon and independent-spin interaction test across all seven viewports.
+Validation: release 107's other 160 browser checks passed, including native-WASM
+satellite resonance in all three engines and retina FPS/DPR checks. The failure was
+isolated to this duplicate selector in each viewport. The corrected test and the
+satellite-visibility changes run through the unchanged full release gates.

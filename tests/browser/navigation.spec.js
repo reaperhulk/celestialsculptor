@@ -7,7 +7,7 @@ test('navigation pans without editing the launch conditions and fit remains reac
 });
 test('custom masses, retrograde moons and independent axial spin work through the real worker',async({page})=>{
  await page.goto('./');await expect(page.locator('#play')).toBeEnabled();await page.locator('#sandbox').click();await page.locator('#kind').selectOption('giant');await page.locator('#launch').click();await expect(page.locator('#planet-count')).toHaveText('1');
- await page.locator('#inspect-body').selectOption('1');await expect(page.locator('#inspector')).toContainText('318.00 Earth masses');await page.locator('#moon-tools summary').click();await page.locator('#moon-direction').selectOption('-1');await page.locator('#add-moon').click();await expect(page.locator('#inspect-body option')).toHaveCount(3);
+ await page.locator('#inspect-body').selectOption('1');await expect(page.locator('#inspector')).toContainText('318.00 Earth masses');await page.locator('#moon-tools > summary').click();await page.locator('#moon-direction').selectOption('-1');await page.locator('#add-moon').click();await expect(page.locator('#inspect-body option')).toHaveCount(3);
  await page.locator('#spin-reverse').click();await page.locator('#inspect-body').selectOption('2');await expect(page.locator('#inspector')).toContainText('Moon of 1');await page.locator('#step').click();await expect(page.locator('#inspector')).toContainText('Moon of 1');
 });
 test('FPS can be enabled with a URL flag and disabled in view settings',async({page})=>{
