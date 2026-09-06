@@ -7,6 +7,8 @@ export async function verifyPublished(root,expected,fetchAsset=fetch){
  const info=await (await get(`build-info.json?revision=${expected}`)).json();
  assert.equal(info.revision,expected,'CDN has not reached the deployed revision');
  for(const path of ['index.html','app.js','worker.js','recipes.json','pkg/celestial_wasm_bg.wasm'])assert.ok(info.assets?.[path],`Missing manifest asset: ${path}`);
+ const entrypoint=new Uint8Array(await (await get('./')).arrayBuffer());
+ assert.equal(digest(entrypoint),info.assets['index.html'].sha256,'Root entrypoint differs from the tested index');
  const assets=Object.entries(info.assets);assert.ok(assets.length<=128,'Unexpected asset count');
  for(let i=0;i<assets.length;i+=4)await Promise.all(assets.slice(i,i+4).map(async([path,entry])=>{
   assert.ok(/^[a-zA-Z0-9_./-]+$/.test(path)&&!path.startsWith('/')&&!path.split('/').includes('..'),'Invalid asset path');

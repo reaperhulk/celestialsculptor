@@ -681,6 +681,12 @@ Review needs: Key repeat could place many worlds or toggle playback repeatedly, 
 Implemented: Ignore repeats for placement, playback and rewind while retaining continuous arrow adjustments; document the keyboard controls in help.
 Validation: Fresh build checks pass; a browser regression covers focused-field isolation, arrows, placement repeat suppression and playback shortcuts.
 
+### 95 — Verify the public directory URL serves the exact tested game
+
+Review needs: The expanded asset verifier checked index.html directly but no longer proved the user-facing directory URL served the same entrypoint.
+Implemented: Hash the public root response as well as individual assets, catching stale default documents or misdirected entrypoints.
+Validation: Publication tests now reject an incorrect root page even when every named asset is otherwise correct.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
