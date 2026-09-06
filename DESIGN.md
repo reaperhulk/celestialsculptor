@@ -261,6 +261,12 @@ Review needs: Every animation frame repeated uniform lookups, orbital searches, 
 Implemented: Per-context uniform caches, per-snapshot orbit maps and drawing order, and launch geometry recomputed only when starting conditions change.
 Validation: Web build, module contracts, and geometry tests pass; the browser gate compiles and exercises the renderer.
 
+### 25 — Pin release actions to verified source revisions
+
+Review needs: Mutable action tags can change the build environment independently of a game commit, undermining reproducibility.
+Implemented: Verified immutable SHAs for every external action, readable version comments, and explicit Rust toolchain inputs when using pinned action revisions.
+Validation: GitHub source refs were resolved directly; YAML parsing and a complete action-SHA audit pass.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
