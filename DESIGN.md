@@ -357,6 +357,12 @@ Review needs: Existing campaign parity fixtures predated variable-width disks an
 Implemented: Replay timed disk formation, burns and giant placement at three stellar masses through both actual engines; verify reimport is exact.
 Validation: Three advanced native/WASM parity cases pass, including event equality and position/velocity tolerances.
 
+### 41 — Test gravity against coordinate and moving-frame symmetries
+
+Review needs: Energy tests alone can miss axis-specific forces or accidental use of absolute star coordinates.
+Implemented: Add independent rotation and Galilean-invariance tests for evolving three-planet systems and orbital diagnostics.
+Validation: Native symmetry tests pass after two years in rotated, translated and uniformly moving frames.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
