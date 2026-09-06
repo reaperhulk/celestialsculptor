@@ -1,6 +1,7 @@
-import { project, unproject, launchPath } from './geometry.js';
+import { project, unproject } from './geometry.js';
 import { VertexStream } from './vertices.js';
 import {updateTrails} from './trails.js';
+import {PreviewCache} from './preview.js';
 
 const VERTEX = `#version 300 es
 layout(location=0) in vec2 a_pos;
@@ -87,6 +88,7 @@ const KINDS = {star:0,rocky:1,ice:2,giant:3,dust:4};
 
 export class Renderer {
   constructor(canvas, onError = () => {}) {
+    this.previewCache=new PreviewCache();
     this.canvas=canvas; this.onError=onError; this.zoom=3.5; this.tilt=.62; this.maxDpr=2;
     this.lineStream=new VertexStream(64*192*12+241*12);this.pointStream=new VertexStream(65*8);
     this.trails=new Map(); this.selected=null; this.showGrid=true;
@@ -126,7 +128,7 @@ export class Renderer {
     if(!locations.has(name))locations.set(name,this.gl.getUniformLocation(program,name));
     return locations.get(name);
   }
-  set draft(value){this._draft=value;this.previewPath=value?launchPath(value.radius,value.angle,value.speed):[];}
+  set draft(value){this._draft=value;this.previewPath=this.previewCache.update(value);}
   get draft(){return this._draft;}
   setState(state){
     updateTrails(this.trails,this.state,state);

@@ -471,6 +471,12 @@ Review needs: Performance measurements were manual and did not expose the cost o
 Implemented: Benchmark serialization and parsing alongside native/WASM stepping, publish machine-readable results, and add a compact Actions summary.
 Validation: Eight-, 32- and 64-body benchmark cases produce finite timings and bounded snapshot sizes; performance remains informational rather than a flaky absolute gate.
 
+### 60 — Retain orbit preview geometry across live availability updates
+
+Review needs: Refreshing authoritative placement availability recreated identical preview vertices several times per second.
+Implemented: Cache analytic preview paths by distance, angle and speed, independent of body color and live status.
+Validation: One thousand unchanged drafts reuse the same geometry; changed and invalid drafts invalidate it correctly.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
