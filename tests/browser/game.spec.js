@@ -64,3 +64,10 @@ test('replacement confirmation pauses time and cancellation resumes the same run
  const tick=await page.locator('#universe').getAttribute('data-tick');await page.waitForTimeout(120);await expect(page.locator('#universe')).toHaveAttribute('data-tick',tick);
  await page.locator('#confirm-cancel').click();await expect(page.locator('#play')).toHaveText('Ⅱ Pause');await expect(page.locator('#planet-count')).toHaveText('1');await page.locator('#play').click();
 });
+test('rejected stellar conditions keep the existing mode and restore the controls',async({page})=>{
+ await page.locator('#sandbox').click();
+ await page.evaluate(()=>document.querySelector('#star-mass').add(new Option('Invalid test mass','99')));
+ await page.locator('#star-mass').selectOption('99');await expect(page.locator('#toast')).toContainText('Invalid stellar mass');
+ await expect(page.locator('#star-mass')).toHaveValue('1');await expect(page.locator('#mission-name')).toHaveText('Your universe');
+ await page.locator('#launch').click();await expect(page.locator('#planet-count')).toHaveText('1');
+});

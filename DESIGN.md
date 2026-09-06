@@ -555,6 +555,12 @@ Review needs: Line-mode mouse wheels zoomed much more slowly than pixel devices,
 Implemented: Normalize wheel deltas before applying bounded zoom and reserve all multi-touch input for the active camera gesture.
 Validation: Input tests compare equivalent pixel, line and page gestures, reverse motion, nonfinite samples and large-delta bounds.
 
+### 74 — Commit reset presentation only after the simulation accepts it
+
+Review needs: The app changed mission and control state before reset validation, so a rejected configuration could leave stale presentation.
+Implemented: Build reset configuration transactionally, await authoritative acceptance, and restore current controls on failure.
+Validation: DOM checks pass; a browser regression submits an invalid stellar mass, verifies control recovery, and then successfully places a world.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;

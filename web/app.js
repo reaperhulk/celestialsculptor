@@ -58,15 +58,15 @@ function setMissionUI(){
   $('next-mission').hidden=true;updateDraft();
 }
 async function reset(next=mission,overrides={}){
-  if(!ready)return;
-  if(next!==null&&!canPlay(profile,next)){toast('Complete the previous challenges first.');return;}
-  mission=next;
-  saveEpoch++;
-  awardedThisRun=false;
-  if(mission!==null&&mission<2)$('star-mass').value='1';
-  setMissionUI();renderer?.trails.clear();
-  await action('reset',{config:{seed:parseSeed($('seed').value),mission,star_mass:Number($('star-mass').value),...overrides}});
-  autosave();
+ if(!ready)return false;
+ if(next!==null&&!canPlay(profile,next)){toast('Complete the previous challenges first.');return false;}
+ try{
+  const config={seed:parseSeed($('seed').value),mission:next,star_mass:next!==null&&next<2?1:Number($('star-mass').value),...overrides};
+  saveEpoch++;await send('reset',{config});awardedThisRun=false;setMissionUI();await autosave();return true;
+ }catch(error){
+  if(state){mission=state.config.mission;$('star-mass').value=String(state.config.star_mass);$('seed').value=String(state.config.seed);setMissionUI();}
+  toast(error.message);return false;
+ }
 }
 let inspectorIds='';
 function inspect(){
