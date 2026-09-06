@@ -39,3 +39,11 @@ test('WASM rejects bad commands and imports without damaging the running state',
   assert.equal(JSON.parse(missions()).length, 10);
   sim.free();
 });
+test('disk creation crosses the real WASM command boundary and evolves finite state',()=>{
+ const sim=new Simulation(JSON.stringify({seed:71,mission:null,star_mass:1}));
+ sim.command(JSON.stringify({type:'seed_disk',radius:2.5,spread:1,disorder:.25,count:24}));
+ assert.equal(JSON.parse(sim.snapshot()).bodies.length,25);sim.advance(512);
+ const state=JSON.parse(sim.snapshot());assert.equal(state.tick,512);
+ for(const b of state.bodies)assert.ok(Number.isFinite(b.pos.x)&&Number.isFinite(b.vel.y));
+ assert.equal(JSON.parse(sim.export_replay()).commands[0].command.type,'seed_disk');sim.free();
+});

@@ -303,6 +303,12 @@ Review needs: A single narrow belt limits initial-condition experiments and make
 Implemented: An authoritative SeedDisk command with radial width, body count, orbital-speed disorder, deterministic generation, atomic limits, and matter accounting.
 Validation: Seeded disk evolution and replay equivalence, invalid-disk atomicity, native regression tests, and WASM parity pass.
 
+### 32 — Expose disk formation controls in the game
+
+Review needs: The new disk simulation needs understandable controls and a clear connection between orbital disorder and accretion.
+Implemented: An unlocked disk-formation panel with center, width, fragment count, cost, and speed-disorder controls, plus real-WASM command-boundary coverage.
+Validation: The new disk bridge test, complete Node suite, web build, and DOM contracts pass.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;

@@ -41,6 +41,7 @@ function setMissionUI(){
   for(const option of $('kind').options)option.disabled=mission!==null&&({rocky:0,ice:1,giant:3,dust:4}[option.value]>mission);
   if($('kind').selectedOptions[0].disabled)$('kind').value='rocky';
   $('seed-belt').hidden=mission!==null&&mission<4;
+  $('disk-tools').hidden=mission!==null&&mission<4;
   $('star-mass').disabled=mission!==null&&mission<2;
   $('next-mission').hidden=true;updateDraft();
 }
@@ -187,6 +188,8 @@ $('star-mass').onchange=()=>{const star_mass=Number($('star-mass').value);confir
 $('seed').onchange=()=>{try{const seed=parseSeed($('seed').value);confirmReset(()=>reset(mission,{seed}),()=>{$('seed').value=String(state.config.seed);});}catch(error){toast(error.message);$('seed').value=String(state?.config.seed??42);}};
 $('launch-form').onsubmit=event=>{event.preventDefault();if(ready)send('command',{command:{type:'launch',...draft()}}).then(()=>sound.event('launch')).catch(error=>toast(error.message));};
 $('seed-belt').onclick=()=>action('command',{command:{type:'seed_belt',radius:Number($('radius').value)}});
+$('disk-disorder').oninput=()=>$('disk-disorder-value').textContent=$('disk-disorder').value+'%';
+$('disk-form').onsubmit=event=>{event.preventDefault();send('command',{command:{type:'seed_disk',radius:Number($('disk-radius').value),spread:Number($('disk-width').value),count:Number($('disk-count').value),disorder:Number($('disk-disorder').value)/100}}).then(()=>{sound.event('launch');toast('Debris placed. Run the system to watch it evolve.');}).catch(error=>toast(error.message));};
 for(const id of ['kind','radius','speed','angle'])$(id).addEventListener('input',updateDraft);
 for(const id of ['radius','speed'])$(id+'-range').oninput=()=>{$(id).value=$(id+'-range').value;updateDraft();};
 $('play').onclick=()=>action('play',{value:!state?.playing});$('step').onclick=()=>action('step');$('rewind').onclick=()=>action('rewind');

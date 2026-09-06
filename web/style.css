@@ -35,3 +35,5 @@ body{padding-top:env(safe-area-inset-top)}
 @media(min-width:761px) and (max-height:500px){.sculpt-panel>h2{display:none}#launch-form{display:flex;flex-direction:column}#launch-form>label{display:none}.launch{order:-1;margin:10px 0 6px}.field{margin:8px 0}.field input[type=range]{margin-top:4px}.angle-row{margin-bottom:10px}.orbit-reading{margin:6px 0 10px}}
 
 .seed-row{margin:16px 0 9px;flex-wrap:wrap}#seed{width:112px;text-align:left}
+
+#disk-tools{border-top:1px solid var(--line);margin-top:20px;padding-top:16px}summary{cursor:pointer;font-size:14px;color:var(--amber);min-height:35px}#disk-form>label{display:block;margin-top:12px}#disk-form>input[type=number]{display:block;width:100%;text-align:left;margin:6px 0 12px}#disk-form p{font-size:13px}#disk-form button{width:100%}#disk-disorder-value{font-size:14px;color:var(--amber)}
