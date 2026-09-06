@@ -17,7 +17,7 @@ const $=id=>document.getElementById(id);
 let state=null, missions=[], mission=0, renderer, selectedBody=null, ready=false, toastTimer;
 const storage=deviceStorage();
 const viewSettings=readViewSettings(storage,matchMedia('(prefers-reduced-motion: reduce)').matches);
-const sound=new Soundscape();const eventCursor=new EventCursor();
+const sound=new Soundscape();sound.setVolume(viewSettings.volume);const eventCursor=new EventCursor();
 let profile=readProfile(storage),awardedThisRun=false,saveEpoch=0,autosaveTimer;
 
 function toast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,5000);}
@@ -278,3 +278,6 @@ $('debug-report').onclick=async()=>{
  const build=await response.json();download(diagnosticReport(replay,profile,build,{browser:navigator.userAgent,viewport:{width:innerWidth,height:innerHeight,pixelRatio:devicePixelRatio},webgl:Boolean(renderer),view:viewSettings}),'celestial-bug-report.json');
  }catch(error){toast(error.message);}
 };
+
+$('sound-volume').value=String(Math.round(viewSettings.volume*100));$('sound-volume-value').textContent=$('sound-volume').value+'%';
+$('sound-volume').oninput=()=>{viewSettings.volume=Number($('sound-volume').value)/100;sound.setVolume(viewSettings.volume);$('sound-volume-value').textContent=$('sound-volume').value+'%';writeViewSettings(storage,viewSettings);};

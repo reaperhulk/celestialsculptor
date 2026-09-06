@@ -8,3 +8,8 @@ test('view preferences preserve valid fields and respect system motion defaults'
  let saved;assert.ok(writeViewSettings({setItem:(_,text)=>saved=text},{...settings,maxDpr:1}));assert.equal(readViewSettings({getItem:()=>saved}).maxDpr,1);
  assert.equal(writeViewSettings(null,settings),false);
 });
+
+test('volume preferences reject malformed gains without enabling audio',()=>{
+ for(const volume of [-1,2,'1',null])assert.equal(readViewSettings({getItem:()=>JSON.stringify({version:1,volume})}).volume,.7);
+ assert.equal(readViewSettings({getItem:()=>JSON.stringify({version:1,volume:0})}).volume,0);
+});

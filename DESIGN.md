@@ -585,6 +585,12 @@ Review needs: Passing geometry and interaction checks did not give reviewers a c
 Implemented: Capture deterministic paused desktop and phone systems through real UI commands and retain the images as CI artifacts.
 Validation: Preview test syntax and browser discovery pass; screenshots are captured in the authorized CI browser environment.
 
+### 79 — Let players set and retain a comfortable sound level
+
+Review needs: Opt-in sound had a fixed output level and no way to adjust it independently of device volume.
+Implemented: Add a remembered volume control with smooth gain changes, clamped input and no automatic audio activation.
+Validation: Audio and preference tests cover pre-activation volume, bounds, malformed gains and muted settings; fresh build checks pass.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;

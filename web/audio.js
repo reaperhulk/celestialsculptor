@@ -1,11 +1,12 @@
 // Sound is opt-in and entirely local. No media downloads or autoplay attempts.
 export class Soundscape {
-  constructor(){this.enabled=false;this.context=null;this.voices=0;}
+  constructor(){this.enabled=false;this.context=null;this.voices=0;this.volume=.7;}
+  setVolume(value){if(!Number.isFinite(value))return;this.volume=Math.max(0,Math.min(1,value));if(this.master)this.master.gain.setTargetAtTime(.12*this.volume,this.context.currentTime,.04);}
   async toggle(){
     if(!this.context){
       const Context=globalThis.AudioContext||globalThis.webkitAudioContext;
       if(!Context)throw new Error('Sound is unavailable in this browser.');
-      this.context=new Context();this.master=this.context.createGain();this.master.gain.value=.12;
+      this.context=new Context();this.master=this.context.createGain();this.master.gain.value=.12*this.volume;
       this.master.connect(this.context.destination);
       this.ambient=this.context.createGain();this.ambient.gain.value=.04;this.ambient.connect(this.master);
       for(const frequency of [55,82.4069,110.12]){
