@@ -45,7 +45,7 @@ Screenshots cannot prove the rules correct; passing headless scenarios is mandat
 
 ## Scope and scientific limits
 
-Newtonian gravity in AU / years / solar masses, softened at 0.002 AU. Contact
+Newtonian gravity in AU / years / solar masses, softened at 0.0001 AU in current rules (0.002 AU for version 1 replays). Contact
 radii are enlarged to make formation visible on game timescales. Perfectly
 inelastic mergers represent accretion; unresolved spin accounts for angular
 momentum. Habitability checks entire osculating orbits against a stellar-mass
@@ -65,13 +65,13 @@ analytic launch previews. A missing GPU does not prevent form-driven experiments
 Players can launch four body kinds, seed belts or configurable disks, apply
 budgeted radial/tangential burns, adjust stellar mass and seed, inspect orbital
 periods and extrema, and undo or rewind. Ten sequential discoveries coexist with
-an always-open sandbox and four editable starting points. Outcomes and saves are
+an always-open sandbox, nine editable starting points and five seeded generator styles. Outcomes and saves are
 local. Backups and bug reports are portable, importable, and directly reproducible
 with the native CLI. Matter is a gameplay budget; burns are external interventions
 and are excluded from conservation claims across edits.
 
-A replay is versioned configuration plus ordered tick-stamped commands. Version 1
-supports 2,048 edits, 600 years and 20 million pair-tick work units. Reconstruction
+A replay is versioned configuration plus ordered tick-stamped commands. Versions 1–3
+support 2,048 edits, 600 years and 20 million pair-tick work units. Reconstruction
 never trusts serialized scores or body state. Exact reproduction is scoped to the
 same executable; cross-target comparisons use tolerances. Future physics changes
 must explicitly consider saved-replay compatibility rather than silently promising
@@ -751,8 +751,8 @@ Validation: All 100 review records pass the audit; formatting, Clippy, native te
 ## Next review targets
 
 The 100-iteration foundation is complete. Optional later expansions include
-inclined three-dimensional orbits, an in-game mission editor, resonance-focused
-lessons, and larger systems with separately benchmarked spatial acceleration.
+inclined three-dimensional orbits, an in-game mission editor, and larger systems
+with separately benchmarked spatial acceleration.
 Future changes should preserve the headless-first verification contract, review
 saved-replay compatibility, and retain the exact-artifact Pages release path.
 
@@ -790,3 +790,30 @@ Validation: headless camera, radius-growth, orbital geometry and frame-meter tes
 pass. Browser tests exercise navigation without accidental edits, moon controls and
 the URL flag. Mobile statistics occupy a separate strip; the release browser matrix
 and screenshots review real shader compilation and standard viewport control fit.
+
+### 103 — Formation, seeded universes and observable resonance
+
+Review needs: challenges must depend on interaction and history; offer systems to
+watch, including moons and resonant capture; preserve old saves; reduce CPU cost
+without changing physical outcomes or weakening cross-target verification.
+Implemented: a five-mission formation chapter with accretion, an undamaged garden,
+a giant's inner nursery, initially bound gravity-assisted escapes and moon survival.
+Later missions combine formation/habitability/moons and observed resonant angles.
+Near period ratios remain candidates until a bounded angle reverses over at least
+eight outer orbits. Sandbox disk migration provides an explicit dissipative path
+into resonance; a gas momentum ledger distinguishes this from closed N-body motion.
+Added five seeded generator styles, nine recipes, clickable journal events and
+condition-specific clues. Version 3 preserves version 1/2 initialization and goals;
+shared libm math removes native/WASM trigonometric drift in chaotic seeded fixtures.
+Reused gravitational accelerations reduce eight pairwise evaluations to five per
+tick; non-moons now avoid unnecessary parent searches.
+Validation: 44 winning/losing campaign fixtures pass native/WASM trajectory and exact
+event comparisons. Tests distinguish ratio coincidence from libration, cover a
+160-year resonant pair and migration capture/control, reject formation stacking and
+slingshot exploits, and replay generated systems. A 32-case seeded outcome sweep
+runs headlessly in CI. Browser coverage adds generation and formation tool wiring.
+
+Disk migration is a prescribed drag/torque model, not a hydrodynamic gas simulation.
+The resonance detector is an observational first-order, coplanar, prograde diagnostic;
+it does not prove permanent capture or cover every resonance family. Its resonant
+angle convention follows [celmech's numerical resonance models](https://celmech.readthedocs.io/en/latest/numerical_resonance_models.html).

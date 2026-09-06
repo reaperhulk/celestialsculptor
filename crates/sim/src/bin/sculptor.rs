@@ -1,6 +1,6 @@
 use celestial_sim::{scenarios, Replay, World};
 use std::{env, fs, io::Read, process};
-const USAGE: &str = "Usage: sculptor [verify|fixtures|bench|replay FILE|help]";
+const USAGE: &str = "Usage: sculptor [verify|fixtures|sweep|bench|replay FILE|help]";
 fn run() -> Result<(), String> {
     let args: Vec<_> = env::args().collect();
     let command = args.get(1).map(String::as_str).unwrap_or("verify");
@@ -20,6 +20,7 @@ fn run() -> Result<(), String> {
                 serde_json::to_string(&output).map_err(|e| e.to_string())?
             );
         }
+        "sweep" => println!("{}",celestial_sim::sweep::run()?),
         "bench" => {
             let mut results = vec![];
             for bodies in [8, 32, 64] {

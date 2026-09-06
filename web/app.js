@@ -53,7 +53,7 @@ function updateDraft(){
   $('orbit-reading').textContent=issue||(d.speed>Math.SQRT2?'Escape trajectory · a world without a sun':Math.abs(d.speed-1)<.015?'Circular orbit · a quiet beginning':d.speed<.2?'Falling inward · likely stellar impact':'Elliptical orbit · watch the close approach');
 }
 function setMissionUI(){
-  const m=mission===null?null:missions[mission];
+  const m=mission===null?null:(state?.mission_definition||missions[mission]);
   $('campaign').setAttribute('aria-pressed',String(mission!==null));$('sandbox').setAttribute('aria-pressed',String(mission===null));
   $('campaign').classList.toggle('active',mission!==null);$('sandbox').classList.toggle('active',mission===null);
   $('mission-index').textContent=m?`CHALLENGE ${String(mission+1).padStart(2,'0')} / 10`:'OPEN EXPLORATION';
@@ -61,10 +61,11 @@ function setMissionUI(){
   $('mission-brief').textContent=m?.brief||'No goal, no hurry. Follow an idea and see what gravity makes of it.';
   $('mission-hint').textContent=m?.hint||'Try a crowded belt, a giant on an eccentric orbit, or a system around a smaller star.';
   $('reward').textContent=m?.unlock||'Every tool is available';
-  for(const option of $('kind').options)option.disabled=mission!==null&&({rocky:0,ice:1,giant:3,dust:4}[option.value]>mission);
-  if($('kind').selectedOptions[0].disabled)$('kind').value='rocky';
-  $('seed-belt').hidden=mission!==null&&mission<4;
-  $('disk-tools').hidden=mission!==null&&mission<4;
+  $('launch-form').hidden=Boolean(state?.rules_version>=3&&mission!==null&&mission>=3&&mission<=5);
+  const dust=state?.status.tools.find(t=>t.kind==='dust');
+  $('seed-belt').hidden=!dust?.unlocked;
+  $('disk-tools').hidden=!dust?.unlocked;
+  if(mission!==null&&mission>=3&&mission<=5&&state?.rules_version>=3)$('disk-tools').open=true;
   $('recipes').hidden=mission!==null;
   $('star-mass').disabled=mission!==null&&mission<2;
   $('next-mission').hidden=true;updateDraft();
@@ -89,6 +90,7 @@ function inspect(){
     for(const b of state?.bodies||[]){const option=document.createElement('option');option.value=String(b.id);option.textContent=b.id===0?'The star':`World ${b.id} · ${b.kind}`;$('inspect-body').append(option);}
   }
   const body=state?.bodies.find(b=>b.id===selectedBody);
+  $('migration-tools').hidden=mission!==null||!body||body.id===0||body.parent!==null||state?.rules_version<3;
   $('spin-controls').hidden=!body||body.id===0||state?.rules_version===1;
   $('moon-tools').hidden=!body||body.id===0||body.parent!==null||state?.rules_version===1||(mission!==null&&mission<4);
   if(body&&body.id!==moonHost&&!$('moon-tools').hidden){moonHost=body.id;const orbit=state.orbits.find(([id])=>id===body.id)?.[1],mass=Math.max(.001,Math.min(.1,body.mass/3.003e-6*.01)),min=1.3*(body.radius+.002*Math.cbrt(mass)),max=orbit.periapsis*Math.cbrt(body.mass/(3*state.bodies[0].mass))*.45;
@@ -113,15 +115,17 @@ for(const button of document.querySelectorAll('[data-nudge]'))button.onclick=()=
 let lastUI=0,lastEventSignature='',lastObjectives='';
 function renderState(next){
   const present=shouldPresent(state,next,lastUI,performance.now());
-  if(next.config.mission!==mission){mission=next.config.mission;awardedThisRun=false;setMissionUI();}
+  const changedMission=next.config.mission!==mission||next.rules_version!==state?.rules_version;
+  if(changedMission){mission=next.config.mission;awardedThisRun=false;}
   $('star-mass').value=String(next.config.star_mass);
   if(document.activeElement!==$('seed'))$('seed').value=String(next.config.seed);
   $('system-label').textContent=`EXPERIMENT ${String(next.config.seed).padStart(4,'0')}`;
   if(!next.bodies.some(body=>body.id===selectedBody))selectedBody=null;
-  state=next;renderer?.setState(next);$('universe').dataset.tick=String(next.tick);
+  state=next;if(changedMission)setMissionUI();renderer?.setState(next);$('universe').dataset.tick=String(next.tick);
   if(!present)return;lastUI=performance.now();
-  const s=next.status,m=mission===null?null:missions[mission];
+  const s=next.status,m=next.mission_definition||(mission===null?null:missions[mission]);
   for(const tool of s.tools){const option=[...$('kind').options].find(option=>option.value===tool.kind);if(option)option.disabled=!tool.unlocked;}
+  if($('kind').selectedOptions[0]?.disabled){const first=[...$('kind').options].find(o=>!o.disabled);if(first){$('kind').value=first.value;$('body-mass').value=String({rocky:1,ice:2,giant:318,dust:.25}[first.value]);}}
   updateDraft();updateDisk();
   for(const button of document.querySelectorAll('[data-nudge]'))button.disabled=s.remaining<1||s.actions_remaining===0;
   const objectives=JSON.stringify(s.objectives);
@@ -131,13 +135,15 @@ function renderState(next){
     if(!writeProfile(storage,profile))toast('Discovery earned. Device storage is unavailable, so progress will last for this session.');
     else toast(`Discovery: ${m.unlock}`);
   }
+  $('playback-note').textContent=`${s.moons} bound moon${s.moons===1?'':'s'} · ${s.formed} worlds formed from debris`;
+  updateResonanceReadings(next.resonances||[]);
   $('next-mission').hidden=!s.completed||mission===null;
   $('next-mission').textContent=mission===9?'Explore the sandbox':'Next challenge';
   $('collection').textContent=`${profile.completed.length} / 10 discoveries`;
   $('sim-years').textContent=s.years.toFixed(2);$('matter').textContent=s.remaining.toLocaleString(undefined,{maximumFractionDigits:2});
   $('planet-count').textContent=String(s.planets);$('calm-count').textContent=String(s.calm);$('habitable-count').textContent=String(s.habitable);
   $('goal-progress').value=s.progress;$('goal-time').textContent=m?(m.hold_years?`${s.held_years.toFixed(1)} / ${m.hold_years} yr`:s.completed?'Complete':'Discovery'):'Free play';
-  $('goal-state').textContent=goalMessage(s,mission,next.bodies.length);
+  $('goal-state').textContent=goalMessage(s,mission,next.bodies.length,next);
   $('goal-label').textContent=m?(m.hold_years?'Maintain conditions':'Make a discovery'):'Open exploration';$('goal-progress').hidden=mission===null;
   $('outcome-totals').textContent=`${s.collisions} mergers · ${s.ejections} escapes · ${s.absorbed} stellar impacts`;
   $('play').textContent=next.playing?'Ⅱ Pause':'▶ Run';$('play').disabled=!ready||s.exhausted;
@@ -147,7 +153,7 @@ function renderState(next){
   if(eventSignature!==lastEventSignature){
     lastEventSignature=eventSignature;$('events').replaceChildren();
     if(!next.events.length){const li=document.createElement('li');li.textContent='Your star is waiting.';$('events').append(li);}
-    for(const event of [...next.events].reverse().slice(0,5)){const li=document.createElement('li');li.textContent=`${(event.tick/512).toFixed(2)} yr · ${event.text}`;$('events').append(li);}
+    for(const event of [...next.events].reverse().slice(0,5)){const li=document.createElement('li');const button=document.createElement('button');button.className='journal-event';button.textContent=`${(event.tick/512).toFixed(2)} yr · ${event.text}`;button.onclick=()=>{renderer?.focusEvent(event);selectedBody=event.body;inspect();};li.append(button);$('events').append(li);}
   }
   inspect();
 }
@@ -308,7 +314,7 @@ $('recipes').onclick=async()=>{
   if(!recipes){const response=await fetch(new URL('./recipes.json',import.meta.url));if(!response.ok)throw new Error('Starting points could not load. Try again.');recipes=await response.json();}
   $('recipe-list').replaceChildren();
   for(const recipe of recipes){const button=document.createElement('button');button.className='recipe-choice';const title=document.createElement('strong'),description=document.createElement('span');title.textContent=recipe.name;description.textContent=recipe.description;button.append(title,description);
-   button.onclick=()=>{$('recipes-dialog').close();confirmReset(async()=>{try{saveEpoch++;const replay=JSON.stringify({version:recipe.version||2,config:{...recipe.config,seed:parseSeed($('seed').value)},commands:recipe.commands.map(command=>({tick:0,command})),end_tick:0});await send('import',{replay});await autosave();renderer?.fit();toast(recipe.name+' is ready. Run it or make it your own.');}catch(error){toast(error.message);}});};
+   button.onclick=()=>{$('recipes-dialog').close();confirmReset(async()=>{try{saveEpoch++;const replay=JSON.stringify({version:recipe.version||3,config:{...recipe.config,seed:parseSeed($('seed').value)},commands:recipe.commands.map(command=>({tick:0,command})),end_tick:0});await send('import',{replay});await autosave();renderer?.fit();toast(recipe.name+' is ready. Run it or make it your own.');}catch(error){toast(error.message);}});};
    $('recipe-list').append(button);
   }
   $('recipes-dialog').showModal();
@@ -324,3 +330,15 @@ $('debug-report').onclick=async()=>{
 
 $('sound-volume').value=String(Math.round(viewSettings.volume*100));$('sound-volume-value').textContent=$('sound-volume').value+'%';
 $('sound-volume').oninput=()=>{viewSettings.volume=Number($('sound-volume').value)/100;sound.setVolume(viewSettings.volume);$('sound-volume-value').textContent=$('sound-volume').value+'%';writeViewSettings(storage,viewSettings);};
+
+let lastResonanceText='';
+function updateResonanceReadings(readings){
+ const text=readings.length?readings.map(r=>`Worlds ${r.inner} & ${r.outer}: ${r.p}:${r.q} · ratio ${r.ratio.toFixed(3)}\n${r.librating?'Librating resonant angle':'Near ratio · observing the resonant angle'} · ${r.observed_years.toFixed(1)} years observed · angle range ${(r.span*180/Math.PI).toFixed(0)}°`).join('\n\n'):'No nearby simple period ratios yet. Compare neighboring worlds or their moons.';
+ if(text!==lastResonanceText){lastResonanceText=text;$('resonance-readings').textContent=text;}
+}
+$('start-migration').onclick=()=>action('command',{command:{type:'migration',id:selectedBody,timescale:Number($('migration-time').value)}});
+$('stop-migration').onclick=()=>action('command',{command:{type:'migration',id:selectedBody,timescale:0}});
+$('generate').onclick=()=>{$('generate-seed').value=$('seed').value;$('generate-dialog').showModal();};
+$('close-generate').onclick=()=>$('generate-dialog').close();
+$('shuffle-seed').onclick=()=>{$('generate-seed').value=String(crypto.getRandomValues(new Uint32Array(1))[0]);};
+$('generate-form').onsubmit=event=>{event.preventDefault();const seed=parseSeed($('generate-seed').value),command={type:'generate',style:$('generate-style').value,count:Number($('generate-count').value),chaos:Number($('generate-chaos').value)/100},play=$('generate-play').checked;$('generate-dialog').close();confirmReset(async()=>{if(await reset(null,{seed})){await send('command',{command});renderer?.fit();await autosave();if(play)await send('play',{value:true});toast('Your seeded universe is ready. Pan, zoom, follow a world, or intervene.');}});};

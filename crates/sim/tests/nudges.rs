@@ -140,26 +140,18 @@ fn burns_obey_unlocks_and_cannot_overspend_the_last_unit_of_matter() {
     assert!(locked.apply(command.clone()).is_err());
     assert_eq!(locked, before);
     let mut w = World::new(Config {
-        mission: Some(4),
+        mission: Some(8),
         ..Config::default()
     })
     .unwrap();
-    w.apply(Command::Launch {
+    w.apply(Command::LaunchMass {
         kind: Kind::Giant,
+        mass: 999.0,
         radius: 4.0,
         angle: 0.0,
         speed: 1.0,
     })
     .unwrap();
-    for i in 0..7 {
-        w.apply(Command::Launch {
-            kind: Kind::Ice,
-            radius: 1.0,
-            angle: i as f64,
-            speed: 1.0,
-        })
-        .unwrap();
-    }
     assert_eq!(w.status().remaining, 1.0);
     w.apply(command.clone()).unwrap();
     let before = w.clone();

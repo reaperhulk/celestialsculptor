@@ -3,7 +3,7 @@ use celestial_sim::*;
 #[test]
 fn every_authored_challenge_has_a_winning_and_losing_replay() {
     let scenarios = scenarios::campaign();
-    assert_eq!(scenarios.len(), MISSIONS.len() * 2);
+    assert_eq!(scenarios.len(), MISSIONS.len() * 4 + 4);
     for scenario in scenarios {
         scenario.run().unwrap();
     }
@@ -96,7 +96,7 @@ fn final_challenge_exposes_all_three_independent_requirements() {
     assert_eq!(goals.len(), 3);
     assert_eq!(
         goals.iter().map(|g| g.target).collect::<Vec<_>>(),
-        vec![5, 1, 1]
+        vec![2, 1, 1]
     );
     assert!(goals.iter().all(|g| g.current == 0));
     assert!(!s.condition);
@@ -124,4 +124,87 @@ fn tool_availability_reports_authoritative_costs_unlocks_and_capacity() {
     assert!(!status.tools[0].affordable);
     assert_eq!(status.available_slots, 55);
     assert_eq!(status.actions_remaining, 2040);
+}
+
+#[test]
+fn formation_requires_orbital_encounters_and_slingshots_cannot_be_bought_with_speed() {
+    let mut w = World::new(Config {
+        mission: Some(3),
+        ..Config::default()
+    })
+    .unwrap();
+    assert!(w
+        .apply(Command::Launch {
+            kind: Kind::Rocky,
+            radius: 1.0,
+            angle: 0.0,
+            speed: 1.0
+        })
+        .is_err());
+    w.apply(Command::Launch {
+        kind: Kind::Dust,
+        radius: 1.0,
+        angle: 0.0,
+        speed: 1.0,
+    })
+    .unwrap();
+    let before = w.clone();
+    assert!(w
+        .apply(Command::Launch {
+            kind: Kind::Dust,
+            radius: 1.0,
+            angle: 0.0,
+            speed: 1.0
+        })
+        .is_err());
+    assert_eq!(before, w);
+    let mut assist = World::new(Config {
+        mission: Some(6),
+        ..Config::default()
+    })
+    .unwrap();
+    let before = assist.clone();
+    assert!(assist
+        .apply(Command::LaunchMass {
+            kind: Kind::Rocky,
+            mass: 1.0,
+            radius: 1.0,
+            angle: 0.0,
+            speed: 1.8
+        })
+        .is_err());
+    assert!(assist
+        .apply(Command::Nudge {
+            id: 1,
+            radial: 0.0,
+            tangential: 0.1
+        })
+        .is_err());
+    assert_eq!(assist, before);
+}
+#[test]
+fn version_two_campaign_replays_keep_their_original_goals() {
+    let replay = Replay {
+        version: 2,
+        config: Config {
+            mission: Some(3),
+            ..Config::default()
+        },
+        commands: vec![
+            RecordedCommand {
+                tick: 0,
+                command: Command::Launch {
+                    kind: Kind::Rocky,
+                    radius: 1.0,
+                    angle: 0.0,
+                    speed: 1.0
+                }
+            };
+            2
+        ],
+        end_tick: 1,
+    };
+    let w = World::from_replay(replay).unwrap();
+    assert!(w.completed);
+    assert_eq!(w.replay().version, 2);
 }

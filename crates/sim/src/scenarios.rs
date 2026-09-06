@@ -8,8 +8,14 @@ pub struct Scenario {
     pub completed: bool,
 }
 pub fn campaign() -> Vec<Scenario> {
-    serde_json::from_str(include_str!("../../../scenarios/campaign.json"))
-        .expect("valid checked-in scenarios")
+    let mut cases: Vec<Scenario> =
+        serde_json::from_str(include_str!("../../../scenarios/campaign.json"))
+            .expect("valid legacy scenarios");
+    cases.extend(
+        serde_json::from_str::<Vec<Scenario>>(include_str!("../../../scenarios/campaign-v3.json"))
+            .expect("valid formation scenarios"),
+    );
+    cases
 }
 impl Scenario {
     pub fn run(&self) -> Result<World, String> {

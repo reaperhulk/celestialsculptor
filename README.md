@@ -32,8 +32,21 @@ cannot complete a mission. All dimensions use AU, years, and solar masses intern
 [Open Celestial Sculptor](https://langui.sh/celestialsculptor/). Start with the first
 challenge or open the sandbox and choose a starting point. Place a world at 1 AU
 and 100% speed, then Run. Select worlds to inspect their entire orbit. Later tools
-include debris disks and budgeted orbital burns. Rewind restores the initial setup;
+include debris disks and budgeted orbital burns. Drag pans; pinch or scroll zooms
+around the pointer. Double tap a body to follow it; Fit shows the system; Place
+switches to setting a launch position. F fits and WASD pans. Rewind restores the initial setup;
 Undo removes the latest edit and reconstructs the experiment.
+
+Use the ✦ generator for seeded quiet systems, chaotic neighbors, accretion nurseries,
+moon families, or a migrating pair that can enter resonance. Select a planet to add
+a prograde or retrograde moon. Orbital direction and axial spin are independent.
+The resonance panel distinguishes nearby period ratios from observed libration.
+
+[Open with device FPS enabled](https://langui.sh/celestialsculptor/?fps=1), or enable
+**View → FPS and frame timing**. The overlay reports rendered FPS, p95 frame interval,
+draw CPU time and simulation throughput. High quality targets 60 fps while running;
+paused scenes use 30 fps, and Battery saver caps rendering at 30. Actual iPhone/iPad
+frame rates must be measured on those devices; CI browser timings are not a substitute.
 
 ## Build and verify
 
@@ -57,6 +70,7 @@ To reproduce a downloaded experiment, backup or bug report:
 
 ```sh
 cargo run --release --locked -p celestial-sim --bin sculptor -- replay celestial-experiment.json
+cargo run --release --locked -p celestial-sim --bin sculptor -- sweep > sweep-results.json
 ```
 
 [DESIGN.md](DESIGN.md) records architecture, scientific limits and every review iteration.

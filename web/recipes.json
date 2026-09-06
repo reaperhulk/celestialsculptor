@@ -123,5 +123,130 @@
       "mission": null,
       "star_mass": 1
     }
+  },
+  {
+    "id": "gravity-assist",
+    "name": "Borrow a giant's momentum",
+    "description": "A bound world gains enough energy in a close flyby to escape. Select it to compare the changing orbit.",
+    "version": 3,
+    "config": {
+      "seed": 42,
+      "mission": null,
+      "star_mass": 1
+    },
+    "commands": [
+      {
+        "type": "launch_mass",
+        "kind": "giant",
+        "mass": 1000,
+        "radius": 2,
+        "angle": 0,
+        "speed": 1
+      },
+      {
+        "type": "launch_mass",
+        "kind": "rocky",
+        "mass": 1,
+        "radius": 1.8,
+        "angle": 5.988660995905543,
+        "speed": 1.35
+      }
+    ]
+  },
+  {
+    "id": "opposing-worlds",
+    "name": "When worlds collide",
+    "description": "Counter-orbiting worlds meet head-on. Watch the larger survivor lose orbital momentum and fall inward.",
+    "version": 3,
+    "config": {
+      "seed": 42,
+      "mission": null,
+      "star_mass": 1
+    },
+    "commands": [
+      {
+        "type": "launch_mass",
+        "kind": "rocky",
+        "mass": 3,
+        "radius": 1,
+        "angle": 0,
+        "speed": 1
+      },
+      {
+        "type": "launch_mass",
+        "kind": "ice",
+        "mass": 3,
+        "radius": 1,
+        "angle": 3.141592653589793,
+        "speed": -1
+      }
+    ]
+  },
+  {
+    "id": "moon-family",
+    "name": "A family of moons",
+    "description": "A giant with prograde and retrograde satellites. Double tap the giant to inspect its moons.",
+    "version": 3,
+    "config": {
+      "seed": 719,
+      "mission": null,
+      "star_mass": 1
+    },
+    "commands": [
+      {
+        "type": "generate",
+        "style": "moons",
+        "count": 6,
+        "chaos": 0.7
+      }
+    ]
+  },
+  {
+    "id": "resonant-pair",
+    "name": "Two worlds, one rhythm",
+    "description": "Two giants exchange angular momentum near 2:1. Run for 20 years and watch the resonant angle librate.",
+    "version": 3,
+    "config": {
+      "seed": 42,
+      "mission": null,
+      "star_mass": 1
+    },
+    "commands": [
+      {
+        "type": "launch_mass",
+        "kind": "giant",
+        "mass": 318,
+        "radius": 1,
+        "angle": 3.141592653589793,
+        "speed": 0.9746794344808963
+      },
+      {
+        "type": "launch_mass",
+        "kind": "giant",
+        "mass": 318,
+        "radius": 1.5,
+        "angle": 1.5707963267948966,
+        "speed": 1
+      }
+    ]
+  },
+  {
+    "id": "resonance-capture",
+    "name": "A resonance takes shape",
+    "description": "A gas disk nudges the outer giant inward. Over about 60 years the pair enters a 2:1 resonance.",
+    "version": 3,
+    "config": {
+      "seed": 42,
+      "mission": null,
+      "star_mass": 1
+    },
+    "commands": [
+      {
+        "type": "generate",
+        "style": "resonance",
+        "count": 4,
+        "chaos": 0.5
+      }
+    ]
   }
 ]

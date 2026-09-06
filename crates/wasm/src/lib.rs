@@ -4,6 +4,8 @@ use serde::Serialize;
 #[derive(Serialize)]
 struct Snapshot<'a> {
     rules_version: u32,
+    mission_definition: Option<celestial_sim::Mission>,
+    resonances: &'a [celestial_sim::resonance::Resonance],
     bodies: &'a [Body],
     status: Status,
     events: &'a [Event],
@@ -52,6 +54,8 @@ impl Simulation {
     pub fn snapshot(&self) -> String {
         serde_json::to_string(&Snapshot {
             rules_version: self.world.rules_version,
+            mission_definition: self.world.mission(),
+            resonances: &self.world.resonances,
             bodies: &self.world.bodies,
             status: self.world.status(),
             events: &self.world.events,

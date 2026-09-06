@@ -2,14 +2,17 @@
 use serde::{Deserialize, Serialize};
 use std::f64::consts::TAU;
 pub mod benchmark;
+pub mod generator;
+pub mod resonance;
 pub mod scenarios;
+pub mod sweep;
 
 pub const G: f64 = 39.478_417_604_357_43; // AU, solar masses, years
 pub const EARTH: f64 = 3.003e-6;
 pub const DT: f64 = 1.0 / 512.0;
 pub const MAX_BODIES: usize = 64;
 pub const SOFTENING: f64 = 0.002;
-pub const SAVE_VERSION: u32 = 2;
+pub const SAVE_VERSION: u32 = 3;
 pub const MAX_TICKS: u64 = 512 * 600;
 pub const MAX_WORK_UNITS: u64 = 20_000_000;
 
@@ -70,6 +73,21 @@ impl Kind {
             Self::Giant => (10.0, 1000.0),
             Self::Dust => (0.02, 0.5),
             Self::Star => (0.0, 0.0),
+        }
+    }
+    fn radius_for(self, mass: f64, version: u32) -> f64 {
+        if version < 3 {
+            return self.radius(mass)
+                * if version >= 2 && self != Self::Star {
+                    2.0 / 9.0
+                } else {
+                    1.0
+                };
+        }
+        if self == Self::Star {
+            0.055 * libm::cbrt(mass)
+        } else {
+            0.002 * libm::cbrt(mass / EARTH)
         }
     }
     fn radius(self, mass: f64) -> f64 {
@@ -142,6 +160,7 @@ pub struct Body {
     pub rotation: f64,
     pub mergers: u32,
     pub debris_origin: bool,
+    pub migration_rate: f64,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -164,6 +183,15 @@ impl Default for Config {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Command {
+    Generate {
+        style: generator::SystemStyle,
+        count: u32,
+        chaos: f64,
+    },
+    Migration {
+        id: u32,
+        timescale: f64,
+    },
     LaunchMoon {
         parent: u32,
         kind: Kind,
@@ -243,6 +271,9 @@ pub struct Event {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct World {
     pub rules_version: u32,
+    pub resonances: Vec<resonance::Resonance>,
+    pub disk_momentum: V2,
+    pub disk_angular_momentum: f64,
     pub config: Config,
     pub bodies: Vec<Body>,
     pub tick: u64,
@@ -271,7 +302,7 @@ pub struct Mission {
     pub hold_years: f64,
     pub unlock: &'static str,
 }
-pub const MISSIONS: [Mission; 10] = [
+pub const LEGACY_MISSIONS: [Mission; 10] = [
     Mission { name: "First light", brief: "Keep a planet in a calm orbit for 2 years.", hint: "Launch a rocky world at 1 AU and 100% orbital speed. Press Run.", budget: 8.0, hold_years: 2.0, unlock: "Ice worlds" },
     Mission { name: "A place for life", brief: "Keep a rocky or icy world entirely inside the green zone for 3 years.", hint: "Around a Sun-like star, try 1.1 AU at 100% speed. Green means potential, not guaranteed life.", budget: 12.0, hold_years: 3.0, unlock: "Stellar mass control" },
     Mission { name: "Orbital harmony", brief: "Keep 3 planets in calm orbits together for 5 years.", hint: "Spread worlds across 0.6, 1.2, and 2 AU. Crowded orbits disturb each other.", budget: 15.0, hold_years: 5.0, unlock: "Gas giants" },
@@ -282,6 +313,20 @@ pub const MISSIONS: [Mission; 10] = [
     Mission { name: "The asteroid atelier", brief: "Keep 10 debris bodies in calm orbits for 3 years.", hint: "Seed a belt near 2.5 AU. Watch its members share the orbital plane.", budget: 120.0, hold_years: 3.0, unlock: "Belt discovery" },
     Mission { name: "Celestial clockwork", brief: "Keep 6 planets in calm orbits for 8 years.", hint: "Use 0.5, 0.8, 1.2, 1.8, 2.7, and 4 AU at circular speed.", budget: 125.0, hold_years: 8.0, unlock: "Clockwork discovery" },
     Mission { name: "A system of your own", brief: "Keep 5 calm planets, including a giant and a habitable world, for 10 years.", hint: "Build outward: a warm inner world, a garden near 1 AU, and a distant giant.", budget: 150.0, hold_years: 10.0, unlock: "Master sculptor" },
+];
+/// The first three lessons introduce orbits; the next five form a physical
+/// formation chapter. The final challenges combine the unlocked mechanics.
+pub const MISSIONS: [Mission;10] = [
+ Mission {name:"First light",brief:"Keep a planet in a calm orbit for 2 years.",hint:"Orbital speed balances the star's pull. Start near circular speed and observe the blue orbit outline.",budget:8.0,hold_years:2.0,unlock:"Ice worlds"},
+ Mission {name:"A place for life",brief:"Keep a world entirely inside the habitable band for 3 years.",hint:"Both the closest and farthest point must fit. Adjust speed as well as distance.",budget:12.0,hold_years:3.0,unlock:"Stellar mass control"},
+ Mission {name:"A powerful neighbor",brief:"Keep 3 small worlds calm for 8 years beside the existing giant.",hint:"The giant bends nearby paths. Compare its pull in the inspector and leave room around its whole orbit.",budget:10.0,hold_years:8.0,unlock:"Formation chapter"},
+ Mission {name:"From dust to worlds",brief:"Form 2 calm planets from debris and keep them for 4 years. Only debris can be placed.",hint:"A narrow disk makes encounters likely. Too much speed disorder can destroy the calm orbits you need.",budget:8.0,hold_years:4.0,unlock:"Garden formation"},
+ Mission {name:"A garden from dust",brief:"Form a calm debris-born world while preserving the original garden for 6 years.",hint:"The original garden is World 1. Form another world without swallowing or disturbing it.",budget:8.0,hold_years:6.0,unlock:"Giant sculpting"},
+ Mission {name:"The giant's nursery",brief:"Form 2 calm worlds from debris inside the giant's orbit; keep them for 8 years.",hint:"The outer giant perturbs the nursery. Disk width and disorder decide which fragments collide and which survive.",budget:10.0,hold_years:8.0,unlock:"Gravity assists"},
+ Mission {name:"Borrowed momentum",brief:"Use the giant to eject a world that began on a bound orbit. Launches are capped at 135%; burns are disabled.",hint:"A close flyby can borrow the giant's orbital momentum. Launch just inside its orbit, trailing it, and compare nearby starting angles.",budget:8.0,hold_years:0.0,unlock:"Moon creation"},
+ Mission {name:"A family of moons",brief:"Keep 2 moons bound to the existing giant for 10 years.",hint:"Select World 1 and create moons. Space their orbits apart; compare prograde and retrograde motion.",budget:2.0,hold_years:10.0,unlock:"Resonance observatory"},
+ Mission {name:"Celestial clockwork",brief:"Observe a bounded resonant angle between two worlds, then hold it for 3 years.",hint:"Try two massive worlds with periods near 2:1. A near ratio alone is insufficient: the resonant angle must swing back and forth across many orbits.",budget:1000.0,hold_years:3.0,unlock:"System synthesis"},
+ Mission {name:"A system of your own",brief:"Keep 2 debris-born calm worlds, a potential garden, and a bound moon together for 10 years.",hint:"Combine what you learned: accretion, orbital spacing, a gentle garden and a protected satellite orbit.",budget:1000.0,hold_years:10.0,unlock:"Master sculptor"},
 ];
 
 #[derive(Clone, Copy, Debug, Serialize)]
@@ -342,6 +387,9 @@ pub struct Objective {
 
 impl World {
     pub fn new(config: Config) -> Result<Self, String> {
+        Self::with_rules(config, SAVE_VERSION)
+    }
+    fn with_rules(config: Config, rules_version: u32) -> Result<Self, String> {
         if !config.star_mass.is_finite()
             || !(0.6..=1.5).contains(&config.star_mass)
             || config.mission.is_some_and(|m| m >= MISSIONS.len())
@@ -355,7 +403,7 @@ impl World {
             id: 0,
             kind: Kind::Star,
             mass: config.star_mass,
-            radius: Kind::Star.radius(config.star_mass),
+            radius: Kind::Star.radius_for(config.star_mass, rules_version),
             pos: V2::default(),
             vel: V2::default(),
             spin: 0.0,
@@ -366,9 +414,13 @@ impl World {
             rotation: 0.0,
             mergers: 0,
             debris_origin: false,
+            migration_rate: 0.0,
         };
-        Ok(Self {
-            rules_version: SAVE_VERSION,
+        let mut world = Self {
+            rules_version,
+            resonances: vec![],
+            disk_momentum: V2::default(),
+            disk_angular_momentum: 0.0,
             rng: config.seed.max(1),
             config,
             bodies: vec![star],
@@ -386,7 +438,25 @@ impl World {
             commands: vec![],
             next_id: 1,
             next_event: 1,
-        })
+        };
+        if rules_version >= 3 {
+            match world.config.mission {
+                Some(2) => world.launch_mass(Kind::Giant, 1000.0 * EARTH, 2.5, 0.0, 0.9),
+                Some(4) => world.launch_mass(
+                    Kind::Rocky,
+                    EARTH,
+                    1.1 * libm::pow(world.config.star_mass, 1.75),
+                    0.0,
+                    1.0,
+                ),
+                Some(5) => world.launch_mass(Kind::Giant, 318.0 * EARTH, 3.0, 0.0, 0.95),
+                Some(6) => world.launch_mass(Kind::Giant, 1000.0 * EARTH, 2.0, 0.0, 1.0),
+                Some(7) => world.launch_mass(Kind::Giant, 318.0 * EARTH, 3.0, 0.0, 1.0),
+                _ => {}
+            }
+            world.spent = 0.0;
+        }
+        Ok(world)
     }
     fn random(&mut self) -> f64 {
         let mut x = self.rng;
@@ -397,9 +467,32 @@ impl World {
         x as f64 / u32::MAX as f64
     }
     pub fn budget(&self) -> f64 {
-        self.config.mission.map_or(10_000.0, |m| MISSIONS[m].budget)
+        self.mission().map_or(10_000.0, |m| m.budget)
+    }
+    pub fn mission(&self) -> Option<Mission> {
+        self.config.mission.map(|m| {
+            if self.rules_version < 3 {
+                LEGACY_MISSIONS[m]
+            } else {
+                MISSIONS[m]
+            }
+        })
     }
     pub fn allowed(&self, kind: Kind) -> bool {
+        if self.rules_version >= 3 {
+            if let Some(m) = self.config.mission {
+                return match m {
+                    3..=5 => kind == Kind::Dust,
+                    6 => matches!(kind, Kind::Rocky | Kind::Ice),
+                    7 => false,
+                    8 | 9 => kind != Kind::Star,
+                    _ => {
+                        kind != Kind::Star && (kind == Kind::Rocky || (m >= 1 && kind == Kind::Ice))
+                    }
+                };
+            }
+        }
+
         kind != Kind::Star
             && self.config.mission.is_none_or(|m| match kind {
                 Kind::Ice => m >= 1,
@@ -413,6 +506,49 @@ impl World {
             return Err("This experiment has reached its 2048-action limit".into());
         }
         match command.clone() {
+            Command::Generate {
+                style,
+                count,
+                chaos,
+            } => {
+                if self.rules_version < 3
+                    || self.config.mission.is_some()
+                    || self.bodies.len() != 1
+                    || self.tick != 0
+                {
+                    return Err("Generate a random system from an empty sandbox".into());
+                }
+                let commands = generator::commands(self.config.seed, style, count, chaos)?;
+                let mut generated = self.clone();
+                let previous = generated.commands.len();
+                for command in commands {
+                    generated.apply(command)?;
+                }
+                generated.commands.truncate(previous);
+                *self = generated;
+            }
+
+            Command::Migration { id, timescale } => {
+                if self.rules_version < 3
+                    || self.config.mission.is_some()
+                    || !timescale.is_finite()
+                    || (timescale != 0.0 && !(20.0..=2000.0).contains(&timescale))
+                {
+                    return Err("Disk migration is a sandbox tool: use 20–2000 years, or zero to turn it off".into());
+                }
+                let body = self
+                    .bodies
+                    .iter_mut()
+                    .find(|b| b.id == id && id != 0 && b.parent.is_none())
+                    .ok_or("Select a planet for disk migration")?;
+                body.migration_rate = if timescale == 0.0 {
+                    0.0
+                } else {
+                    1.0 / timescale
+                };
+                self.emit("migration",id,if timescale==0.0{"Disk migration stopped".into()}else{format!("Disk torque: World {id} migrates inward on a {timescale:.0}-year timescale")});
+            }
+
             Command::LaunchMoon {
                 parent,
                 kind,
@@ -450,10 +586,10 @@ impl World {
                 if self.bodies.len() >= MAX_BODIES || self.spent + mass > self.budget() + 1e-8 {
                     return Err("Not enough matter or body capacity for a moon".into());
                 }
-                let d = V2::new(angle.cos(), angle.sin());
+                let d = self.direction(angle);
                 let soft = self.softening();
                 let v = (G * (host.mass + moon_mass) * distance * distance
-                    / (distance * distance + soft * soft).powf(1.5))
+                    / self.pow(distance * distance + soft * soft, 1.5))
                 .sqrt()
                     * speed;
                 self.launch_mass(kind, moon_mass, 1.0, angle, 1.0);
@@ -525,7 +661,11 @@ impl World {
                 tangential,
                 radial,
             } => {
-                if self.config.mission.is_some_and(|m| m < 4) {
+                if self
+                    .config
+                    .mission
+                    .is_some_and(|m| m < 4 || (self.rules_version >= 3 && (m == 6 || m == 7)))
+                {
                     return Err("Orbital nudges unlock with debris tools".into());
                 }
                 if id == 0
@@ -649,6 +789,7 @@ impl World {
             }
         }
         self.held_ticks = 0;
+        self.resonances.clear();
         self.commands.push(RecordedCommand {
             tick: self.tick,
             command,
@@ -666,6 +807,9 @@ impl World {
         if !self.allowed(kind) {
             return Err("That body is not unlocked in this challenge".into());
         }
+        if self.rules_version >= 3 && self.config.mission == Some(6) && speed.abs() > 1.35 {
+            return Err("This challenge caps launch speed at 135%; use the giant's gravity".into());
+        }
         if !radius.is_finite()
             || !(0.25..=6.0).contains(&radius)
             || !angle.is_finite()
@@ -674,6 +818,17 @@ impl World {
             || !(if self.rules_version == 1 { 0.0 } else { -2.2 }..=2.2).contains(&speed)
         {
             return Err("Choose a radius of 0.25–6 AU and speed of 0–220%".into());
+        }
+        if self.rules_version >= 3 && self.config.mission.is_some_and(|m| (3..=5).contains(&m)) {
+            let position = self.bodies[0].pos.plus(self.direction(angle).scale(radius));
+            let contact = self.contact_radius(kind, cost * EARTH);
+            if self
+                .bodies
+                .iter()
+                .any(|b| b.pos.minus(position).norm() < 5.0 * (b.radius + contact))
+            {
+                return Err("Leave room for fragments to meet through orbital motion; overlapping placements do not count as formation".into());
+            }
         }
         if self.bodies.len() >= MAX_BODIES || self.spent + cost > self.budget() + 1e-8 {
             return Err("Not enough matter or body capacity".into());
@@ -685,7 +840,7 @@ impl World {
     }
     fn launch_mass(&mut self, kind: Kind, mass: f64, radius: f64, angle: f64, speed: f64) {
         let star = &self.bodies[0];
-        let direction = V2::new(angle.cos(), angle.sin());
+        let direction = self.direction(angle);
         let v = (G * (star.mass + mass) / radius).sqrt() * speed;
         let body = Body {
             id: self.next_id,
@@ -702,10 +857,39 @@ impl World {
             rotation: 0.0,
             mergers: 0,
             debris_origin: kind == Kind::Dust,
+            migration_rate: 0.0,
         };
         self.next_id += 1;
         self.spent += mass / EARTH;
         self.bodies.push(body);
+    }
+    fn direction(&self, angle: f64) -> V2 {
+        if self.rules_version >= 3 {
+            V2::new(libm::cos(angle), libm::sin(angle))
+        } else {
+            V2::new(angle.cos(), angle.sin())
+        }
+    }
+    fn cbrt(&self, value: f64) -> f64 {
+        if self.rules_version >= 3 {
+            libm::cbrt(value)
+        } else {
+            value.cbrt()
+        }
+    }
+    fn pow(&self, value: f64, power: f64) -> f64 {
+        if self.rules_version >= 3 {
+            libm::pow(value, power)
+        } else {
+            value.powf(power)
+        }
+    }
+    fn atan2(&self, y: f64, x: f64) -> f64 {
+        if self.rules_version >= 3 {
+            libm::atan2(y, x)
+        } else {
+            y.atan2(x)
+        }
     }
     fn softening(&self) -> f64 {
         if self.rules_version == 1 {
@@ -715,18 +899,14 @@ impl World {
         }
     }
     fn contact_radius(&self, kind: Kind, mass: f64) -> f64 {
-        let radius = kind.radius(mass);
-        if self.rules_version >= 2 && kind != Kind::Star {
-            radius * 2.0 / 9.0
-        } else {
-            radius
-        }
+        kind.radius_for(mass, self.rules_version)
     }
     pub fn hill_radius(&self, body: &Body) -> f64 {
-        self.orbit(body).periapsis * (body.mass / (3.0 * self.bodies[0].mass)).cbrt()
+        self.orbit(body).periapsis * self.cbrt(body.mass / (3.0 * self.bodies[0].mass))
     }
     pub fn moon_orbit(&self, body: &Body) -> Option<Orbit> {
-        let parent = self.bodies.iter().find(|b| Some(b.id) == body.parent)?;
+        let id = body.parent?;
+        let parent = self.bodies.iter().find(|b| b.id == id)?;
         let orbit = self.orbit_around(body, parent);
         (orbit.bound && orbit.distance < self.hill_radius(parent)).then_some(orbit)
     }
@@ -764,9 +944,9 @@ impl World {
         }
         self.work_units += self.tick_work();
         let h = DT / 4.0;
+        self.merge_contacts(0.0);
+        let mut a = self.accelerations();
         for _ in 0..4 {
-            self.merge_contacts(0.0);
-            let a = self.accelerations();
             for (i, b) in self.bodies.iter_mut().enumerate() {
                 b.vel = b.vel.plus(a[i].scale(h / 2.0));
                 b.pos = b.pos.plus(b.vel.scale(h));
@@ -776,12 +956,34 @@ impl World {
                 }
             }
             self.merge_contacts(h);
-            let a = self.accelerations();
+            a = self.accelerations();
             for (i, b) in self.bodies.iter_mut().enumerate() {
                 b.vel = b.vel.plus(a[i].scale(h / 2.0));
             }
+            let star = self.bodies[0].clone();
+            for body in self.bodies.iter_mut().skip(1) {
+                if body.migration_rate == 0.0 {
+                    continue;
+                }
+                let before = body.vel;
+                let r = body.pos.minus(star.pos);
+                let radial = r.scale(1.0 / r.norm());
+                let v = before.minus(star.vel);
+                let projected = v.x * radial.x + v.y * radial.y;
+                body.vel = star
+                    .vel
+                    .plus(v.scale(libm::exp(-h * body.migration_rate / 2.0)))
+                    .minus(
+                        radial
+                            .scale(projected * (1.0 - libm::exp(-h * body.migration_rate * 10.0))),
+                    );
+                let exchange = before.minus(body.vel).scale(body.mass);
+                self.disk_momentum = self.disk_momentum.plus(exchange);
+                self.disk_angular_momentum += body.pos.cross(exchange);
+            }
         }
         self.tick += 1;
+        self.observe_resonances();
         for i in (1..self.bodies.len()).rev() {
             let orbit = self.orbit(&self.bodies[i]);
             if orbit.distance > 8.0 && !orbit.bound {
@@ -799,11 +1001,11 @@ impl World {
         if !self.completed {
             let condition = self.status().condition;
             self.held_ticks = if condition { self.held_ticks + 1 } else { 0 };
-            if self
-                .config
-                .mission
-                .is_some_and(|m| condition && self.held_ticks as f64 * DT >= MISSIONS[m].hold_years)
-            {
+            if self.config.mission.is_some_and(|_| {
+                condition
+                    && self.held_ticks as f64 * DT
+                        >= self.mission().expect("mission exists").hold_years
+            }) {
                 self.completed = true;
                 self.emit(
                     "complete",
@@ -851,6 +1053,8 @@ impl World {
                         let relative_speed = a.vel.minus(b.vel).norm();
                         let dissipated_energy =
                             0.5 * a.mass * b.mass / mass * relative_speed.powi(2);
+                        a.migration_rate =
+                            (a.migration_rate * a.mass + b.migration_rate * b.mass) / mass;
                         a.material = a.material.plus(b.material);
                         a.mergers += b.mergers + 1;
                         a.debris_origin &= b.debris_origin;
@@ -872,13 +1076,15 @@ impl World {
                             }
                         } else if a.kind != Kind::Star {
                             a.kind = a.material.kind(mass);
+                            if self.rules_version >= 3 && a.kind == Kind::Dust && !a.debris_origin {
+                                a.kind = if a.material.ice / mass >= 0.35 {
+                                    Kind::Ice
+                                } else {
+                                    Kind::Rocky
+                                };
+                            }
                         }
-                        a.radius = a.kind.radius(mass)
-                            * if self.rules_version >= 2 && a.kind != Kind::Star {
-                                2.0 / 9.0
-                            } else {
-                                1.0
-                            };
+                        a.radius = a.kind.radius_for(mass, self.rules_version);
                         let id = a.id;
                         let position = a.pos;
                         let radius_after = a.radius;
@@ -928,7 +1134,7 @@ impl World {
         }
     }
     pub fn zone(&self) -> (f64, f64) {
-        let scale = self.bodies[0].mass.powf(1.75);
+        let scale = self.pow(self.bodies[0].mass, 1.75);
         (0.85 * scale, 1.55 * scale)
     }
     pub fn orbit(&self, body: &Body) -> Orbit {
@@ -967,9 +1173,9 @@ impl World {
             .minus(v.scale((r.x * v.x + r.y * v.y) / mu));
         Orbit {
             periapsis_angle: if eccentricity > 1e-8 {
-                e_vector.y.atan2(e_vector.x)
+                self.atan2(e_vector.y, e_vector.x)
             } else {
-                r.y.atan2(r.x)
+                self.atan2(r.y, r.x)
             },
             period_years: bound.then(|| TAU * (axis.powi(3) / mu).sqrt()),
             distance,
@@ -1062,11 +1268,69 @@ impl World {
                 ],
                 _ => [None; 3],
             };
+            if self.rules_version >= 3 {
+                let garden = self
+                    .bodies
+                    .iter()
+                    .any(|b| b.id == 1 && b.mergers == 0 && self.orbit(b).habitable);
+                let inner_formed = self
+                    .bodies
+                    .iter()
+                    .filter(|b| {
+                        b.debris_origin
+                            && b.kind != Kind::Dust
+                            && self.orbit(b).calm
+                            && self.bodies.iter().any(|g| {
+                                g.kind == Kind::Giant
+                                    && self.orbit(b).apoapsis < self.orbit(g).periapsis
+                            })
+                    })
+                    .count();
+                s.objectives = match m {
+                    2 => [goal("Calm small worlds", s.calm - s.giants, 3), None, None],
+                    3 => [goal("Calm worlds from debris", s.formed, 2), None, None],
+                    4 => [
+                        goal("Calm worlds from debris", s.formed, 1),
+                        goal("Original garden preserved", usize::from(garden), 1),
+                        None,
+                    ],
+                    5 => [
+                        goal("Calm inner worlds from debris", inner_formed, 2),
+                        goal("Giant survives", s.giants, 1),
+                        None,
+                    ],
+                    6 => [
+                        goal(
+                            "Initially bound worlds ejected",
+                            self.assisted_ejections as usize,
+                            1,
+                        ),
+                        None,
+                        None,
+                    ],
+                    7 => [goal("Bound moons", s.moons, 2), None, None],
+                    8 => [
+                        goal(
+                            "Librating resonant pairs",
+                            self.resonances.iter().filter(|r| r.librating).count(),
+                            1,
+                        ),
+                        None,
+                        None,
+                    ],
+                    9 => [
+                        goal("Calm worlds from debris", s.formed, 2),
+                        goal("Potential gardens", s.habitable, 1),
+                        goal("Bound moons", s.moons, 1),
+                    ],
+                    _ => s.objectives,
+                };
+            }
             s.condition = s.objectives.iter().flatten().all(|g| g.current >= g.target);
             s.progress = if self.completed {
                 1.0
-            } else if MISSIONS[m].hold_years > 0.0 {
-                (s.held_years / MISSIONS[m].hold_years).min(1.0)
+            } else if self.mission().expect("mission exists").hold_years > 0.0 {
+                (s.held_years / self.mission().expect("mission exists").hold_years).min(1.0)
             } else {
                 f64::from(s.condition)
             };
@@ -1139,8 +1403,7 @@ impl World {
         {
             return Err("Unsupported or oversized experiment".into());
         }
-        let mut world = Self::new(replay.config)?;
-        world.rules_version = replay.version;
+        let mut world = Self::with_rules(replay.config, replay.version)?;
         for action in replay.commands {
             if action.tick < world.tick || action.tick > replay.end_tick {
                 return Err("Commands must be ordered inside the experiment".into());
