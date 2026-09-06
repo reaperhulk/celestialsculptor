@@ -25,20 +25,26 @@ fn js_error(e: impl ToString) -> JsValue {
 impl Simulation {
     #[wasm_bindgen(constructor)]
     pub fn new(config: &str) -> Result<Simulation, JsValue> {
+        if config.len() > 1024 {
+            return Err(js_error("Configuration exceeds 1 KB"));
+        }
         let config: Config = serde_json::from_str(config).map_err(js_error)?;
         Ok(Self {
             world: World::new(config).map_err(js_error)?,
         })
     }
     pub fn command(&mut self, command: &str) -> Result<(), JsValue> {
+        if command.len() > 2048 {
+            return Err(js_error("Command exceeds 2 KB"));
+        }
         let command: Command = serde_json::from_str(command).map_err(js_error)?;
         self.world.apply(command).map_err(js_error)
     }
-    pub fn advance(&mut self, ticks: u32) -> Result<(), JsValue> {
-        if ticks > 512 {
-            return Err(js_error("A batch is limited to 512 ticks"));
+    pub fn advance(&mut self, ticks: f64) -> Result<(), JsValue> {
+        if !ticks.is_finite() || ticks.fract() != 0.0 || !(0.0..=512.0).contains(&ticks) {
+            return Err(js_error("Use a whole number of ticks from 0 to 512"));
         }
-        self.world.advance(ticks);
+        self.world.advance(ticks as u32);
         Ok(())
     }
     pub fn snapshot(&self) -> String {

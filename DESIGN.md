@@ -736,6 +736,12 @@ Review needs: The contributor guide lagged behind the three-browser pipeline and
 Implemented: Record dirty-source provenance in builds/reports and update architecture, replay limits, test layers, artifacts, deployment and rollback instructions.
 Validation: Fresh build, metadata/static checks and portable-report tests pass with the updated provenance fields.
 
+### 99 — Validate JavaScript numeric and payload boundaries before simulation work
+
+Review needs: The generated u32 bridge silently truncated fractional and nonfinite tick values, while configuration and command JSON lacked their own small input caps.
+Implemented: Validate finite integral tick counts explicitly and bound configuration/command payloads before parsing.
+Validation: The complete headless verification passes, including atomic rejection of negative, fractional, nonfinite and oversized inputs through actual WASM.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;

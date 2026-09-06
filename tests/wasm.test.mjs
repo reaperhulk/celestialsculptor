@@ -47,3 +47,11 @@ test('disk creation crosses the real WASM command boundary and evolves finite st
  for(const b of state.bodies)assert.ok(Number.isFinite(b.pos.x)&&Number.isFinite(b.vel.y));
  assert.equal(JSON.parse(sim.export_replay()).commands[0].command.type,'seed_disk');sim.free();
 });
+test('the WASM boundary rejects fractional nonfinite and oversized arguments atomically',()=>{
+ const config=JSON.stringify({seed:42,mission:null,star_mass:1}),sim=new Simulation(config),before=sim.snapshot();
+ try{
+  for(const ticks of [-1,.5,NaN,Infinity,513]){assert.throws(()=>sim.advance(ticks));assert.equal(sim.snapshot(),before);}
+  assert.throws(()=>new Simulation(config+' '.repeat(1024)));assert.throws(()=>sim.command(' '.repeat(2049)));assert.equal(sim.snapshot(),before);
+  sim.advance(0);assert.equal(sim.snapshot(),before);sim.advance(1);assert.equal(JSON.parse(sim.snapshot()).tick,1);
+ }finally{sim.free();}
+});
