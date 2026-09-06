@@ -182,6 +182,11 @@ for(const id of ['radius','speed'])$(id+'-range').oninput=()=>{$(id).value=$(id+
 $('play').onclick=()=>action('play',{value:!state?.playing});$('step').onclick=()=>action('step');$('rewind').onclick=()=>action('rewind');
 $('time-speed').onchange=()=>action('speed',{value:Number($('time-speed').value)});
 $('view').onclick=()=>{if(renderer){renderer.tilt=renderer.tilt===1?.62:1;$('view').textContent=renderer.tilt===1?'Tilt view':'Top view';}};
+$('display').onclick=()=>$('display-dialog').showModal();$('close-display').onclick=()=>$('display-dialog').close();
+for(const [id,key] of [['show-grid','showGrid'],['show-trails','showTrails'],['show-preview','showPreview'],['reduce-motion','reduceMotion']])$(id).onchange=()=>{if(renderer)renderer[key]=$(id).checked;};
+$('reduce-motion').checked=matchMedia('(prefers-reduced-motion: reduce)').matches;
+if(renderer)renderer.reduceMotion=$('reduce-motion').checked;
+$('reset-view').onclick=()=>{if(renderer){renderer.zoom=3.5;renderer.tilt=.62;$('view').textContent='Top view';}};
 $('zoom-in').onclick=()=>{if(renderer)renderer.zoom=Math.max(1,renderer.zoom*.8);};$('zoom-out').onclick=()=>{if(renderer)renderer.zoom=Math.min(9,renderer.zoom/ .8);};
 for(const button of document.querySelectorAll('[data-panel]'))if(button.tagName==='BUTTON')button.onclick=()=>{document.body.dataset.panel=button.dataset.panel;for(const other of document.querySelectorAll('.mobile-tabs button'))other.classList.toggle('active',other===button);};
 $('help').onclick=()=>$('help-dialog').showModal();for(const button of document.querySelectorAll('.dialog-close'))button.onclick=()=>$('help-dialog').close();

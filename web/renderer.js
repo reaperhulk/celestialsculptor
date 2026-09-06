@@ -87,7 +87,7 @@ export class Renderer {
   constructor(canvas, onError = () => {}) {
     this.canvas=canvas; this.onError=onError; this.zoom=3.5; this.tilt=.62;
     this.trails=new Map(); this.lastTick=-1; this.selected=null; this.showGrid=true;
-    this.showTrails=true; this.state=null; this.draft=null; this.lost=false;
+    this.showTrails=true; this.showPreview=true; this.reduceMotion=false; this.state=null; this.draft=null; this.lost=false;
     const gl=canvas.getContext('webgl2',{alpha:false,antialias:false,powerPreference:'high-performance'});
     if(!gl) throw new Error('WebGL 2 is unavailable. Enable hardware acceleration or try another browser.');
     this.gl=gl; this.init();
@@ -137,6 +137,7 @@ export class Renderer {
     gl.uniform1f(gl.getUniformLocation(program,'u_dpr'),this.dpr);gl.uniform1f(gl.getUniformLocation(program,'u_time'),time);
   }
   draw(time){
+    if(this.reduceMotion)time=0;
     if(this.lost || !this.state)return;
     const gl=this.gl,canvas=this.canvas,r=canvas.getBoundingClientRect();this.dpr=Math.min(devicePixelRatio||1,2);
     const width=Math.max(1,Math.round(r.width*this.dpr)),height=Math.max(1,Math.round(r.height*this.dpr));
@@ -154,7 +155,7 @@ export class Renderer {
         lines.push(...trail[i-1],...c,i/trail.length*.4,...trail[i],...c,i/trail.length*.4);
       }
     }
-    if(this.draft){
+    if(this.draft&&this.showPreview){
       const path=launchPath(this.draft.radius,this.draft.angle,this.draft.speed);
       for(let i=1;i<path.length;i++)if(i%4<2){
         for(const p of [path[i-1],path[i]])lines.push(p[0]+star.pos.x,p[1]+star.pos.y,.94,.76,.4,.5);
@@ -169,7 +170,7 @@ export class Renderer {
       const size=b.kind==='star'?116:b.kind==='dust'?8:b.kind==='giant'?41:25+Math.min(8,Math.cbrt(b.mass/3e-6));
       points.push(b.pos.x,b.pos.y,size,...c,KINDS[b.kind],Number(this.selected===b.id));
     }
-    if(this.draft)points.push(star.pos.x+this.draft.radius*Math.cos(this.draft.angle),star.pos.y+this.draft.radius*Math.sin(this.draft.angle),25,.96,.76,.4,1,1);
+    if(this.draft&&this.showPreview)points.push(star.pos.x+this.draft.radius*Math.cos(this.draft.angle),star.pos.y+this.draft.radius*Math.sin(this.draft.angle),25,.96,.76,.4,1,1);
     this.uniforms(this.points,time);gl.bindVertexArray(this.pointVAO);gl.bindBuffer(gl.ARRAY_BUFFER,this.pointBuffer);
     gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(points),gl.DYNAMIC_DRAW);gl.drawArrays(gl.POINTS,0,points.length/8);
   }

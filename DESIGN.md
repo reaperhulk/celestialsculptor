@@ -213,6 +213,12 @@ Orbital period is computed in Rust, with independent Kepler-law regression tests
 Validation: 19 native tests and WASM parity pass; production web contracts pass.
 The Pages release from iteration 13 passed its public revision and asset checks.
 
+### 17 — Add view controls and reduced decorative motion
+
+Review needs: Let players declutter dense systems, hide predictive guides, and honor reduced-motion preferences.
+Implemented: Grid, trails, preview and decorative-motion controls, a camera reset, and an explanation of the two-body preview assumption.
+Validation: Production build and static DOM/module checks pass; controls only affect presentation.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
