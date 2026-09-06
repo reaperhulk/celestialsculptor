@@ -298,8 +298,7 @@ impl World {
                 if id == 0
                     || !tangential.is_finite()
                     || !radial.is_finite()
-                    || tangential.abs() > 0.25
-                    || radial.abs() > 0.25
+                    || tangential * tangential + radial * radial > 0.25 * 0.25
                     || tangential.abs() + radial.abs() < 1e-12
                 {
                     return Err("Nudge a world by up to 25% of local circular speed".into());

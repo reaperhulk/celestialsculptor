@@ -61,3 +61,22 @@ fn invalid_nudges_are_atomic_and_cannot_target_the_star() {
         assert_eq!(w, before);
     }
 }
+#[test]
+fn combined_nudge_components_respect_the_total_impulse_limit() {
+    let mut w = world();
+    let before = w.clone();
+    assert!(w
+        .apply(Command::Nudge {
+            id: 1,
+            tangential: 0.25,
+            radial: 0.25
+        })
+        .is_err());
+    assert_eq!(w, before);
+    w.apply(Command::Nudge {
+        id: 1,
+        tangential: 0.1,
+        radial: 0.1,
+    })
+    .unwrap();
+}

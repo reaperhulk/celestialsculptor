@@ -35,3 +35,10 @@ test('help and challenge map work with keyboard dismissal',async({page})=>{
  await expect(page.locator('#help-dialog')).toBeHidden();await page.locator('#campaign').click();
  await expect(page.locator('.mission-choice')).toHaveCount(10);await expect(page.locator('.mission-choice').nth(1)).toBeDisabled();
 });
+test('an inspected world can be nudged and the edit undone',async({page})=>{
+ await page.locator('#sandbox').click();await page.locator('#launch').click();
+ await page.locator('#inspect-body').selectOption('1');
+ await page.locator('[data-nudge="tangential"][data-amount="0.1"]').click();
+ await expect(page.locator('#inspector')).toContainText('e = 0.210');
+ await page.locator('#undo').click();await expect(page.locator('#inspector')).toContainText('e = 0.000');
+});

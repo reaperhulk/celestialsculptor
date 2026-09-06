@@ -65,6 +65,7 @@ function inspect(){
     for(const b of state?.bodies||[]){const option=document.createElement('option');option.value=String(b.id);option.textContent=b.id===0?'The star':`World ${b.id} · ${b.kind}`;$('inspect-body').append(option);}
   }
   const body=state?.bodies.find(b=>b.id===renderer?.selected);
+  $('nudge-controls').hidden=!body||body.id===0||(mission!==null&&mission<4);
   const p=$('inspector');
   p.replaceChildren();const label=document.createElement('span');label.className='eyebrow';label.textContent='OBSERVATION';p.append(label);
   const text=document.createElement('p');
@@ -79,6 +80,7 @@ function inspect(){
   if(body)$('inspect-body').value=String(body.id);
 }
 $('inspect-body').onchange=()=>{if(renderer)renderer.selected=Number($('inspect-body').value);inspect();};
+for(const button of document.querySelectorAll('[data-nudge]'))button.onclick=()=>{const command={type:'nudge',id:renderer?.selected,tangential:0,radial:0};command[button.dataset.nudge]=Number(button.dataset.amount);action('command',{command});};
 let lastUI=0,lastEventSignature='',lastObjectives='';
 function renderState(next){
   const present=shouldPresent(state,next,lastUI,performance.now());

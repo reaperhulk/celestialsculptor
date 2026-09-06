@@ -333,6 +333,12 @@ Review needs: Players could only add bodies after starting a run; rescuing or de
 Implemented: Validated radial/tangential velocity nudges costing one matter, advanced-tool unlocks, body-target checks, motion-direction handling, and journal/replay support.
 Validation: Velocity, mass, position, replay, invalid-target and atomicity regressions pass with native and WASM suites.
 
+### 37 — Let players rescue or destabilize inspected orbits
+
+Review needs: Orbital nudges need clear player controls, and simultaneous radial/tangential components should respect the advertised total impulse limit.
+Implemented: Contextual speed/inward/outward nudge controls, one-matter cost labels, total-vector impulse validation, and generalized edit undo wording.
+Validation: Impulse-boundary native tests pass; browser coverage now nudges a real world and undoes the edit; production and Node checks pass.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
