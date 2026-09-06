@@ -1,8 +1,14 @@
 use celestial_sim::{scenarios, Replay, World};
-use std::{env, fs, process};
+use std::{env, fs, io::Read, process};
+const USAGE: &str = "Usage: sculptor [verify|fixtures|bench|replay FILE|help]";
 fn run() -> Result<(), String> {
     let args: Vec<_> = env::args().collect();
-    match args.get(1).map(String::as_str).unwrap_or("verify") {
+    let command = args.get(1).map(String::as_str).unwrap_or("verify");
+    if args.len() > if command == "replay" { 3 } else { 2 } {
+        return Err(USAGE.into());
+    }
+    match command {
+        "help" | "--help" | "-h" => println!("{USAGE}\nReplay reconstructs an exported experiment without a browser. Verify checks every campaign fixture."),
         "verify" | "fixtures" => {
             let mut output = vec![];
             for scenario in scenarios::campaign() {
@@ -39,7 +45,8 @@ fn run() -> Result<(), String> {
             let path = args
                 .get(2)
                 .ok_or("Usage: sculptor replay experiment.json")?;
-            let content = fs::read_to_string(path).map_err(|e| e.to_string())?;
+            let mut content = String::new();
+            fs::File::open(path).map_err(|e| e.to_string())?.take(512_001).read_to_string(&mut content).map_err(|e| e.to_string())?;
             if content.len() > 512_000 {
                 return Err("Replay exceeds 512 KB".into());
             }
@@ -50,7 +57,7 @@ fn run() -> Result<(), String> {
                 serde_json::json!({"bodies": w.bodies, "status": w.status(), "events": w.events})
             );
         }
-        _ => return Err("Usage: sculptor [verify|fixtures|bench|replay FILE]".into()),
+        _ => return Err(USAGE.into()),
     }
     Ok(())
 }

@@ -417,6 +417,12 @@ Review needs: Verified recipe data needed a discoverable in-game entry point and
 Implemented: Add a sandbox recipe picker that imports ordinary editable commands, preserves the chosen seed, confirms replacement, and autosaves.
 Validation: Build and DOM checks pass; a real-browser recipe selection regression joins the seven-viewport CI suite.
 
+### 51 — Bound command-line replay reads and clarify invocation errors
+
+Review needs: The headless CLI read an entire file before enforcing its size limit and silently ignored extra arguments.
+Implemented: Limit reads to one byte beyond the import cap, reject ambiguous arguments, and provide discoverable help.
+Validation: Process-level CLI tests verify help, exit failures, missing and extra arguments, oversized files and malformed replays.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
