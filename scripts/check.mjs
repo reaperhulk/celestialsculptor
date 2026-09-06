@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {assetManifest} from './integrity.mjs';
 import {localReferences} from './references.mjs';
 import {verifyToolchainContracts} from './contracts.mjs';
+import {verifyStyleTokens} from './style-contracts.mjs';
 import {resolve,dirname} from 'node:path';
 for(const name of await readdir('web'))if(name.endsWith('.js')){
   const r=spawnSync(process.execPath,['--check',`web/${name}`],{stdio:'inherit'});
@@ -30,3 +31,5 @@ for(const name of await readdir('web')){
 }
 
 await verifyToolchainContracts();
+
+verifyStyleTokens(await readFile('web/style.css','utf8'));

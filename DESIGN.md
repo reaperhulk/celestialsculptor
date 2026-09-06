@@ -657,6 +657,12 @@ Review needs: Actual CI screenshots showed a narrow toast obscuring the phone pl
 Implemented: Anchor notifications inside the orbital scene, allow a readable width, keep pointer input available, and wait for transient notices before review screenshots.
 Validation: Fresh build and static checks pass; a browser regression checks notification placement against the actual scene bounds.
 
+### 91 — Catch undefined design tokens before they silently lose styling
+
+Review needs: The recipe heading referenced an undefined gold token, silently falling back to ordinary text color.
+Implemented: Use the established amber token and add a stylesheet contract that catches missing custom properties while allowing explicit fallbacks.
+Validation: Token regression tests and the full static build contract pass.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
