@@ -16,5 +16,5 @@ await mkdir('dist/pkg', { recursive: true });
 await cp('web', 'dist', { recursive: true });
 run('wasm-bindgen', ['target/wasm32-unknown-unknown/release/celestial_wasm.wasm', '--target', 'web', '--out-dir', 'dist/pkg', '--out-name', 'celestial_wasm']);
 await writeFile('dist/.nojekyll', '');
-await writeFile('dist/build-info.json',JSON.stringify({revision:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),saveVersion:1,assets:await assetManifest('dist')}));
+await writeFile('dist/build-info.json',JSON.stringify({revision:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),saveVersion:1,dirty:execFileSync('git',['status','--porcelain','--untracked-files=no'],{encoding:'utf8'}).trim()!=='',assets:await assetManifest('dist')}));
 console.log('Built static WebAssembly application in dist/');

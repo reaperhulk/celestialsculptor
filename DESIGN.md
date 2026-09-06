@@ -53,6 +53,37 @@ scaled zone, without simulating atmospheres or life. Fixed steps limit close-pas
 accuracy; tests and explicit limits constrain the supported range. Native and
 WASM results are tolerance-compared, not assumed bit-identical across platforms.
 
+## Current implementation decisions
+
+The shipped foundation uses small exact pairwise systems (64 bodies maximum),
+not a heavyweight game engine. Rust keeps physics, mission predicates and replay
+validation in one native-testable implementation; a thin WASM bridge puts that
+same code in the worker. DOM controls provide accessible forms, dialogs and a
+body inspector. WebGL 2 draws the tilted plane, procedural bodies, trails and
+analytic launch previews. A missing GPU does not prevent form-driven experiments.
+
+Players can launch four body kinds, seed belts or configurable disks, apply
+budgeted radial/tangential burns, adjust stellar mass and seed, inspect orbital
+periods and extrema, and undo or rewind. Ten sequential discoveries coexist with
+an always-open sandbox and four editable starting points. Outcomes and saves are
+local. Backups and bug reports are portable, importable, and directly reproducible
+with the native CLI. Matter is a gameplay budget; burns are external interventions
+and are excluded from conservation claims across edits.
+
+A replay is versioned configuration plus ordered tick-stamped commands. Version 1
+supports 2,048 edits, 600 years and 20 million pair-tick work units. Reconstruction
+never trusts serialized scores or body state. Exact reproduction is scoped to the
+same executable; cross-target comparisons use tolerances. Future physics changes
+must explicitly consider saved-replay compatibility rather than silently promising
+that chaotic trajectories survive engine changes.
+
+Tests use analytic invariants, real measured orbital returns, stateful generated
+histories, winning and losing fixtures, actual WASM parity and bounded memory/work
+checks. Browser screenshots supplement these tests and are reviewed as release
+artifacts. CI pins toolchains/actions, uploads one tested artifact, and verifies
+its public byte hashes after Pages deployment. Timing is reported, while payload
+size and correctness are deterministic gates.
+
 ## Iteration log
 
 ### 01 — Authoritative simulation foundation
@@ -698,6 +729,12 @@ Validation: Budget boundary tests pass; the current release is approximately 383
 Review needs: Reviewing a successful build required piecing together its revision, toolchain, content and payload from several logs.
 Implemented: Generate a release inventory from the actual WASM mission catalog and built assets, publish it as an artifact, and summarize it in Actions.
 Validation: The report command lists the current tested-build metadata, ten challenges, four recipes and verified payload sizes.
+
+### 98 — Document the complete release runbook and distinguish dirty local builds
+
+Review needs: The contributor guide lagged behind the three-browser pipeline and local build reports could be mistaken for exact committed releases.
+Implemented: Record dirty-source provenance in builds/reports and update architecture, replay limits, test layers, artifacts, deployment and rollback instructions.
+Validation: Fresh build, metadata/static checks and portable-report tests pass with the updated provenance fields.
 
 ## Next review targets
 
