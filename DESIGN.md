@@ -74,6 +74,15 @@ Implemented: 600-year experiment cap, explicit exhausted status, exact float JSO
 round trips, and replay / atomic belt / seeded RNG / property regression coverage.
 Validation: 11 native tests, including 64 generated replay cases, pass.
 
+### 03 — Executable campaign and agent CLI
+
+Review needs: prove each mission is achievable through real player commands;
+prevent empty systems from winning; expose tests and replays without a browser.
+Implemented: 20 checked-in winning/losing campaign fixtures, continuous-hold and
+budget/unlock tests, whole-orbit habitability test, and JSON-emitting `sculptor`
+CLI (`verify`, `fixtures`, `replay FILE`). Fixtures are shared with future WASM tests.
+Validation: all campaign fixtures and 15 native tests pass in release mode.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
