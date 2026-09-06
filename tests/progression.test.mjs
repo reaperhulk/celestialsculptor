@@ -13,6 +13,12 @@ test('all ten missions unlock in order with idempotent awards',()=>{
 test('corrupt and unavailable storage do not prevent play',()=>{
  assert.deepEqual(readProfile({getItem(){throw Error('denied');}}),{version:1,completed:[]});
  assert.equal(writeProfile({setItem(){throw Error('quota');}},{}),false);
- assert.deepEqual(normalizeProfile({version:1,completed:[9,9,-1,'0',null]}),{version:1,completed:[9]});
+ assert.deepEqual(normalizeProfile({version:1,completed:[9,9,-1,'0',null]}),{version:1,completed:[]});
  assert.equal(canPlay(normalizeProfile({version:1,completed:[9]}),1),false);
+});
+test('corrupt completion gaps retain only a valid campaign prefix',()=>{
+ for(const [input,expected] of [[[0,2],[0]],[[0,1,3],[0,1]],[[9,0,1,1],[0,1]],[[2,1,0],[0,1,2]]]){
+  assert.deepEqual(normalizeProfile({version:1,completed:input}).completed,expected);
+ }
+ assert.deepEqual(readProfile({getItem:()=> ' '.repeat(4097)}).completed,[]);
 });

@@ -309,6 +309,12 @@ Review needs: The new disk simulation needs understandable controls and a clear 
 Implemented: An unlocked disk-formation panel with center, width, fragment count, cost, and speed-disorder controls, plus real-WASM command-boundary coverage.
 Validation: The new disk bridge test, complete Node suite, web build, and DOM contracts pass.
 
+### 33 — Repair malformed campaign progress conservatively
+
+Review needs: A corrupted profile could display later discoveries without their prerequisites, and oversized local profile data had no explicit bound.
+Implemented: Canonical contiguous completion prefixes, bounded profile reads, duplicate cleanup, and preservation of all valid early achievements.
+Validation: Progression, archive compatibility, and corrupt-profile regression tests pass.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
