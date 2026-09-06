@@ -919,3 +919,16 @@ Validation: release 107's other 160 browser checks passed, including native-WASM
 satellite resonance in all three engines and retina FPS/DPR checks. The failure was
 isolated to this duplicate selector in each viewport. The corrected test and the
 satellite-visibility changes run through the unchanged full release gates.
+
+### 110 — Keep unresolved satellites visible on retina displays
+
+Review needs: the corrected satellite-scale screenshots exposed the real tiny
+moons, but their subpixel shaded disks were difficult to pick out against orbit
+lines. Physical proportions should not make moving satellites disappear visually.
+Implemented: unresolved bodies use a minimum six-CSS-pixel sprite with brighter
+simple shading. Resolved planets retain procedural surfaces and mass-based growth;
+physical contact radii, trajectories and all simulation rules are unchanged.
+Validation: reviewed the corrected desktop and DPR-3 phone moon/notebook artifacts.
+The viewport, gesture, history and resonance checks passed apart from the already
+repaired selector. Static artifact checks pass; the final browser run compiles and
+captures this small visibility adjustment with the existing graphics gates.
