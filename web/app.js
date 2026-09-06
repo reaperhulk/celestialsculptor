@@ -4,7 +4,7 @@ import { readProfile, writeProfile, canPlay, nextMission, award, normalizeProfil
 import {deviceStorage,parseReplay,saveExperiment,savedExperiments,archiveExperiment,parseArchive} from './storage.js';
 import {Soundscape} from './audio.js';
 import {shouldPresent} from './presentation.js';
-import {parseSeed} from './conditions.js';
+import {parseSeed,parseLaunchFields} from './conditions.js';
 import {RequestChannel} from './channel.js';
 
 const $=id=>document.getElementById(id);
@@ -21,9 +21,10 @@ const channel=new RequestChannel(message=>worker.postMessage(message));
 function send(type,data={}){return channel.send(type,data);}
 function workerFailed(message){ready=false;channel.close(message);fail(message);}
 function action(type,data={}){return send(type,data).catch(error=>toast(error.message));}
-function draft(){return {kind:$('kind').value,radius:Number($('radius').value),angle:Number($('angle').value)*Math.PI/180,speed:Number($('speed').value)/100};}
+function draft(){return parseLaunchFields({kind:$('kind').value,radius:$('radius').value,angle:$('angle').value,speed:$('speed').value});}
 function updateDraft(){
-  const d=draft();if(renderer)renderer.draft=d;
+  let d;try{d=draft();}catch(error){if(renderer)renderer.draft=null;$('orbit-reading').textContent=error.message;return;}
+  if(renderer)renderer.draft=d;
   $('radius-range').value=String(d.radius);$('speed-range').value=String(d.speed*100);
   $('orbit-reading').textContent=d.speed>Math.SQRT2?'Escape trajectory · a world without a sun':Math.abs(d.speed-1)<.015?'Circular orbit · a quiet beginning':d.speed<.2?'Falling inward · likely stellar impact':'Elliptical orbit · watch the close approach';
 }

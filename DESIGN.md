@@ -369,6 +369,12 @@ Review needs: The common one-AU test did not cover the fastest permitted orbit o
 Implemented: Check barycenter motion against conserved momentum and run circular systems at both stellar-mass and launch-radius limits.
 Validation: Eight physics tests pass, including two-orbit stability at 0.25 and 6 AU and an independently predicted moving barycenter.
 
+### 43 — Hide misleading orbit previews while conditions are invalid
+
+Review needs: Clearing a number field silently converted it to zero, drawing an invalid preview during editing.
+Implemented: Validate launch fields before unit conversion and show the field-specific correction while suppressing invalid geometry.
+Validation: Boundary, empty-field, nonfinite and type tests pass; app syntax checked.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
