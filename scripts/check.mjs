@@ -2,6 +2,8 @@ import { readdir, readFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 import assert from 'node:assert/strict';
 import {assetManifest} from './integrity.mjs';
+import {localReferences} from './references.mjs';
+import {resolve,dirname} from 'node:path';
 for(const name of await readdir('web'))if(name.endsWith('.js')){
   const r=spawnSync(process.execPath,['--check',`web/${name}`],{stdio:'inherit'});
   assert.equal(r.status,0,`Syntax: ${name}`);
@@ -18,3 +20,10 @@ console.log('Web modules, DOM contracts, and built entrypoints verified.');
 
 const build=JSON.parse(await readFile('dist/build-info.json','utf8'));
 assert.deepEqual(await assetManifest('dist'),build.assets,'Built assets differ from their integrity manifest');
+
+for(const name of await readdir('web')){
+ const source=await readFile(`web/${name}`);assert.deepEqual(await readFile(`dist/${name}`),source,`Stale build: ${name}; run npm run build`);
+ if(name.endsWith('.js'))for(const reference of localReferences(source.toString())){
+  const target=resolve(dirname(`dist/${name}`),reference);assert.ok(target.startsWith(resolve('dist')+'/'),`Asset leaves build: ${reference}`);await readFile(target);
+ }
+}

@@ -561,6 +561,12 @@ Review needs: The app changed mission and control state before reset validation,
 Implemented: Build reset configuration transactionally, await authoritative acceptance, and restore current controls on failure.
 Validation: DOM checks pass; a browser regression submits an invalid stellar mass, verifies control recovery, and then successfully places a world.
 
+### 75 — Catch stale builds and missing module dependencies before browser tests
+
+Review needs: Syntax and entrypoint checks could pass while a newly imported module was absent or dist still contained older source files.
+Implemented: Verify every source asset matches the build and resolve literal module, worker and fetched-data references inside the artifact.
+Validation: Dependency-reference tests and a fresh complete build pass the strengthened static gate.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
