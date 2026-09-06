@@ -16,6 +16,7 @@ import {goalMessage} from './guidance.js';
 import {diagnosticReport} from './report.js';
 import {diskCommand,diskIssue} from './disk.js';
 import {readViewSettings,writeViewSettings} from './preferences.js';
+import {entry,readNotebook,writeNotebook,compare} from './notebook.js';
 
 const $=id=>document.getElementById(id);
 let state=null, missions=[], mission=0, renderer, selectedBody=null, ready=false, toastTimer;
@@ -123,6 +124,7 @@ function renderState(next){
   if(!next.bodies.some(body=>body.id===selectedBody))selectedBody=null;
   state=next;if(changedMission)setMissionUI();renderer?.setState(next);$('universe').dataset.tick=String(next.tick);
   if(!present)return;lastUI=performance.now();
+  updateHistory();
   const s=next.status,m=next.mission_definition||(mission===null?null:missions[mission]);
   for(const tool of s.tools){const option=[...$('kind').options].find(option=>option.value===tool.kind);if(option)option.disabled=!tool.unlocked;}
   if($('kind').selectedOptions[0]?.disabled){const first=[...$('kind').options].find(o=>!o.disabled);if(first){$('kind').value=first.value;$('body-mass').value=String({rocky:1,ice:2,giant:318,dust:.25}[first.value]);}}
@@ -342,3 +344,44 @@ $('generate').onclick=()=>{$('generate-seed').value=$('seed').value;$('generate-
 $('close-generate').onclick=()=>$('generate-dialog').close();
 $('shuffle-seed').onclick=()=>{$('generate-seed').value=String(crypto.getRandomValues(new Uint32Array(1))[0]);};
 $('generate-form').onsubmit=event=>{event.preventDefault();const seed=parseSeed($('generate-seed').value),command={type:'generate',style:$('generate-style').value,count:Number($('generate-count').value),chaos:Number($('generate-chaos').value)/100},play=$('generate-play').checked;$('generate-dialog').close();confirmReset(async()=>{if(await reset(null,{seed})){await send('command',{command});renderer?.fit();await autosave();if(play)await send('play',{value:true});toast('Your seeded universe is ready. Pan, zoom, follow a world, or intervene.');}});};
+
+let notebookEntries=readNotebook(storage),comparisonIds=[];
+function updateHistory(){
+ if(!state)return;const slider=$('history-tick');slider.max=String(state.timeline_end||0);slider.disabled=!state.timeline_end;
+ if(document.activeElement!==slider)slider.value=String(state.tick);
+ $('history-time').textContent=`Year ${(Number(slider.value)/512).toFixed(2)} of ${((state.timeline_end||0)/512).toFixed(2)}`;
+ $('history-latest').disabled=!state.reviewing||state.tick===state.timeline_end;
+}
+function showNotebook(){
+ $('notebook-list').replaceChildren();comparisonIds=comparisonIds.filter(id=>notebookEntries.some(item=>item.id===id));
+ $('notebook-status').textContent=`${notebookEntries.length} / 12 saved checkpoints. Select two to compare.`;
+ for(const item of [...notebookEntries].reverse()){
+  const card=document.createElement('article');card.className='notebook-entry';card.dataset.entry=item.id;
+  const heading=document.createElement('h3');heading.textContent=item.name;
+  const description=document.createElement('p');description.textContent=`Year ${item.summary.years.toFixed(2)} · ${item.summary.planets} worlds · ${item.summary.moons} moons · ${item.summary.collisions} mergers`;
+  const checkLabel=document.createElement('label');checkLabel.className='check-label';const check=document.createElement('input');check.type='checkbox';check.checked=comparisonIds.includes(item.id);check.setAttribute('aria-label',`Compare ${item.name}`);
+  check.onchange=()=>{if(check.checked){if(comparisonIds.length===2){check.checked=false;$('notebook-status').textContent='Choose two checkpoints. Deselect one to change the comparison.';return;}comparisonIds.push(item.id);}else comparisonIds=comparisonIds.filter(id=>id!==item.id);renderComparison();};checkLabel.append(check,document.createTextNode('Compare'));
+  const actions=document.createElement('div');actions.className='notebook-actions';
+  const open=document.createElement('button');open.textContent='Open / fork';open.onclick=()=>{
+   $('notebook-dialog').close();confirmReset(async()=>{const data=parseReplay(item.replay);if(data.config.mission!==null&&!canPlay(profile,data.config.mission))throw new Error('Complete the earlier challenges before opening this checkpoint.');saveEpoch++;await send('import',{replay:item.replay});renderer?.fit();$('checkpoint-name').value=(item.name+' variation').slice(0,64);await autosave();toast('Checkpoint opened, paused. The saved original stays in your notebook.');});
+  };
+  const save=document.createElement('button');save.textContent='Export';save.onclick=()=>download(item.replay,'celestial-'+(item.name.toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,50)||'checkpoint')+'.json');
+  const remove=document.createElement('button');remove.textContent='Remove';remove.onclick=()=>{try{const next=notebookEntries.filter(value=>value.id!==item.id);writeNotebook(storage,next);notebookEntries=next;showNotebook();}catch(error){$('notebook-status').textContent=error.message;}};
+  actions.append(open,save,remove);card.append(heading,description,checkLabel,actions);$('notebook-list').append(card);
+ }
+ renderComparison();updateHistory();
+}
+function renderComparison(){
+ const selected=comparisonIds.map(id=>notebookEntries.find(item=>item.id===id));$('comparison-wrap').hidden=selected.length!==2;if(selected.length!==2)return;
+ const [a,b]=selected,head=$('comparison').querySelector('thead'),body=$('comparison').querySelector('tbody');head.replaceChildren();body.replaceChildren();const row=document.createElement('tr');
+ for(const title of ['Outcome',a.name,b.name,'Change']){const cell=document.createElement('th');cell.scope='col';cell.textContent=title;row.append(cell);}head.append(row);
+ const number=value=>value.toLocaleString(undefined,{maximumFractionDigits:2});
+ for(const metric of compare(a,b)){const row=document.createElement('tr');for(const [index,value] of [metric.label,number(metric.before),number(metric.after),(metric.change>0?'+':'')+number(metric.change)].entries()){const cell=document.createElement(index===0?'th':'td');if(index===0)cell.scope='row';cell.textContent=value;row.append(cell);}body.append(row);}
+}
+$('notebook').onclick=async()=>{try{await send('play',{value:false});showNotebook();$('notebook-dialog').showModal();}catch(error){toast(error.message);}};
+$('close-notebook').onclick=()=>$('notebook-dialog').close();
+$('checkpoint-form').onsubmit=async event=>{event.preventDefault();$('save-checkpoint').disabled=true;try{await send('play',{value:false});const {replay}=await send('export');const next=[...notebookEntries,entry($('checkpoint-name').value,replay,state)];writeNotebook(storage,next);notebookEntries=next;showNotebook();$('notebook-status').textContent='Checkpoint saved. Open it later to branch without changing this original.';}catch(error){$('notebook-status').textContent=error.message;}finally{$('save-checkpoint').disabled=false;}};
+$('history-tick').oninput=()=>{$('history-time').textContent=`Year ${(Number($('history-tick').value)/512).toFixed(2)} of ${((state?.timeline_end||0)/512).toFixed(2)}`;};
+async function reviewHistory(tick){$('history-tick').disabled=true;try{await send('seek',{tick});$('history-tick').value=String(state.tick);$('history-note').textContent='Reviewing the recorded run. Return to latest to continue it, or run/edit here to start a branch. Save a checkpoint to keep either outcome.';}catch(error){$('notebook-status').textContent=error.message;}finally{updateHistory();}}
+$('history-tick').onchange=()=>reviewHistory(Number($('history-tick').value));
+$('history-latest').onclick=()=>reviewHistory(state.timeline_end);

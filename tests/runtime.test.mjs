@@ -52,3 +52,14 @@ test('invalid elapsed samples and malformed playback requests cannot poison the 
  const before=r.sim.snapshot();for(const elapsed of [NaN,Infinity,-Infinity,-1,0])r.advanceElapsed(elapsed);
  assert.equal(r.sim.snapshot(),before);assert.equal(r.debt,0);r.advanceElapsed(.1);assert.equal(JSON.parse(r.sim.snapshot()).tick,10);r.sim.free();
 });
+test('history review can move backward and forward, then edits create a branch',()=>{
+ const {r,messages}=setup();try{r.sim.advance(512);r.handle({type:'command',command:{type:'launch',kind:'ice',radius:2,angle:1,speed:1}}); // Ice is locked: failure must not damage the history.
+ r.sim.advance(512);const original=r.sim.export_replay();r.handle({type:'seek',tick:100});assert.equal(JSON.parse(r.sim.snapshot()).tick,100);assert.equal(messages.at(-1).timeline_end,1024);
+ r.handle({type:'seek',tick:1024});assert.equal(r.sim.export_replay(),original);
+ r.handle({type:'seek',tick:100});r.handle({type:'command',command:{type:'launch',kind:'rocky',radius:2,angle:1,speed:1}});assert.equal(r.timelineSource,null);assert.equal(JSON.parse(r.sim.export_replay()).end_tick,100);assert.equal(JSON.parse(r.sim.export_replay()).commands.length,2);
+ const before=r.sim.snapshot();r.handle({type:'seek',tick:200});assert.equal(messages.at(-1).type,'error');assert.equal(r.sim.snapshot(),before);
+ }finally{r.sim.free();}
+});
+test('timeline review removes later placements and restores them exactly on return',()=>{
+ const {r,messages}=setup();try{r.handle({type:'reset',config:{...config,mission:null}});r.handle({type:'command',command:{type:'launch',kind:'rocky',radius:1,angle:0,speed:1}});r.sim.advance(512);r.handle({type:'command',command:{type:'launch',kind:'ice',radius:2,angle:1,speed:1}});r.sim.advance(512);const original=r.sim.snapshot();r.handle({type:'seek',tick:100});assert.equal(messages.at(-1).bodies.length,2);r.handle({type:'seek',tick:1024});assert.equal(r.sim.snapshot(),original);r.handle({type:'seek',tick:100});r.handle({type:'play',value:true});r.advanceElapsed(.1);assert.equal(r.timelineSource,null);assert.equal(JSON.parse(r.sim.export_replay()).commands.length,1);}finally{r.sim.free();}
+});

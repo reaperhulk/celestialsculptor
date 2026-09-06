@@ -817,3 +817,19 @@ Disk migration is a prescribed drag/torque model, not a hydrodynamic gas simulat
 The resonance detector is an observational first-order, coplanar, prograde diagnostic;
 it does not prove permanent capture or cover every resonance family. Its resonant
 angle convention follows [celmech's numerical resonance models](https://celmech.readthedocs.io/en/latest/numerical_resonance_models.html).
+
+### 104 — Named experiments, timeline checkpoints and outcome comparisons
+
+Review needs: autosave alone cannot preserve experiments for comparison; players
+need to revisit earlier conditions and try a variation without losing a saved result.
+Implemented: a bounded 12-entry notebook with names, portable replay export, physical
+outcome summaries, two-run comparison tables and explicit open/fork actions. Worker
+history review reconstructs any recorded tick using authoritative commands, retains
+the full source while moving backward/forward, and branches on successful edits or
+resumed playback. Storage quota failures give an export path; imports never trust
+saved summary values for simulation or progress. Notebook controls pause time.
+Validation: actual-WASM history tests verify exact return to the original endpoint,
+removal/restoration of later placements, branch commands and atomic rejection of
+invalid seeks. Notebook tests cover persistence, physical comparisons, corrupt data
+and capacity/storage failures. The browser regression saves, compares, reviews,
+forks and reloads checkpoints through the worker and local storage.

@@ -48,6 +48,10 @@ draw CPU time and simulation throughput. High quality targets 60 fps while runni
 paused scenes use 30 fps, and Battery saver caps rendering at 30. Actual iPhone/iPad
 frame rates must be measured on those devices; CI browser timings are not a substitute.
 
+Use **Experiment notebook & timeline** in Sculpt & inspect to save named checkpoints,
+review an earlier time, fork a saved run and compare outcomes. Running or editing
+from a reviewed time starts a branch; save the original checkpoint first.
+
 ## Build and verify
 
 Install Node 22 or newer and Rust through rustup. The repository pins Rust 1.90.0
