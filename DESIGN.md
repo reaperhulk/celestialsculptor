@@ -483,6 +483,12 @@ Review needs: Node and Chromium parity did not exercise the other major browser 
 Implemented: Add Firefox and WebKit engine projects using real compiled WASM, with all sandbox recipes and exact replay reconstruction.
 Validation: Browser configuration and spec syntax pass locally; the expanded Actions gate installs and runs all three browser engines.
 
+### 62 — Save edits promptly and preserve requests arriving during a save
+
+Review needs: A quick reload could lose the latest edit, and save requests made while an export was pending were dropped.
+Implemented: Debounce successful edits into a 250-ms save and serialize overlapping save work with one coalesced successor.
+Validation: Scheduler tests verify no concurrent writes, bounded coalescing, latest-request preservation and recovery after failure.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;

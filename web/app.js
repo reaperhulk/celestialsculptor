@@ -8,6 +8,7 @@ import {parseSeed,parseLaunchFields,placementIssue} from './conditions.js';
 import {RequestChannel} from './channel.js';
 import {EventCursor} from './events.js';
 import {FrameClock} from './cadence.js';
+import {CoalescedTask} from './coalesce.js';
 import {readViewSettings,writeViewSettings} from './preferences.js';
 
 const $=id=>document.getElementById(id);
@@ -15,14 +16,14 @@ let state=null, missions=[], mission=0, renderer, selectedBody=null, ready=false
 const storage=deviceStorage();
 const viewSettings=readViewSettings(storage,matchMedia('(prefers-reduced-motion: reduce)').matches);
 const sound=new Soundscape();const eventCursor=new EventCursor();
-let profile=readProfile(storage),awardedThisRun=false,saveBusy=false,saveEpoch=0;
+let profile=readProfile(storage),awardedThisRun=false,saveEpoch=0,autosaveTimer;
 
 function toast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,5000);}
 function fail(message){$('loading').hidden=false;$('loading').querySelector('p').textContent=message;$('play').disabled=true;}
 try { renderer=new Renderer($('universe'),toast); } catch(error){fail(error.message+' You can still sculpt, run, inspect and export using the controls.');}
 const worker=new Worker(new URL('./worker.js',import.meta.url),{type:'module'});
 const channel=new RequestChannel(message=>worker.postMessage(message));
-function send(type,data={}){return channel.send(type,data);}
+function send(type,data={}){return channel.send(type,data).then(reply=>{if(['command','undo','rewind','step'].includes(type)){clearTimeout(autosaveTimer);autosaveTimer=setTimeout(autosave,250);}return reply;});}
 function workerFailed(message){ready=false;channel.close(message);fail(message);}
 function action(type,data={}){return send(type,data).catch(error=>toast(error.message));}
 function draft(){return parseLaunchFields({kind:$('kind').value,radius:$('radius').value,angle:$('angle').value,speed:$('speed').value});}
@@ -150,14 +151,16 @@ function confirmReset(callback,onCancel=()=>{}){
   $('confirm-dialog').onclose=()=>{if(!accepted)onCancel();};
   $('confirm-ok').onclick=()=>{accepted=true;$('confirm-dialog').close();callback();};
 }
-async function autosave(){
-  if(!ready||!state||saveBusy)return;
-  saveBusy=true;const epoch=saveEpoch;
+async function saveSnapshot(){
+  if(!ready||!state)return;
+  const epoch=saveEpoch;
   try{
     const {replay}=await send('export');
     if(epoch===saveEpoch)$('save-status').textContent=saveExperiment(storage,replay)?'Saved on this device':'Saving unavailable · export to keep';
-  }catch{$('save-status').textContent='Save pending';}finally{saveBusy=false;}
+  }catch{$('save-status').textContent='Save pending';}
 }
+const saveTask=new CoalescedTask(saveSnapshot);
+function autosave(){return saveTask.run();}
 setInterval(autosave,3000);
 function download(content,name){const url=URL.createObjectURL(new Blob([content],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 $('export').onclick=async()=>{
