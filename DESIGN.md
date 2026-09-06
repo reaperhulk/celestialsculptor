@@ -621,6 +621,12 @@ Review needs: The prior period test checked the diagnostic formula but did not i
 Implemented: Detect interpolated returns across the initial direction for 18 circular and elliptical systems across radii and stellar masses.
 Validation: Measured simulation periods agree with independent Kepler predictions within 0.1 percent in every supported case.
 
+### 85 — Check that repeated dense experiments do not keep growing the WASM heap
+
+Review needs: Correct replay outputs did not establish that repeated resets, imports and freed simulations released their allocations.
+Implemented: Exercise 160 dense simulation lifecycles with actual WASM and compare heap size after allocator warmup.
+Validation: Imports, snapshots, rewinds, undo and free operations remain within one WASM page of the warmed heap size.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
