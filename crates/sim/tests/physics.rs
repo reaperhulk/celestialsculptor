@@ -103,3 +103,51 @@ fn invalid_input_is_atomic() {
         assert_eq!(w, before);
     }
 }
+
+#[test]
+fn reacting_star_preserves_the_barycenter_motion() {
+    let mut w = sandbox();
+    w.apply(Command::Launch {
+        kind: Kind::Giant,
+        radius: 1.0,
+        angle: 0.0,
+        speed: 1.0,
+    })
+    .unwrap();
+    let mass = w.bodies.iter().map(|b| b.mass).sum::<f64>();
+    let center = |world: &World| {
+        world
+            .bodies
+            .iter()
+            .fold(V2::default(), |sum, b| sum.plus(b.pos.scale(b.mass / mass)))
+    };
+    let initial = center(&w);
+    let velocity = w.momentum().scale(1.0 / mass);
+    w.advance(1024);
+    assert!(
+        w.bodies[0].pos.norm() > 1e-5,
+        "the star must react to its planet"
+    );
+    assert!(center(&w).minus(initial.plus(velocity.scale(2.0))).norm() < 1e-13);
+}
+
+#[test]
+fn allowed_radius_and_stellar_mass_extremes_remain_stable() {
+    for star_mass in [0.6, 1.5] {
+        for radius in [0.25_f64, 6.0] {
+            let mut w = World::new(Config {
+                star_mass,
+                mission: None,
+                ..Config::default()
+            })
+            .unwrap();
+            launch(&mut w, radius, 0.0, 1.0);
+            let energy = w.energy();
+            let ticks = (2.0 * (radius.powi(3) / star_mass).sqrt() * 512.0).ceil() as u32;
+            w.advance(ticks);
+            assert_eq!(w.bodies.len(), 2);
+            assert!((w.energy() / energy - 1.0).abs() < 1e-4);
+            assert!((w.orbit(&w.bodies[1]).distance / radius - 1.0).abs() < 0.003);
+        }
+    }
+}

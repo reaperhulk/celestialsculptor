@@ -363,6 +363,12 @@ Review needs: Energy tests alone can miss axis-specific forces or accidental use
 Implemented: Add independent rotation and Galilean-invariance tests for evolving three-planet systems and orbital diagnostics.
 Validation: Native symmetry tests pass after two years in rotated, translated and uniformly moving frames.
 
+### 42 — Verify stellar recoil and stability at the playable extremes
+
+Review needs: The common one-AU test did not cover the fastest permitted orbit or verify that the star actually reacts.
+Implemented: Check barycenter motion against conserved momentum and run circular systems at both stellar-mass and launch-radius limits.
+Validation: Eight physics tests pass, including two-orbit stability at 0.25 and 6 AU and an independently predicted moving barycenter.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
