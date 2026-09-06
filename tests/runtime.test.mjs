@@ -39,3 +39,10 @@ test('worker stepping does not serialize full snapshots for completion polling',
  for(let i=0;i<20;i++)r.advanceElapsed(.016);
  assert.equal(reads,0);assert.equal(r.sim.flags(),0);r.sim.free();
 });
+test('timeline generations change only after successful history replacement',()=>{
+ const {r,messages}=setup();const generation=r.generation;
+ r.handle({type:'import',replay:'broken'});assert.equal(r.generation,generation);
+ r.handle({type:'step'});assert.equal(r.generation,generation);
+ r.handle({type:'rewind'});assert.equal(r.generation,generation+1);
+ assert.equal(messages.at(-1).generation,generation+1);r.sim.free();
+});

@@ -6,11 +6,12 @@ import {Soundscape} from './audio.js';
 import {shouldPresent} from './presentation.js';
 import {parseSeed,parseLaunchFields} from './conditions.js';
 import {RequestChannel} from './channel.js';
+import {EventCursor} from './events.js';
 
 const $=id=>document.getElementById(id);
 let state=null, missions=[], mission=0, renderer, ready=false, toastTimer;
 const storage=deviceStorage();
-const sound=new Soundscape();let heardEvents=new Set();
+const sound=new Soundscape();const eventCursor=new EventCursor();
 let profile=readProfile(storage),awardedThisRun=false,saveBusy=false,saveEpoch=0;
 
 function toast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,5000);}
@@ -49,7 +50,6 @@ async function reset(next=mission,overrides={}){
   mission=next;
   saveEpoch++;
   awardedThisRun=false;
-  heardEvents.clear();
   if(mission!==null&&mission<2)$('star-mass').value='1';
   setMissionUI();renderer?.trails.clear();
   await action('reset',{config:{seed:parseSeed($('seed').value),mission,star_mass:Number($('star-mass').value),...overrides}});
@@ -107,7 +107,7 @@ function renderState(next){
   if(s.exhausted)$('goal-state').textContent='Experiment limit reached. Export it to keep it, or start a fresh system.';
   $('system-title').textContent=s.completed?'A little order, from the unknown.':s.planets>0?'Gravity has the pen now.':'A beginning, in starlight.';
   const eventSignature=JSON.stringify(next.events);
-  for(const event of next.events){const key=`${event.tick}:${event.kind}:${event.body}`;if(!heardEvents.has(key)){heardEvents.add(key);sound.event(event.kind);}}
+  for(const event of eventCursor.consume(next.generation,next.events))sound.event(event.kind);
   if(eventSignature!==lastEventSignature){
     lastEventSignature=eventSignature;$('events').replaceChildren();
     if(!next.events.length){const li=document.createElement('li');li.textContent='Your star is waiting.';$('events').append(li);}
@@ -186,10 +186,10 @@ $('next-mission').onclick=()=>reset(mission===9?null:mission+1);
 $('clear').onclick=()=>confirmReset(()=>reset());
 $('star-mass').onchange=()=>{const star_mass=Number($('star-mass').value);confirmReset(()=>reset(mission,{star_mass}),()=>{$('star-mass').value=String(state.config.star_mass);});};
 $('seed').onchange=()=>{try{const seed=parseSeed($('seed').value);confirmReset(()=>reset(mission,{seed}),()=>{$('seed').value=String(state.config.seed);});}catch(error){toast(error.message);$('seed').value=String(state?.config.seed??42);}};
-$('launch-form').onsubmit=event=>{event.preventDefault();if(ready)send('command',{command:{type:'launch',...draft()}}).then(()=>sound.event('launch')).catch(error=>toast(error.message));};
+$('launch-form').onsubmit=event=>{event.preventDefault();if(ready)send('command',{command:{type:'launch',...draft()}}).catch(error=>toast(error.message));};
 $('seed-belt').onclick=()=>action('command',{command:{type:'seed_belt',radius:Number($('radius').value)}});
 $('disk-disorder').oninput=()=>$('disk-disorder-value').textContent=$('disk-disorder').value+'%';
-$('disk-form').onsubmit=event=>{event.preventDefault();send('command',{command:{type:'seed_disk',radius:Number($('disk-radius').value),spread:Number($('disk-width').value),count:Number($('disk-count').value),disorder:Number($('disk-disorder').value)/100}}).then(()=>{sound.event('launch');toast('Debris placed. Run the system to watch it evolve.');}).catch(error=>toast(error.message));};
+$('disk-form').onsubmit=event=>{event.preventDefault();send('command',{command:{type:'seed_disk',radius:Number($('disk-radius').value),spread:Number($('disk-width').value),count:Number($('disk-count').value),disorder:Number($('disk-disorder').value)/100}}).then(()=>{toast('Debris placed. Run the system to watch it evolve.');}).catch(error=>toast(error.message));};
 for(const id of ['kind','radius','speed','angle'])$(id).addEventListener('input',updateDraft);
 for(const id of ['radius','speed'])$(id+'-range').oninput=()=>{$(id).value=$(id+'-range').value;updateDraft();};
 $('play').onclick=()=>action('play',{value:!state?.playing});$('step').onclick=()=>action('step');$('rewind').onclick=()=>action('rewind');

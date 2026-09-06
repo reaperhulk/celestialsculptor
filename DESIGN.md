@@ -381,6 +381,12 @@ Review needs: Tick, event kind and body were insufficient to distinguish repeate
 Implemented: Assign deterministic monotonic event IDs while retaining only the latest 24 journal entries.
 Validation: Fifty same-tick interventions remain distinct, bounded and exactly reproducible through replay.
 
+### 45 — Keep reconstructed history silent and bound event tracking
+
+Review needs: Imports and rewinds could replay old sound effects, while heard-event memory grew with session activity.
+Implemented: Version worker timelines and replace the event set with a constant-space cursor; add disk and burn motifs to real event playback.
+Validation: Actual-WASM timeline-generation tests and cursor tests cover failed imports, rewinds, duplicate snapshots and new events.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;

@@ -7,11 +7,12 @@ export class Runtime {
     this.playing = false;
     this.speed = 1;
     this.debt = 0;
+    this.generation = 0;
   }
   state(id) {
     if (!this.sim) return;
     const snapshot = JSON.parse(this.sim.snapshot());
-    this.send({ type: 'state', id, ...snapshot, playing: this.playing, speed: this.speed });
+    this.send({ type: 'state', id, ...snapshot, playing: this.playing, speed: this.speed, generation: this.generation });
   }
   handle(message) {
     const { type, id } = message;
@@ -36,6 +37,7 @@ export class Runtime {
           default: throw new Error('Unknown simulation command');
         }
       }
+      if(['reset','import','rewind','undo'].includes(type))this.generation++;
       this.state(id);
     } catch (error) { this.send({ type: 'error', id, message: String(error?.message || error) }); }
   }
