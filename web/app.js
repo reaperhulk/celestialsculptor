@@ -2,10 +2,12 @@ import { Renderer } from './renderer.js';
 import { installInput } from './input.js';
 import { readProfile, writeProfile, canPlay, nextMission, award } from './progression.js';
 import {deviceStorage,parseReplay,saveExperiment,savedExperiments} from './storage.js';
+import {Soundscape} from './audio.js';
 
 const $=id=>document.getElementById(id);
 let state=null, missions=[], mission=0, sequence=0, renderer, ready=false, toastTimer;
 const storage=deviceStorage();
+const sound=new Soundscape();let heardEvents=new Set();
 let profile=readProfile(storage),awardedThisRun=false,saveBusy=false,saveEpoch=0;
 const pending=new Map();
 function toast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,5000);}
@@ -46,6 +48,7 @@ async function reset(next=mission){
   mission=next;
   saveEpoch++;
   awardedThisRun=false;
+  heardEvents.clear();
   if(mission!==null&&mission<2)$('star-mass').value='1';
   setMissionUI();renderer?.trails.clear();
   await action('reset',{config:{seed:42,mission,star_mass:Number($('star-mass').value)}});
@@ -86,6 +89,7 @@ function renderState(next){
   $('play').textContent=next.playing?'Ⅱ Pause':'▶ Run';$('play').disabled=!ready||s.exhausted;
   $('system-title').textContent=s.completed?'A little order, from the unknown.':s.planets>0?'Gravity has the pen now.':'A beginning, in starlight.';
   const eventSignature=JSON.stringify(next.events);
+  for(const event of next.events){const key=`${event.tick}:${event.kind}:${event.body}`;if(!heardEvents.has(key)){heardEvents.add(key);sound.event(event.kind);}}
   if(eventSignature!==lastEventSignature){
     lastEventSignature=eventSignature;$('events').replaceChildren();
     if(!next.events.length){const li=document.createElement('li');li.textContent='Your star is waiting.';$('events').append(li);}
@@ -162,7 +166,7 @@ $('campaign').onclick=()=>{
 $('close-missions').onclick=()=>$('mission-dialog').close();
 $('next-mission').onclick=()=>reset(mission===9?null:mission+1);
 $('clear').onclick=()=>confirmReset(()=>reset());$('star-mass').onchange=()=>confirmReset(()=>reset(),()=>{$('star-mass').value=String(state.config.star_mass);});
-$('launch-form').onsubmit=event=>{event.preventDefault();if(ready)action('command',{command:{type:'launch',...draft()}});};
+$('launch-form').onsubmit=event=>{event.preventDefault();if(ready)send('command',{command:{type:'launch',...draft()}}).then(()=>sound.event('launch')).catch(error=>toast(error.message));};
 $('seed-belt').onclick=()=>action('command',{command:{type:'seed_belt',radius:Number($('radius').value)}});
 for(const id of ['kind','radius','speed','angle'])$(id).addEventListener('input',updateDraft);
 for(const id of ['radius','speed'])$(id+'-range').oninput=()=>{$(id).value=$(id+'-range').value;updateDraft();};
@@ -173,6 +177,8 @@ $('zoom-in').onclick=()=>{if(renderer)renderer.zoom=Math.max(1,renderer.zoom*.8)
 for(const button of document.querySelectorAll('[data-panel]'))if(button.tagName==='BUTTON')button.onclick=()=>{document.body.dataset.panel=button.dataset.panel;for(const other of document.querySelectorAll('.mobile-tabs button'))other.classList.toggle('active',other===button);};
 $('help').onclick=()=>$('help-dialog').showModal();for(const button of document.querySelectorAll('.dialog-close'))button.onclick=()=>$('help-dialog').close();
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&ready){action('play',{value:false});autosave();}});
+$('sound').onclick=async()=>{try{const enabled=await sound.toggle();$('sound').setAttribute('aria-pressed',String(enabled));$('sound').setAttribute('aria-label',enabled?'Mute sound':'Enable sound');$('sound').classList.toggle('active',enabled);}catch(error){toast(error.message);}};
+document.addEventListener('visibilitychange',()=>sound.visibility(document.hidden).catch(()=>{}));
 if(renderer)installInput($('universe'),renderer,{
   onDraft:({radius,angle})=>{$('radius').value=radius.toFixed(2);$('angle').value=String(Math.round(angle));updateDraft();},
   onSelect:inspect,

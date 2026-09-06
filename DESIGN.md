@@ -152,6 +152,16 @@ and visible save status. Rust still validates and reconstructs imported commands
 Validation: 32 Node tests pass, including corrupt-primary recovery, oversized import
 rejection, and unavailable storage. Production build and web contracts pass.
 
+### 11 — Quiet ambience and event feedback
+
+Review needs: make launches, impacts, escapes, and discoveries feel distinct;
+respect browser autoplay rules; avoid audible background tabs or unbounded voices.
+Implemented: opt-in Web Audio ambience, synthesized event motifs, a 12-voice cap,
+node cleanup, visibility suspension, and an accessible mute toggle. No audio assets
+or third-party media requests are required.
+Validation: module syntax, production build, and the 32-test headless suite pass.
+Audio playback remains gesture-gated and is covered by later browser lifecycle QA.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
