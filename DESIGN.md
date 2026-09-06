@@ -519,6 +519,12 @@ Review needs: Burn labels implied a percentage of current speed even though impu
 Implemented: Explain the burn reference speed and verify radial direction after orbital motion, retrograde boosts, unlocks and exact budget exhaustion.
 Validation: Six native burn tests pass, including atomic rejection after the final matter unit is spent.
 
+### 68 — Provide recovery for failed or stalled worker startup
+
+Review needs: Worker construction errors escaped the app and a stalled WASM download could leave the loading screen indefinitely.
+Implemented: Catch startup failure, bound initialization time, release pending requests, disable dead controls, and present a reload action.
+Validation: Static checks pass; a browser regression injects worker construction failure and verifies visible recovery without uncaught errors.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;

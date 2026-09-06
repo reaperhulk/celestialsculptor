@@ -20,12 +20,16 @@ const sound=new Soundscape();const eventCursor=new EventCursor();
 let profile=readProfile(storage),awardedThisRun=false,saveEpoch=0,autosaveTimer;
 
 function toast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,5000);}
-function fail(message){$('loading').hidden=false;$('loading').querySelector('p').textContent=message;$('play').disabled=true;}
+function fail(message){$('loading').hidden=false;$('loading').querySelector('p').textContent=message;$('play').disabled=true;$('reload').hidden=false;}
+$('reload').onclick=()=>location.reload();
 try { renderer=new Renderer($('universe'),toast); } catch(error){fail(error.message+' You can still sculpt, run, inspect and export using the controls.');}
-const worker=new Worker(new URL('./worker.js',import.meta.url),{type:'module'});
+let worker,startupError;
+try{worker=new Worker(new URL('./worker.js',import.meta.url),{type:'module'});}catch(error){startupError='The simulation worker could not start. Reload to try again. '+error.message;}
 const channel=new RequestChannel(message=>worker.postMessage(message));
 function send(type,data={}){return channel.send(type,data).then(reply=>{if(['command','undo','rewind','step'].includes(type)){clearTimeout(autosaveTimer);autosaveTimer=setTimeout(autosave,250);}return reply;});}
-function workerFailed(message){ready=false;channel.close(message);fail(message);}
+function workerFailed(message){ready=false;clearTimeout(startupTimer);worker?.terminate();channel.close(message);document.body.dataset.ready='error';for(const id of ['launch','step','undo','rewind'])$(id).disabled=true;fail(message);}
+const startupTimer=setTimeout(()=>workerFailed('The simulation is taking too long to load. Check your connection and reload.'),30000);
+if(startupError)workerFailed(startupError);
 function action(type,data={}){return send(type,data).catch(error=>toast(error.message));}
 function draft(){return parseLaunchFields({kind:$('kind').value,radius:$('radius').value,angle:$('angle').value,speed:$('speed').value});}
 function updateDraft(){
@@ -128,9 +132,9 @@ function renderState(next){
   }
   inspect();
 }
-worker.onmessage=async({data})=>{
+if(worker)worker.onmessage=async({data})=>{
   if(data.type==='ready'){
-    missions=data.missions;ready=true;if(renderer)$('loading').hidden=true;
+    clearTimeout(startupTimer);missions=data.missions;ready=true;if(renderer)$('loading').hidden=true;
     document.body.dataset.ready='true';
     let restored=false;
     for(const replay of savedExperiments(storage)){
@@ -146,7 +150,7 @@ worker.onmessage=async({data})=>{
   else if(data.type==='fatal'){workerFailed(data.message);}
   if(!channel.receive(data)&&data.type==='error')toast(data.message);
 };
-worker.onerror=()=>workerFailed('The simulation could not start. Reload to try again.');
+if(worker)worker.onerror=()=>workerFailed('The simulation could not start. Reload to try again.');
 function confirmReset(callback,onCancel=()=>{}){
   if(!state||state.bodies.length===1){callback();return;}
   $('confirm-dialog').showModal();let accepted=false;
