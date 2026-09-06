@@ -7,6 +7,7 @@ import {shouldPresent} from './presentation.js';
 import {parseSeed,parseLaunchFields} from './conditions.js';
 import {RequestChannel} from './channel.js';
 import {EventCursor} from './events.js';
+import {FrameClock} from './cadence.js';
 import {readViewSettings,writeViewSettings} from './preferences.js';
 
 const $=id=>document.getElementById(id);
@@ -230,5 +231,6 @@ document.addEventListener('keydown',event=>{
     updateDraft();
   }
 });
-function frame(time){renderer?.draw(time/1000);requestAnimationFrame(frame);}requestAnimationFrame(frame);
+const frameClock=new FrameClock();
+function frame(time){if(frameClock.due(time,{playing:state?.playing,batterySaver:viewSettings.maxDpr===1,reduceMotion:viewSettings.reduceMotion,hidden:document.hidden}))renderer?.draw(time/1000);requestAnimationFrame(frame);}requestAnimationFrame(frame);
 updateDraft();

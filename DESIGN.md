@@ -399,6 +399,12 @@ Review needs: Display choices disappeared on reload and high-density devices alw
 Implemented: Persist validated display settings and add a battery-saver resolution choice while respecting the initial system motion preference.
 Validation: Preference tests cover malformed values, motion overrides, unavailable storage and resolution round trips; static build checks pass.
 
+### 48 — Reduce idle and hidden-tab rendering work
+
+Review needs: The renderer drew every display refresh while paused, including 120-Hz screens, despite a separate fixed-step simulation.
+Implemented: Cap active rendering at 60 FPS, battery mode and paused scenes at 30, reduced-motion idle scenes at 15, and skip hidden frames.
+Validation: A synthetic 120-Hz clock verifies all four frame budgets and immediate visibility recovery.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
