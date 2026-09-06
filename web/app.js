@@ -96,6 +96,7 @@ function renderState(next){
   $('goal-progress').value=s.progress;$('goal-time').textContent=m?(m.hold_years?`${s.held_years.toFixed(1)} / ${m.hold_years} yr`:s.completed?'Complete':'Discovery'):'Free play';
   $('goal-state').textContent=s.completed?'Discovery made. Beautifully done.':s.condition?'Conditions met. Let the system settle.':next.bodies.length===1?'Place your first world to begin.':'Adjust your conditions to meet the goal.';
   $('play').textContent=next.playing?'Ⅱ Pause':'▶ Run';$('play').disabled=!ready||s.exhausted;
+  if(s.exhausted)$('goal-state').textContent='Experiment limit reached. Export it to keep it, or start a fresh system.';
   $('system-title').textContent=s.completed?'A little order, from the unknown.':s.planets>0?'Gravity has the pen now.':'A beginning, in starlight.';
   const eventSignature=JSON.stringify(next.events);
   for(const event of next.events){const key=`${event.tick}:${event.kind}:${event.body}`;if(!heardEvents.has(key)){heardEvents.add(key);sound.event(event.kind);}}

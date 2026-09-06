@@ -69,6 +69,15 @@ fn experiment_stops_at_exportable_time_limit() {
     assert_eq!(w, before);
     assert!(w.status().exhausted);
 }
+#[test]
+fn dense_experiments_stop_at_a_replayable_work_budget() {
+    let mut w = celestial_sim::benchmark::system(64);
+    w.work_units = MAX_WORK_UNITS;
+    let before = w.clone();
+    w.advance(10);
+    assert_eq!(w, before);
+    assert!(w.status().exhausted);
+}
 
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(64))]

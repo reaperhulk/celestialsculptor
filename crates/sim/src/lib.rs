@@ -11,6 +11,7 @@ pub const MAX_BODIES: usize = 64;
 pub const SOFTENING: f64 = 0.002;
 pub const SAVE_VERSION: u32 = 1;
 pub const MAX_TICKS: u64 = 512 * 600;
+pub const MAX_WORK_UNITS: u64 = 20_000_000;
 
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct V2 {
@@ -141,6 +142,7 @@ pub struct World {
     pub bodies: Vec<Body>,
     pub tick: u64,
     pub spent: f64,
+    pub work_units: u64,
     pub collisions: u32,
     pub ejections: u32,
     pub absorbed: u32,
@@ -230,6 +232,7 @@ impl World {
             bodies: vec![star],
             tick: 0,
             spent: 0.0,
+            work_units: 0,
             collisions: 0,
             ejections: 0,
             absorbed: 0,
@@ -362,9 +365,10 @@ impl World {
     }
     /// Each tick always runs four kick-drift-kick substeps. Speed never changes dt.
     pub fn step(&mut self) {
-        if self.tick >= MAX_TICKS {
+        if self.exhausted() {
             return;
         }
+        self.work_units += self.tick_work();
         let h = DT / 4.0;
         for _ in 0..4 {
             self.merge_contacts(0.0);
@@ -513,7 +517,7 @@ impl World {
     }
     pub fn status(&self) -> Status {
         let mut s = Status {
-            exhausted: self.tick >= MAX_TICKS,
+            exhausted: self.exhausted(),
             years: self.tick as f64 * DT,
             remaining: (self.budget() - self.spent).max(0.0),
             planets: 0,
@@ -598,6 +602,13 @@ impl World {
             end_tick: self.tick,
         }
     }
+    fn tick_work(&self) -> u64 {
+        let n = self.bodies.len() as u64;
+        (n * n.saturating_sub(1) / 2).max(1)
+    }
+    fn exhausted(&self) -> bool {
+        self.tick >= MAX_TICKS || self.work_units + self.tick_work() > MAX_WORK_UNITS
+    }
     pub fn from_replay(replay: Replay) -> Result<Self, String> {
         // Import is work-bounded. No untrusted state or derived scores are accepted.
         if replay.version != SAVE_VERSION
@@ -612,9 +623,15 @@ impl World {
                 return Err("Commands must be ordered inside the experiment".into());
             }
             world.advance((action.tick - world.tick) as u32);
+            if world.tick != action.tick {
+                return Err("Experiment exceeds the simulation work limit".into());
+            }
             world.apply(action.command)?;
         }
         world.advance((replay.end_tick - world.tick) as u32);
+        if world.tick != replay.end_tick {
+            return Err("Experiment exceeds the simulation work limit".into());
+        }
         Ok(world)
     }
 }

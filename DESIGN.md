@@ -225,6 +225,12 @@ Review needs: A replay alone cannot move earned discoveries to another device; i
 Implemented: A versioned full backup format, explicit backup download, raw-replay compatibility, and progress merging only after Rust accepts the experiment.
 Validation: Archive round-trip and compatibility tests pass with the complete Node suite and web build checks.
 
+### 19 — Bound dense replay reconstruction work
+
+Review needs: The 600-year cap alone still permits slow imports of dense systems and request timeouts.
+Implemented: A deterministic 20-million pair-tick work budget, explicit exhausted state, replay work-limit validation, and a player-facing limit explanation.
+Validation: Native budget and replay tests, production WASM build, and native/WASM parity pass.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
