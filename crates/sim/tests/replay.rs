@@ -171,3 +171,22 @@ fn naturally_exhausted_dense_run_is_exportable_and_cannot_import_past_its_limit(
     w.advance(512);
     assert_eq!(w, before);
 }
+
+proptest! {
+ #![proptest_config(ProptestConfig::with_cases(64))]
+ #[test]
+ fn generated_multi_body_histories_survive_timed_edits_and_json_roundtrips(
+  seed in any::<u32>(),
+  edits in prop::collection::vec((0.3f64..5.8,0.0f64..6.28,0.5f64..1.8,0u32..128),1..10)
+ ){
+  let mut w=world(seed);
+  for (radius,angle,speed,delay) in edits {
+   w.advance(delay);w.apply(Command::Launch{kind:Kind::Rocky,radius,angle,speed}).unwrap();
+   if let Some(body)=w.bodies.get(1){let id=body.id;w.apply(Command::Nudge{id,tangential:0.03,radial:-0.01}).unwrap();}
+  }
+  w.advance(512);
+  for body in &w.bodies {prop_assert!(body.pos.norm2().is_finite()&&body.vel.norm2().is_finite());}
+  let json=serde_json::to_string(&w.replay()).unwrap();let replay=serde_json::from_str(&json).unwrap();
+  prop_assert_eq!(w,World::from_replay(replay).unwrap());
+ }
+}

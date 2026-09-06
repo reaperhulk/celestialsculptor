@@ -609,6 +609,12 @@ Review needs: Rust, npm, the binding generator and CI repeated version pins that
 Implemented: Validate application versions, Rust pins, exact wasm-bindgen CLI compatibility and immutable Actions references; lock CI lint dependency resolution.
 Validation: The new contract verifier and a fresh build pass with the installed generator and checked-in lockfiles.
 
+### 83 — Generate multi-body histories with timed edits for replay testing
+
+Review needs: The original property test used one launch and did not explore sequences of evolving worlds and orbital interventions.
+Implemented: Generate up to nine timed placements and burns across 64 seeded cases, then verify finite outcomes and exact JSON replay reconstruction.
+Validation: All generated stateful histories pass; the failing seed would be retained by proptest if a regression is found.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
