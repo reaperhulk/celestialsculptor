@@ -1,10 +1,12 @@
 import { Renderer } from './renderer.js';
 import { installInput } from './input.js';
 import { readProfile, writeProfile, canPlay, nextMission, award } from './progression.js';
+import {deviceStorage,parseReplay,saveExperiment,savedExperiments} from './storage.js';
 
 const $=id=>document.getElementById(id);
 let state=null, missions=[], mission=0, sequence=0, renderer, ready=false, toastTimer;
-let profile=readProfile(localStorage),awardedThisRun=false;
+const storage=deviceStorage();
+let profile=readProfile(storage),awardedThisRun=false,saveBusy=false,saveEpoch=0;
 const pending=new Map();
 function toast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,5000);}
 function fail(message){$('loading').hidden=false;$('loading').querySelector('p').textContent=message;$('play').disabled=true;}
@@ -42,10 +44,12 @@ async function reset(next=mission){
   if(!ready)return;
   if(next!==null&&!canPlay(profile,next)){toast('Complete the previous challenges first.');return;}
   mission=next;
+  saveEpoch++;
   awardedThisRun=false;
   if(mission!==null&&mission<2)$('star-mass').value='1';
   setMissionUI();renderer?.trails.clear();
   await action('reset',{config:{seed:42,mission,star_mass:Number($('star-mass').value)}});
+  autosave();
 }
 function inspect(){
   const body=state?.bodies.find(b=>b.id===renderer?.selected);
@@ -62,12 +66,14 @@ function inspect(){
 }
 let lastUI=0,lastEventSignature='';
 function renderState(next){
+  if(next.config.mission!==mission){mission=next.config.mission;awardedThisRun=false;setMissionUI();}
+  $('star-mass').value=String(next.config.star_mass);
   state=next;renderer?.setState(next);$('universe').dataset.tick=String(next.tick);
   if(performance.now()-lastUI<80&&!next.id)return;lastUI=performance.now();
   const s=next.status,m=mission===null?null:missions[mission];
   if(s.completed&&mission!==null&&!awardedThisRun){
     awardedThisRun=true;profile=award(profile,mission);
-    if(!writeProfile(localStorage,profile))toast('Discovery earned. Device storage is unavailable, so progress will last for this session.');
+    if(!writeProfile(storage,profile))toast('Discovery earned. Device storage is unavailable, so progress will last for this session.');
     else toast(`Discovery: ${m.unlock}`);
   }
   $('next-mission').hidden=!s.completed||mission===null;
@@ -90,7 +96,17 @@ function renderState(next){
 worker.onmessage=async({data})=>{
   if(data.type==='ready'){
     missions=data.missions;ready=true;if(renderer)$('loading').hidden=true;
-    document.body.dataset.ready='true';await reset(nextMission(profile));
+    document.body.dataset.ready='true';
+    let restored=false;
+    for(const replay of savedExperiments(storage)){
+      try{
+        const data=parseReplay(replay);
+        if(data.config.mission!==null&&!canPlay(profile,data.config.mission))continue;
+        await send('reset',{config:data.config});await send('import',{replay});
+        toast('Your experiment is restored, paused.');restored=true;break;
+      }catch{/* Try backup before starting fresh. */}
+    }
+    if(!restored)await reset(nextMission(profile));
   }else if(data.type==='state'){renderState(data);}
   else if(data.type==='fatal'){fail(data.message);}
   const request=pending.get(data.id);
@@ -104,6 +120,31 @@ function confirmReset(callback,onCancel=()=>{}){
   $('confirm-dialog').onclose=()=>{if(!accepted)onCancel();};
   $('confirm-ok').onclick=()=>{accepted=true;$('confirm-dialog').close();callback();};
 }
+async function autosave(){
+  if(!ready||!state||saveBusy)return;
+  saveBusy=true;const epoch=saveEpoch;
+  try{
+    const {replay}=await send('export');
+    if(epoch===saveEpoch)$('save-status').textContent=saveExperiment(storage,replay)?'Saved on this device':'Saving unavailable · export to keep';
+  }catch{$('save-status').textContent='Save pending';}finally{saveBusy=false;}
+}
+setInterval(autosave,3000);
+$('export').onclick=async()=>{
+  try{
+    const {replay}=await send('export'),url=URL.createObjectURL(new Blob([replay],{type:'application/json'}));
+    const a=document.createElement('a');a.href=url;a.download='celestial-experiment.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }catch(error){toast(error.message);}
+};
+$('import').onclick=()=>$('import-file').click();
+$('import-file').onchange=async()=>{
+  const file=$('import-file').files[0];$('import-file').value='';if(!file)return;
+  try{
+    if(file.size>512_000)throw new Error('Choose an experiment smaller than 512 KB.');
+    const replay=await file.text(),data=parseReplay(replay);
+    if(data.config.mission!==null&&!canPlay(profile,data.config.mission))throw new Error('Complete earlier challenges before importing this challenge.');
+    confirmReset(async()=>{try{saveEpoch++;await send('import',{replay});renderer?.trails.clear();await autosave();toast('Experiment imported, paused.');}catch(error){toast(error.message);}});
+  }catch(error){toast(error.message);}
+};
 $('confirm-cancel').onclick=()=>$('confirm-dialog').close();
 $('sandbox').onclick=()=>confirmReset(()=>reset(null));
 $('campaign').onclick=()=>{
@@ -131,7 +172,7 @@ $('view').onclick=()=>{if(renderer){renderer.tilt=renderer.tilt===1?.62:1;$('vie
 $('zoom-in').onclick=()=>{if(renderer)renderer.zoom=Math.max(1,renderer.zoom*.8);};$('zoom-out').onclick=()=>{if(renderer)renderer.zoom=Math.min(9,renderer.zoom/ .8);};
 for(const button of document.querySelectorAll('[data-panel]'))if(button.tagName==='BUTTON')button.onclick=()=>{document.body.dataset.panel=button.dataset.panel;for(const other of document.querySelectorAll('.mobile-tabs button'))other.classList.toggle('active',other===button);};
 $('help').onclick=()=>$('help-dialog').showModal();for(const button of document.querySelectorAll('.dialog-close'))button.onclick=()=>$('help-dialog').close();
-document.addEventListener('visibilitychange',()=>{if(document.hidden&&ready)action('play',{value:false});});
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&ready){action('play',{value:false});autosave();}});
 if(renderer)installInput($('universe'),renderer,{
   onDraft:({radius,angle})=>{$('radius').value=radius.toFixed(2);$('angle').value=String(Math.round(angle));updateDraft();},
   onSelect:inspect,

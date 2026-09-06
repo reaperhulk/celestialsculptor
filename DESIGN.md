@@ -5,7 +5,7 @@
 Grounded but forgiving orbital physics. Ten authored challenges plus sandbox.
 2.5D orbital plane with a tiltable view. Desktop, tablet, and phone controls.
 Rust → WebAssembly, WebGL 2, GitHub Actions, and GitHub Pages. Work is pushed to
-`main` in 30 completed review / implement / verify / commit iterations.
+`main` in 100 completed review / implement / verify / commit iterations.
 
 ## Player loop
 
@@ -140,6 +140,17 @@ Implemented: challenge map, sequential unlocks, idempotent discovery awards,
 next-goal action, sandbox finale, validated profile storage, and finer numeric steps.
 Validation: 30 Node tests pass, including a complete ten-award progression and
 corrupt/denied storage. Build and static UI contracts pass.
+
+### 10 — Recoverable experiments and portable replays
+
+Review needs: retain experiments across reloads; recover from corrupt storage;
+allow portable export/import; avoid stale autosaves after resets; survive storage
+access denial. User increased the requested review loop from 30 to 100 iterations.
+Implemented: versioned autosaves with a previous-snapshot fallback, paused resume,
+JSON replay export/import, early import limits, save epochs, safe storage access,
+and visible save status. Rust still validates and reconstructs imported commands.
+Validation: 32 Node tests pass, including corrupt-primary recovery, oversized import
+rejection, and unavailable storage. Production build and web contracts pass.
 
 ## Next review targets
 

@@ -7,3 +7,5 @@
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 
 .collection{font-size:12px;color:var(--amber)}.mission-choice{display:flex;width:100%;text-align:left;gap:17px;align-items:center;margin:8px 0;padding:14px}.mission-number{font-family:ui-monospace,monospace;font-size:20px;color:var(--amber)}.mission-choice strong{display:block;font-size:16px;font-weight:500}.mission-choice small{display:block;font-size:12px;line-height:1.5;color:var(--muted);margin-top:4px}
+
+.save-tools{display:flex;gap:7px;margin-top:18px}.save-tools button{flex:1;font-size:12px;min-height:36px}.save-status{font-size:11px;margin:8px 0;color:#8197ad}
