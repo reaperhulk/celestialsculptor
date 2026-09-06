@@ -8,3 +8,6 @@ test('formation chapter exposes disks and protects the original garden',async({p
  await page.goto('./');await expect(page.locator('#play')).toBeEnabled();
  await expect(page.locator('#mission-name')).toHaveText('A garden from dust');await expect(page.locator('#launch-form')).toBeHidden();await expect(page.locator('#seed-disk')).toBeEnabled();await page.locator('#disk-radius').fill('1.35');await page.locator('#disk-width').fill('0.08');await page.locator('#disk-disorder').evaluate(input=>{input.value='8';input.dispatchEvent(new Event('input',{bubbles:true}));});await page.locator('#seed-disk').click();await expect(page.locator('#inspect-body option')).toHaveCount(26);
 });
+test('formation edits can be undone even when direct world placement is unavailable',async({page})=>{
+ await page.addInitScript(()=>localStorage.setItem('celestial-sculptor.profile.v1',JSON.stringify({version:1,completed:[0,1,2]})));await page.goto('./');await expect(page.locator('#play')).toBeEnabled();await expect(page.locator('#launch-form')).toBeHidden();await page.locator('#seed-disk').click();await expect(page.locator('#inspect-body option')).toHaveCount(25);await page.locator('#undo').click();await expect(page.locator('#inspect-body option')).toHaveCount(1);
+});

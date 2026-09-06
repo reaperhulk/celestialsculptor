@@ -855,3 +855,22 @@ x86_64 machine (34% less simulation CPU time); snapshots cost about 259 microsec
 These are CPU measurements, not an iPhone/iPad GPU frame-rate claim. Browser release
 checks compile the new shaders and capture moon-scale and notebook screenshots;
 on-device ?fps=1 remains the way to establish actual Apple-device performance.
+
+### 106 — Complete the interaction review and release runbook
+
+Review needs: hiding direct placement also hid Undo in formation missions; the moon
+challenge required unnecessary navigation to its own tools; removed bodies left
+some journal entries without a location; contributor guidance lagged behind the
+expanded scenario and device-performance workflow.
+Implemented: Undo remains available independently of placement, the moon challenge
+selects/follows its giant and opens moon creation, and resonance generation starts
+at 16× so capture can develop within a short watching session. The speed control
+tracks worker state. Version 3 journal entries retain positions after escape or
+stellar absorption, allowing camera focus on historical outcomes. Updated the
+release runbook with 44 campaign fixtures, 32 seeded sweeps and a repeatable real
+Apple-device performance procedure.
+Validation: the full graphics-independent gate passes: formatting, Clippy, native
+physics/campaign/replay tests, release WASM build, artifact checks and 118 Node tests.
+The new event regression verifies a removed escaping body's location and exact
+reconstruction. Browser coverage verifies Undo through the formation UI; the final
+release continues through shader, interaction, viewport and exact-artifact Pages gates.

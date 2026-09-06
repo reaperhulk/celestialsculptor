@@ -267,6 +267,8 @@ pub struct Event {
     pub text: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub impact: Option<Impact>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub position: Option<V2>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct World {
@@ -921,6 +923,11 @@ impl World {
             body,
             text,
             impact: None,
+            position: if self.rules_version >= 3 {
+                self.bodies.iter().find(|b| b.id == body).map(|b| b.pos)
+            } else {
+                None
+            },
         });
         self.next_event += 1;
     }
@@ -996,6 +1003,12 @@ impl World {
                     b.id,
                     format!("World {} escaped into interstellar space", b.id),
                 );
+                if self.rules_version >= 3 {
+                    self.events
+                        .last_mut()
+                        .expect("just emitted escape")
+                        .position = Some(b.pos);
+                }
             }
         }
         if !self.completed {
@@ -1091,6 +1104,12 @@ impl World {
                         if a.kind == Kind::Star {
                             self.absorbed += 1;
                             self.emit("absorb", b.id, format!("World {} fell into the star", b.id));
+                            if self.rules_version >= 3 {
+                                self.events
+                                    .last_mut()
+                                    .expect("just emitted absorption")
+                                    .position = Some(position);
+                            }
                         } else {
                             self.collisions += 1;
                             self.emit("collision", id, format!("Worlds {id} and {} merged", b.id));

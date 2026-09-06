@@ -128,7 +128,8 @@ export class Renderer {
     const zoom=moons.length?Math.max(b.radius*7,...moons.map(m=>Math.hypot(m.pos.x-b.pos.x,m.pos.y-b.pos.y)*1.6)):host?Math.hypot(host.pos.x-b.pos.x,host.pos.y-b.pos.y)*1.8:b.id===0?3.5:Math.max(b.radius*8,.35);
     this.cameraTo(b.pos,zoom);
   }
-  focusEvent(event){if(event.impact){this.follow=null;this.cameraTo(event.impact.position,Math.min(this.zoom,2));this.selected=event.body;}else this.focus(event.body);}
+  focusEvent(event){const position=event.impact?.position||event.position;if(position){this.follow=null;this.cameraTo(position,Math.min(this.zoom,2));this.selected=event.body;}else this.focus(event.body);}
+
   uniforms(program,time){
     const gl=this.gl;gl.useProgram(program);
     gl.uniform2f(this.location(program,'u_resolution'),this.canvas.width,this.canvas.height);

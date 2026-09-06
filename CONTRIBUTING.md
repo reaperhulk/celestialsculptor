@@ -26,8 +26,8 @@ enable Pages for a new repository. No personal token is stored in this project.
 
 Every pull request and push to `main` runs these gates in order:
 
-1. Rust format, warning-free Clippy, native physics/property/CLI tests and all 20
-   winning/losing campaign scenarios.
+1. Rust format, warning-free Clippy, native physics/property/CLI tests, 44
+   winning/losing campaign scenarios and a 32-case seeded outcome sweep.
 2. Locked release WASM build, DOM/module/toolchain/style/payload contracts, and
    Node tests of actual WASM, native parity, replay, memory and worker behavior.
 3. Chromium integration at seven viewports, Firefox and WebKit engine tests,
@@ -68,7 +68,7 @@ use **Help → Export bug report**, then run `sculptor replay FILE`. The JSON ou
 includes orbits, energy, momenta, mass accounting and work usage. Preserve the
 smallest reproducing replay as a regression before changing physics.
 
-`DESIGN.md` records all 100 review/implementation iterations and their verification
+`DESIGN.md` records the original 100 review/implementation iterations and follow-up releases and their verification
 evidence. Every numbered iteration is committed and pushed with its corresponding
 entry. The campaign and sandbox run entirely locally; exports stay on the player's
 device unless they choose to share a file.
@@ -84,3 +84,19 @@ cost. Timing benchmarks remain informational because CI runners vary: compare
 work units, trail vertices, request lifetime and audio voices.
 
 `npm run audit` checks the complete numbered design history for continuity and review, implementation and validation evidence. It is also part of `npm run verify` and CI.
+
+## Device performance checks
+
+Open `https://langui.sh/celestialsculptor/?fps=1` on the target iPhone or iPad.
+Use High rendering detail, generate a 32-body chaotic system, and run at 1× and 16×.
+Pan and pinch while it runs, then generate a moon family and follow its giant.
+Record rendered FPS and p95 intervals after the first few seconds; a 60-fps target
+has about 16.7 ms between frames. Draw CPU timing excludes GPU execution, while
+rendered-frame intervals expose visible stalls. Paused scenes intentionally render
+at 30 fps; Battery saver also caps running scenes at 30 fps. Backgrounding pauses
+the simulation and clears stale timing samples on return.
+
+Export a bug report while the overlay is enabled to include the replay, build,
+browser, viewport, DPR, camera and latest performance sample. Measure a sustained
+run on real hardware before making a device-level 60-fps claim. CI software graphics
+and Linux CPU benchmarks do not establish Apple GPU or thermal behavior.

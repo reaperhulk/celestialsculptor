@@ -64,7 +64,7 @@ function setMissionUI(){
   $('mission-hint').textContent=m?.hint||'Try a crowded belt, a giant on an eccentric orbit, or a system around a smaller star.';
   $('reward').textContent=m?.unlock||'Every tool is available';
   const speedLimit=state?.rules_version>=3&&mission===6?135:220;$('speed').max=String(speedLimit);$('speed-range').max=String(speedLimit);if(Number($('speed').value)>speedLimit)$('speed').value=String(speedLimit);
-  $('launch-form').hidden=Boolean(state?.rules_version>=3&&mission!==null&&mission>=3&&mission<=5);
+  $('launch-form').hidden=Boolean(state?.rules_version>=3&&mission!==null&&(mission>=3&&mission<=5||mission===7));
   const dust=state?.status.tools.find(t=>t.kind==='dust');
   $('seed-belt').hidden=!dust?.unlocked;
   $('disk-tools').hidden=!dust?.unlocked;
@@ -78,7 +78,7 @@ async function reset(next=mission,overrides={}){
  if(next!==null&&!canPlay(profile,next)){toast('Complete the previous challenges first.');return false;}
  try{
   const config={seed:parseSeed($('seed').value),mission:next,star_mass:next!==null&&next<2?1:Number($('star-mass').value),...overrides};
-  saveEpoch++;await send('reset',{config});awardedThisRun=false;setMissionUI();await autosave();return true;
+  saveEpoch++;await send('reset',{config});awardedThisRun=false;setMissionUI();if(next===7&&state.rules_version>=3){selectedBody=1;if(renderer){renderer.selected=1;renderer.focus(1);}inspect();$('moon-tools').open=true;}await autosave();return true;
  }catch(error){
   if(state){mission=state.config.mission;$('star-mass').value=String(state.config.star_mass);$('seed').value=String(state.config.seed);setMissionUI();}
   toast(error.message);return false;
@@ -153,6 +153,7 @@ function renderState(next){
   $('next-mission').hidden=!s.completed||mission===null;
   $('next-mission').textContent=mission===9?'Explore the sandbox':'Next challenge';
   $('collection').textContent=`${profile.completed.length} / 10 discoveries`;
+  $('time-speed').value=String(next.speed);
   $('sim-years').textContent=s.years.toFixed(2);$('matter').textContent=s.remaining.toLocaleString(undefined,{maximumFractionDigits:2});
   $('planet-count').textContent=String(s.planets);$('calm-count').textContent=String(s.calm);$('habitable-count').textContent=String(s.habitable);
   $('goal-progress').value=s.progress;$('goal-time').textContent=m?(m.hold_years?`${s.held_years.toFixed(1)} / ${m.hold_years} yr`:s.completed?'Complete':'Discovery'):'Free play';
@@ -166,7 +167,7 @@ function renderState(next){
   if(eventSignature!==lastEventSignature){
     lastEventSignature=eventSignature;$('events').replaceChildren();
     if(!next.events.length){const li=document.createElement('li');li.textContent='Your star is waiting.';$('events').append(li);}
-    for(const event of [...next.events].reverse().slice(0,5)){const li=document.createElement('li');const button=document.createElement('button');button.className='journal-event';button.textContent=`${(event.tick/512).toFixed(2)} yr · ${event.text}`;button.onclick=()=>{renderer?.focusEvent(event);selectedBody=event.body;inspect();};li.append(button);$('events').append(li);}
+    for(const event of [...next.events].reverse().slice(0,5)){const li=document.createElement('li');const button=document.createElement('button');button.className='journal-event';button.textContent=`${(event.tick/512).toFixed(2)} yr · ${event.text}`;button.onclick=()=>{renderer?.focusEvent(event);selectedBody=event.body;inspect();if(!state.bodies.some(b=>b.id===event.body))toast(`Event location at year ${(event.tick/512).toFixed(2)}. Use the notebook timeline to review the earlier system.`);};li.append(button);$('events').append(li);}
   }
   inspect();
 }
@@ -355,7 +356,7 @@ $('stop-migration').onclick=()=>action('command',{command:{type:'migration',id:s
 $('generate').onclick=()=>{$('generate-seed').value=$('seed').value;$('generate-dialog').showModal();};
 $('close-generate').onclick=()=>$('generate-dialog').close();
 $('shuffle-seed').onclick=()=>{$('generate-seed').value=String(crypto.getRandomValues(new Uint32Array(1))[0]);};
-$('generate-form').onsubmit=event=>{event.preventDefault();const seed=parseSeed($('generate-seed').value),command={type:'generate',style:$('generate-style').value,count:Number($('generate-count').value),chaos:Number($('generate-chaos').value)/100},play=$('generate-play').checked;$('generate-dialog').close();confirmReset(async()=>{if(await reset(null,{seed})){await send('command',{command});renderer?.fit();await autosave();if(play)await send('play',{value:true});toast('Your seeded universe is ready. Pan, zoom, follow a world, or intervene.');}});};
+$('generate-form').onsubmit=event=>{event.preventDefault();const seed=parseSeed($('generate-seed').value),command={type:'generate',style:$('generate-style').value,count:Number($('generate-count').value),chaos:Number($('generate-chaos').value)/100},play=$('generate-play').checked;$('generate-dialog').close();confirmReset(async()=>{if(await reset(null,{seed})){await send('command',{command});renderer?.fit();if(command.style==='resonance'){await send('speed',{value:16});$('resonance-panel').open=true;}await autosave();if(play)await send('play',{value:true});toast('Your seeded universe is ready. Pan, zoom, follow a world, or intervene.');}});};
 
 let notebookEntries=readNotebook(storage),comparisonIds=[];
 function updateHistory(){
