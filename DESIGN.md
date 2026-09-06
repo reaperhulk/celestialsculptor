@@ -651,6 +651,12 @@ Review needs: CI correctly rejected an approximate full-turn constant introduced
 Implemented: Use the standard TAU constant so generated angles cover the exact full circle and satisfy the required lint gate.
 Validation: Workspace formatting and warning-free Clippy pass, followed by the generated multi-body replay test.
 
+### 90 — Move notifications away from phone creation controls after visual review
+
+Review needs: Actual CI screenshots showed a narrow toast obscuring the phone placement button and its label.
+Implemented: Anchor notifications inside the orbital scene, allow a readable width, keep pointer input available, and wait for transient notices before review screenshots.
+Validation: Fresh build and static checks pass; a browser regression checks notification placement against the actual scene bounds.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;

@@ -21,7 +21,9 @@ const viewSettings=readViewSettings(storage,matchMedia('(prefers-reduced-motion:
 const sound=new Soundscape();sound.setVolume(viewSettings.volume);const eventCursor=new EventCursor();
 let profile=readProfile(storage),awardedThisRun=false,saveEpoch=0,autosaveTimer;
 
-function toast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,5000);}
+function positionToast(){const canvas=$('universe').getBoundingClientRect();$('toast').style.bottom=Math.max(12,innerHeight-canvas.bottom+16)+'px';}
+addEventListener('resize',positionToast);
+function toast(message){positionToast();$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,5000);}
 function fail(message){$('loading').hidden=false;$('loading').querySelector('p').textContent=message;$('play').disabled=true;$('reload').hidden=false;}
 $('reload').onclick=()=>location.reload();
 try { renderer=new Renderer($('universe'),toast); } catch(error){fail(error.message+' You can still sculpt, run, inspect and export using the controls.');}

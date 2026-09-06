@@ -6,6 +6,6 @@ test('capture the playable desktop and phone presentation for release review',as
  await page.locator('#recipes').click();await page.getByRole('button',{name:'The distant giant'}).click();await expect(page.locator('#planet-count')).toHaveText('5');
  if(await page.locator('.mobile-tabs').isVisible())await page.locator('.mobile-tabs [data-panel="sculpt"]').click();
  await page.locator('#display').click();await page.locator('#reduce-motion').check();await page.locator('#show-preview').uncheck();await page.locator('#close-display').click();
- await page.locator('#universe').focus();
+ await page.locator('#universe').focus();await expect(page.locator('#toast')).toBeHidden({timeout:6000});
  const path=testInfo.outputPath(`review-${testInfo.project.name}.png`);await page.screenshot({path});await testInfo.attach('Playable system',{path,contentType:'image/png'});
 });

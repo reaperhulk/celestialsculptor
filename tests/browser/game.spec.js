@@ -71,3 +71,10 @@ test('rejected stellar conditions keep the existing mode and restore the control
  await expect(page.locator('#star-mass')).toHaveValue('1');await expect(page.locator('#mission-name')).toHaveText('Your universe');
  await page.locator('#launch').click();await expect(page.locator('#planet-count')).toHaveText('1');
 });
+test('notifications stay inside the scene and clear the primary controls',async({page})=>{
+ await page.locator('#sandbox').click();
+ await page.locator('#seed-belt').click();await page.locator('#undo').click();
+ await page.locator('#undo').click();await expect(page.locator('#toast')).toBeVisible();
+ const bounds=await page.evaluate(()=>({toast:document.querySelector('#toast').getBoundingClientRect().toJSON(),scene:document.querySelector('#universe').getBoundingClientRect().toJSON(),launch:document.querySelector('#launch').getBoundingClientRect().toJSON()}));
+ expect(bounds.toast.bottom).toBeLessThanOrEqual(bounds.scene.bottom);expect(bounds.toast.width).toBeLessThanOrEqual(await page.evaluate(()=>innerWidth));
+});
