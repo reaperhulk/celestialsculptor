@@ -687,6 +687,12 @@ Review needs: The expanded asset verifier checked index.html directly but no lon
 Implemented: Hash the public root response as well as individual assets, catching stale default documents or misdirected entrypoints.
 Validation: Publication tests now reject an incorrect root page even when every named asset is otherwise correct.
 
+### 96 — Gate release payload growth with explicit performance budgets
+
+Review needs: Runtime benchmarks did not prevent accidental bundle growth from slowing first load on phones.
+Implemented: Add deterministic total, WASM and JavaScript byte budgets to the static gate and document how to review deliberate increases.
+Validation: Budget boundary tests pass; the current release is approximately 383 KB uncompressed with a 285-KB WASM module.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;

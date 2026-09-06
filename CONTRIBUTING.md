@@ -40,3 +40,13 @@ pipeline; generated artifacts are never committed to source.
 
 `DESIGN.md` records the required 100 review/implementation iterations and their
 verification evidence. Each numbered commit includes its corresponding entry.
+
+## Payload and runtime budgets
+
+`performance-budget.json` caps uncompressed runtime assets at 1 MB, WASM at 512 KB,
+and all JavaScript at 256 KB. The static gate checks these deterministic sizes.
+A deliberate budget change should explain its player benefit and expected loading
+cost. Timing benchmarks remain informational because CI runners vary: compare
+8/32/64-body stepping and snapshot costs in the Actions summary and downloaded
+`performance-results` artifact. The game separately bounds bodies, ticks, commands,
+work units, trail vertices, request lifetime and audio voices.
