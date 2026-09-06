@@ -19,8 +19,8 @@ test('real worker launches a world, completes a goal, and unlocks the next',asyn
 });
 
 test('viewport fits the game and keeps playback and creation reachable',async({page})=>{
- const dimensions=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,width:innerWidth,height:innerHeight,body:document.body.getBoundingClientRect().height,canvas:document.querySelector('canvas').getBoundingClientRect().height}));
- expect(dimensions.scroll).toBeLessThanOrEqual(dimensions.width);expect(dimensions.body).toBeLessThanOrEqual(dimensions.height+1);expect(dimensions.canvas).toBeGreaterThan(170);
+ const dimensions=await page.evaluate(()=>({scroll:document.documentElement.scrollWidth,scrollHeight:document.documentElement.scrollHeight,width:innerWidth,height:innerHeight,body:document.body.getBoundingClientRect().height,canvas:document.querySelector('canvas').getBoundingClientRect().height}));
+ expect(dimensions.scroll).toBeLessThanOrEqual(dimensions.width);expect(dimensions.body).toBeLessThanOrEqual(dimensions.height+1);expect(dimensions.scrollHeight).toBeLessThanOrEqual(dimensions.height+1);expect(dimensions.canvas).toBeGreaterThan(170);
  await expect(page.locator('#launch')).toBeInViewport();await expect(page.locator('#play')).toBeInViewport();
 });
 

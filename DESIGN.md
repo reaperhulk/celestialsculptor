@@ -237,6 +237,12 @@ Review needs: Several regular labels and journal entries used undersized type, w
 Implemented: Fourteen-pixel primary labels, a twelve-pixel secondary floor, larger button targets, and a taller mobile sculpting panel with simplified canvas hints.
 Validation: Production build and static web checks pass; the browser viewport suite remains a required release gate.
 
+### 21 — Cover standard viewports and compact landscape layouts
+
+Review needs: The viewport gate covered only two sizes, and short screens could overlap scene overlays or crowd the header.
+Implemented: Seven desktop, tablet, phone and landscape configurations; document-height assertions; compact-screen overlay rules; smaller-screen branding and safe-area handling.
+Validation: Production/static checks pass. The expanded 28-case browser matrix runs in GitHub Actions.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;

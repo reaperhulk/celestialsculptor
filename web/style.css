@@ -23,3 +23,9 @@ label,select,.topbar nav button,.launch,.playback #play,.hint p,.event-section l
 button{min-height:44px}.glass{min-height:38px}.goal-box{font-size:14px}.orbit-reading{font-size:13px}.save-status{font-size:12px}
 @media(max-width:760px){.workspace{grid-template-rows:minmax(180px,1fr) 67px minmax(0,270px)}.panel{padding:15px 18px}.topbar nav button{font-size:12px}.mobile-tabs button{font-size:14px}.field label{font-size:14px}.glass{min-height:38px}.scene-heading .eyebrow{font-size:12px}.telemetry span{font-size:12px}.scene-bottom{font-size:12px}.zone-key{font-size:12px}.telemetry{bottom:63px}.scene-bottom #scene-hint{display:none}}
 @media(max-width:380px){.workspace{grid-template-rows:minmax(150px,1fr) 62px minmax(0,225px)}}
+
+body{padding-top:env(safe-area-inset-top)}
+@media(max-width:760px){.mobile-tabs{height:calc(47px + env(safe-area-inset-bottom))}}
+@media(max-width:380px){.brand-icon{display:none}.wordmark>span:not(.brand-icon){font-size:0}.wordmark strong{font-size:12px}}
+@media(max-width:760px) and (max-height:650px){.scene-heading,.telemetry{display:none}.view-controls{top:12px}.scene-bottom{bottom:12px}.workspace{grid-template-rows:minmax(150px,1fr) 62px minmax(0,225px)}}
+@media(min-width:761px) and (max-height:500px){.topbar{height:54px}.workspace{grid-template-rows:minmax(0,1fr) 64px}.panel{padding:15px}.panel h1{font-size:25px;margin:10px 0}.scene-heading{top:15px;left:18px}.scene-heading h2{display:none}.view-controls{top:12px;right:12px;left:auto}.telemetry{bottom:40px}.scene-bottom{bottom:12px}.timeline{padding:8px 18px}}
