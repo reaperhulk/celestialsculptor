@@ -1,5 +1,5 @@
 import { project, unproject } from './geometry.js';
-import { VertexStream, PlanetStream } from './vertices.js';
+import { VertexStream, PlanetStream, LINE_CAPACITY } from './vertices.js';
 import {planetVertex,planetFragment} from './planet-shaders.js';
 import {clampZoom} from './camera.js';
 import {interpolationAlpha,sampleBody} from './motion.js';
@@ -52,9 +52,9 @@ export class Renderer {
   constructor(canvas, onError = () => {}) {
     this.previewCache=new PreviewCache();
     this.canvas=canvas; this.onError=onError; this.zoom=3.5; this.tilt=.62; this.maxDpr=2;
-    this.lineStream=new VertexStream(64*192*12+1200*12);this.pointStream=new PlanetStream(65*16);
+    this.lineStream=new VertexStream(LINE_CAPACITY);this.pointStream=new PlanetStream(65*16);
     this.center={x:0,y:0};this.follow=null;this.inputMode='navigate';this.cameraActiveUntil=0;this.cameraTween=null;this.panVelocity=null;this.impacts=[];this.lastEvent=0;
-    this.displayPositions=new Map();this.trails=new Map(); this.selected=null; this.showGrid=true;
+    this.displayPositions=new Map();this.moonTrails=new Map();this.trails=new Map(); this.selected=null; this.showGrid=true;
     this.showTrails=true; this.showPreview=true; this.reduceMotion=false; this.state=null; this.draft=null; this.lost=false;
     const gl=canvas.getContext('webgl2',{alpha:false,antialias:false,powerPreference:'high-performance'});
     if(!gl) throw new Error('WebGL 2 is unavailable. Enable hardware acceleration or try another browser.');
@@ -91,12 +91,12 @@ export class Renderer {
     if(!locations.has(name))locations.set(name,this.gl.getUniformLocation(program,name));
     return locations.get(name);
   }
-  set selected(value){this._selected=value;this.selectedPath=null;this.perturber=null;}
+  set selected(value){this._selected=value;this.selectedPath=null;this.familyPaths=null;this.perturber=null;}
   get selected(){return this._selected;}
   set draft(value){this._draft=value;this.previewPath=this.previewCache.update(value);}
   get draft(){return this._draft;}
   setState(state){
-    updateTrails(this.trails,this.state,state);
+    updateTrails(this.trails,this.state,state);updateTrails(this.moonTrails,this.state,state,true);
     const replaced=!this.state||state.generation!==this.state.generation||state.tick<this.state.tick;
     if(replaced){this.cameraTween=null;this.panVelocity=null;this.impacts=[];this.lastEvent=state.events.at(-1)?.id||0;this.follow=null;this.center={x:state.bodies[0].pos.x,y:state.bodies[0].pos.y};}
     else for(const event of state.events){if(event.id>this.lastEvent&&event.impact)this.impacts.push({...event.impact,body:event.body,time:performance.now()/1000});}
@@ -107,7 +107,7 @@ export class Renderer {
     if(!state.bodies.some(body=>body.id===this.selected))this.selected=null;
     this.previousState=this.state;this.previousReceived=this.receivedAt;this.receivedAt=performance.now()/1000;
     this.state=state;this.orbitById=new Map(state.orbits);this.moonOrbitById=new Map(state.moon_orbits||[]);this.sortedBodies=[...state.bodies].sort((a,b)=>a.pos.y-b.pos.y);this.previousBodies=new Map((this.previousState?.bodies||[]).map(b=>[b.id,b]));
-    const selected=state.bodies.find(b=>b.id===this.selected);this.selectedPath=selected?orbitPath(this.moonOrbitById.get(selected.id)||this.orbitById.get(selected.id)):[];this.perturber=strongestPerturber(selected,state.bodies,state.rules_version===1?.002:.0001);
+    const selected=state.bodies.find(b=>b.id===this.selected);this.selectedPath=selected?orbitPath(this.moonOrbitById.get(selected.id)||this.orbitById.get(selected.id)):[];this.perturber=strongestPerturber(selected,state.bodies,state.rules_version===1?.002:.0001);this.familyPaths=null;
   }
   toWorld(x,y){const r=this.canvas.getBoundingClientRect();const p=unproject(x-r.left,y-r.top,r.width,r.height,this.zoom,this.tilt);return [p[0]+this.center.x,p[1]+this.center.y];}
   toScreen(x,y){const r=this.canvas.getBoundingClientRect();return project(x-this.center.x,y-this.center.y,r.width,r.height,this.zoom,this.tilt);}
@@ -125,7 +125,7 @@ export class Renderer {
     const b=this.state?.bodies.find(body=>body.id===bodyId);if(!b)return;
     this.follow=bodyId;this.selected=bodyId;
     const moons=this.state.bodies.filter(m=>m.parent===bodyId),host=this.state.bodies.find(p=>p.id===b.parent);
-    const zoom=moons.length?Math.max(b.radius*7,...moons.map(m=>Math.hypot(m.pos.x-b.pos.x,m.pos.y-b.pos.y)*1.6)):host?Math.hypot(host.pos.x-b.pos.x,host.pos.y-b.pos.y)*1.8:b.id===0?3.5:Math.max(b.radius*8,.35);
+    const zoom=moons.length?Math.max(b.radius*7,...moons.map(m=>Math.hypot(m.pos.x-b.pos.x,m.pos.y-b.pos.y)*1.6)):host?Math.hypot(host.pos.x-b.pos.x,host.pos.y-b.pos.y)*1.8:b.id===0?3.5:Math.max(b.radius*4,.012);
     this.cameraTo(b.pos,zoom);
   }
   focusEvent(event){const position=event.impact?.position||event.position;if(position){this.follow=null;this.cameraTo(position,Math.min(this.zoom,2));this.selected=event.body;}else this.focus(event.body);}
@@ -152,11 +152,13 @@ export class Renderer {
     gl.uniform2f(this.location(this.background,'u_star'),starPosition.x,starPosition.y);
     gl.uniform2f(this.location(this.background,'u_zone'),this.state.status.zone_inner,this.state.status.zone_outer);
     gl.uniform1f(this.location(this.background,'u_grid'),Number(this.showGrid));gl.drawArrays(gl.TRIANGLES,0,3);
-    const lines=this.lineStream.reset();
+    const lines=this.lineStream.reset(),tracked=this.state.bodies.find(b=>b.id===this.follow),reference=this.zoom<.5?(tracked?.parent??tracked?.id):null,localAnchor=this.displayPositions.get(reference);
+
     if(this.showTrails)for(const b of this.state.bodies){
-      const trail=this.trails.get(b.id)||[],c=COLORS[b.kind];
+      if(reference&&b.parent!==reference)continue;
+      const local=reference&&b.parent===reference,trail=(local?this.moonTrails:this.trails).get(b.id)||[],c=COLORS[b.kind],ox=local?localAnchor.x:0,oy=local?localAnchor.y:0;
       for(let i=1;i<trail.length;i++){
-        lines.line(trail[i-1][0],trail[i-1][1],trail[i][0],trail[i][1],c,i/trail.length*.4);
+        lines.line(trail[i-1][0]+ox,trail[i-1][1]+oy,trail[i][0]+ox,trail[i][1]+oy,c,i/trail.length*.4);
       }
     }
     if(this.draft&&this.showPreview){
@@ -166,11 +168,16 @@ export class Renderer {
       }
     }
     const selected=this.state.bodies.find(b=>b.id===this.selected),orbit=this.moonOrbitById.get(this.selected)||this.orbitById.get(this.selected);
-    if(selected&&orbit){
+    if(selected&&orbit&&!(reference===selected.id&&this.state.bodies.some(b=>b.parent===selected.id))){
       const path=this.selectedPath||(this.selectedPath=orbitPath(orbit));const anchor=this.moonOrbitById.has(selected.id)?this.state.bodies.find(b=>b.id===selected.parent)||star:star,anchorPosition=this.displayPositions.get(anchor.id);
       for(let i=1;i<path.length;i++)lines.line(path[i-1][0]+anchorPosition.x,path[i-1][1]+anchorPosition.y,path[i][0]+anchorPosition.x,path[i][1]+anchorPosition.y,[.35,.80,1],.7);
       const source=this.perturber||strongestPerturber(selected,this.state.bodies);
       if(source&&source.ratio>.002)lines.line(selected.pos.x,selected.pos.y,source.body.pos.x,source.body.pos.y,[1,.63,.28],Math.min(.7,.2+source.ratio));
+    }
+    if(selected&&reference){
+      const host=selected.parent??selected.id,anchor=this.displayPositions.get(host);
+      if(!this.familyPaths)this.familyPaths=this.state.bodies.filter(b=>b.parent===host&&b.id!==selected.id).slice(0,8).map(b=>orbitPath(this.moonOrbitById.get(b.id),96));
+      if(anchor)for(const path of this.familyPaths)for(let i=1;i<path.length;i++)lines.line(path[i-1][0]+anchor.x,path[i-1][1]+anchor.y,path[i][0]+anchor.x,path[i][1]+anchor.y,[.35,.80,1],.25);
     }
     this.impacts=this.impacts.filter(impact=>time-impact.time<3);
     if(!this.reduceMotion)for(const impact of this.impacts){

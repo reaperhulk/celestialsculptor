@@ -1,3 +1,4 @@
+export const LINE_CAPACITY=64*192*12+2400*12;
 export class VertexStream {
   constructor(capacity){this.data=new Float32Array(capacity);this.length=0;}
   reset(){this.length=0;return this;}

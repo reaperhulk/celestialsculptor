@@ -18,3 +18,6 @@ test('FPS flag is explicit and the overlay reports actual rendered intervals',()
  assert.equal(fpsFlag('?fps=1'),true);assert.equal(fpsFlag('?fps=0',true),false);assert.equal(fpsFlag('',true),true);
  const meter=new FrameMeter();for(let i=0;i<120;i++)meter.record(i*1000/60,2);const r=meter.report(2000,204);assert.ok(Math.abs(r.fps-60)<1e-8);assert.ok(Math.abs(r.p95-1000/60)<1e-8);assert.equal(r.drawMs,2);assert.equal(r.ticksPerSecond,102);meter.reset();assert.equal(meter.report(3000,0),null);
 });
+test('resetting device timing at a restored tick excludes the old timeline',()=>{
+ const meter=new FrameMeter();meter.reset(1000,50000);for(let i=0;i<60;i++)meter.record(1000+i*1000/60,1);const report=meter.report(2000,50102);assert.equal(report.ticksPerSecond,102);assert.ok(Math.abs(report.fps-60)<1e-8);
+});

@@ -127,6 +127,7 @@ for(const button of document.querySelectorAll('[data-nudge]'))button.onclick=()=
 let lastUI=0,lastEventSignature='',lastObjectives='';
 function renderState(next){
   const present=shouldPresent(state,next,lastUI,performance.now());
+  if(next.generation!==state?.generation)frameMeter.reset(performance.now(),next.tick);
   const changedMission=next.config.mission!==mission||next.rules_version!==state?.rules_version;
   if(changedMission){mission=next.config.mission;awardedThisRun=false;}
   $('star-mass').value=String(next.config.star_mass);

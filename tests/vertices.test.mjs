@@ -11,3 +11,6 @@ test('capacity errors fail before corrupting an existing vertex stream',()=>{
  const v=new VertexStream(8);v.point(1,2,20,[1,0,0],1,0);const before=[...v.view()];
  assert.throws(()=>v.point(2,3,20,[0,1,0],1,0),RangeError);assert.deepEqual([...v.view()],before);
 });
+test('maximum trails, local moon orbits and active impacts fit one bounded line buffer',async()=>{
+ const {LINE_CAPACITY}=await import('../web/vertices.js'),stream=new VertexStream(LINE_CAPACITY);for(let i=0;i<63*191+8*96+192+192+12*48;i++)stream.line(0,0,1,1,[1,1,1],1);assert.ok(stream.length<LINE_CAPACITY);
+});

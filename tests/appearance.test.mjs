@@ -21,3 +21,6 @@ test('planet vertices carry complete style and light data without buffer overrun
  const stream=new PlanetStream(32);stream.point(1,2,30,[1,.5,.2],2,1,[.3,.7,1,0],[1,0,.4],.2);assert.equal(stream.length,16);stream.point(0,0,2,[1,1,1],4,0);assert.equal(stream.length,32);assert.throws(()=>stream.point(0,0,2,[1,1,1],4,0),RangeError);
 });
 test('selecting the star has no osculating planetary path',()=>{assert.deepEqual(orbitPath(undefined),[]);assert.deepEqual(orbitPath(null),[]);});
+test('satellite-scale exaggeration leaves the inner moon outside the giant globe',()=>{
+ const giant={kind:'giant',mass:318*3.003e-6};for(const height of [240,400,620]){const globeRadius=bodyDiameter(giant,height,.12)*.31,innerMoonSeparation=.024*height/(2*.12)*.62;assert.ok(globeRadius<innerMoonSeparation,'giant must not swallow the inner moon path on screen');}
+});

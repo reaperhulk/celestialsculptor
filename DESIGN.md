@@ -890,3 +890,21 @@ verify satellite libration in Chromium, Firefox and WebKit using the shared reci
 The phone browser profile now uses DPR 3 and the tablet DPR 2; the performance
 regression checks the high-quality canvas cap of DPR 2. These exercise retina
 coordinate/rendering paths without presenting CI emulation as physical hardware.
+
+### 108 — Correct satellite visibility after reviewing rendered artifacts
+
+Review needs: actual close-up screenshots showed the exaggerated giant covering
+its inner satellites. Inertial trails also obscure local orbital motion, and the
+notebook's expanded timeline pushed saved-checkpoint feedback below the phone fold.
+Implemented: smoothly taper radius exaggeration to near physical proportions at
+satellite scale while preserving overview styling and collision volume growth.
+Following a host uses parent-relative moon trails and up to eight local orbit guides;
+individual body focus still offers a detailed globe. All guides fit an explicitly
+bounded line allocation. Notebook save feedback appears immediately below Save;
+timeline review is expandable. Timing resets on history replacement so imported
+years cannot inflate reported tick throughput.
+Validation: 123 headless tests pass, including giant-versus-inner-moon screen geometry,
+parent-relative trails and parent changes, worst-case guide/impact buffer capacity,
+and timing from a restored checkpoint. Release 106 passed the full browser and
+Pages gates; its desktop/phone moon and notebook screenshots directly motivated
+these corrections. The updated release repeats those screenshots and retina checks.

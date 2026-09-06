@@ -3,7 +3,7 @@
 export function bodyDiameter(body,height,zoom){
  if(body.kind==='star')return 120*Math.cbrt(body.mass)*Math.min(1.15,height/540)*Math.sqrt(3.5/zoom);
  const contact=.002*Math.cbrt(body.mass/3.003e-6);
- return Math.max(1,contact*height/(zoom*.62)*(1+98*(zoom/(zoom+.5))**2));
+ return Math.max(1,contact*height/(zoom*.62)*(1+98*(zoom/(zoom+.5))**2*zoom**4/(zoom**4+.5**4)));
 }
 export function orbitPath(orbit,segments=192){
  const {eccentricity:e,periapsis:q,periapsis_angle:angle=0}=orbit||{};
