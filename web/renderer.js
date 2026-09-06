@@ -1,4 +1,5 @@
 import { project, unproject, launchPath } from './geometry.js';
+import { VertexStream } from './vertices.js';
 
 const VERTEX = `#version 300 es
 layout(location=0) in vec2 a_pos;
@@ -86,6 +87,7 @@ const KINDS = {star:0,rocky:1,ice:2,giant:3,dust:4};
 export class Renderer {
   constructor(canvas, onError = () => {}) {
     this.canvas=canvas; this.onError=onError; this.zoom=3.5; this.tilt=.62;
+    this.lineStream=new VertexStream(64*192*12+241*12);this.pointStream=new VertexStream(65*8);
     this.trails=new Map(); this.lastTick=-1; this.selected=null; this.showGrid=true;
     this.showTrails=true; this.showPreview=true; this.reduceMotion=false; this.state=null; this.draft=null; this.lost=false;
     const gl=canvas.getContext('webgl2',{alpha:false,antialias:false,powerPreference:'high-performance'});
@@ -110,8 +112,10 @@ export class Renderer {
     this.pointBuffer=gl.createBuffer();this.lineBuffer=gl.createBuffer();
     this.emptyVAO=gl.createVertexArray();this.pointVAO=gl.createVertexArray();this.lineVAO=gl.createVertexArray();
     gl.bindVertexArray(this.pointVAO);gl.bindBuffer(gl.ARRAY_BUFFER,this.pointBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER,this.pointStream.data.byteLength,gl.DYNAMIC_DRAW);
     for(const [loc,size,offset] of [[0,2,0],[1,1,8],[2,3,12],[3,2,24]]){gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,size,gl.FLOAT,false,32,offset);}
     gl.bindVertexArray(this.lineVAO);gl.bindBuffer(gl.ARRAY_BUFFER,this.lineBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER,this.lineStream.data.byteLength,gl.DYNAMIC_DRAW);
     for(const [loc,size,offset] of [[0,2,0],[1,4,8]]){gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,size,gl.FLOAT,false,24,offset);}
     gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
   }
@@ -156,30 +160,30 @@ export class Renderer {
     gl.uniform2f(this.location(this.background,'u_star'),star.pos.x,star.pos.y);
     gl.uniform2f(this.location(this.background,'u_zone'),this.state.status.zone_inner,this.state.status.zone_outer);
     gl.uniform1f(this.location(this.background,'u_grid'),Number(this.showGrid));gl.drawArrays(gl.TRIANGLES,0,3);
-    const lines=[];
+    const lines=this.lineStream.reset();
     if(this.showTrails)for(const b of this.state.bodies){
       const trail=this.trails.get(b.id)||[],c=COLORS[b.kind];
       for(let i=1;i<trail.length;i++){
-        lines.push(...trail[i-1],...c,i/trail.length*.4,...trail[i],...c,i/trail.length*.4);
+        lines.line(trail[i-1][0],trail[i-1][1],trail[i][0],trail[i][1],c,i/trail.length*.4);
       }
     }
     if(this.draft&&this.showPreview){
       const path=this.previewPath;
       for(let i=1;i<path.length;i++)if(i%4<2){
-        for(const p of [path[i-1],path[i]])lines.push(p[0]+star.pos.x,p[1]+star.pos.y,.94,.76,.4,.5);
+        lines.line(path[i-1][0]+star.pos.x,path[i-1][1]+star.pos.y,path[i][0]+star.pos.x,path[i][1]+star.pos.y,[.94,.76,.4],.5);
       }
     }
     this.uniforms(this.lines,time);gl.bindVertexArray(this.lineVAO);gl.bindBuffer(gl.ARRAY_BUFFER,this.lineBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(lines),gl.DYNAMIC_DRAW);gl.drawArrays(gl.LINES,0,lines.length/6);
-    const points=[];
+    gl.bufferSubData(gl.ARRAY_BUFFER,0,lines.view());gl.drawArrays(gl.LINES,0,lines.length/6);
+    const points=this.pointStream.reset();
     for(const b of this.sortedBodies){
       const o=this.orbitById.get(b.id);
       const c=o?.habitable?[.35,.82,.62]:COLORS[b.kind];
       const size=b.kind==='star'?116:b.kind==='dust'?8:b.kind==='giant'?41:25+Math.min(8,Math.cbrt(b.mass/3e-6));
-      points.push(b.pos.x,b.pos.y,size,...c,KINDS[b.kind],Number(this.selected===b.id));
+      points.point(b.pos.x,b.pos.y,size,c,KINDS[b.kind],Number(this.selected===b.id));
     }
-    if(this.draft&&this.showPreview)points.push(star.pos.x+this.draft.radius*Math.cos(this.draft.angle),star.pos.y+this.draft.radius*Math.sin(this.draft.angle),25,.96,.76,.4,1,1);
+    if(this.draft&&this.showPreview)points.point(star.pos.x+this.draft.radius*Math.cos(this.draft.angle),star.pos.y+this.draft.radius*Math.sin(this.draft.angle),25,[.96,.76,.4],1,1);
     this.uniforms(this.points,time);gl.bindVertexArray(this.pointVAO);gl.bindBuffer(gl.ARRAY_BUFFER,this.pointBuffer);
-    gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(points),gl.DYNAMIC_DRAW);gl.drawArrays(gl.POINTS,0,points.length/8);
+    gl.bufferSubData(gl.ARRAY_BUFFER,0,points.view());gl.drawArrays(gl.POINTS,0,points.length/8);
   }
 }

@@ -285,6 +285,12 @@ Review needs: The expanded browser matrix found a missed completion update after
 Implemented: Semantic state transitions bypass UI throttling; short landscape layouts place the primary launch action first. The existing failing browser cases remain unchanged.
 Validation: Headless presentation regressions reproduce and cover the completion race; all Node tests and production checks pass. Actions reruns the 28 browser cases.
 
+### 29 — Reuse CPU and GPU geometry buffers
+
+Review needs: Dense trails rebuilt large JavaScript and typed arrays and reallocated GPU storage every frame.
+Implemented: Fixed-capacity typed vertex streams, direct writes, reusable GPU buffers with subrange uploads, and explicit overflow guards.
+Validation: Maximum-body trail/preview capacity and buffer-reuse tests pass, along with production module checks.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
