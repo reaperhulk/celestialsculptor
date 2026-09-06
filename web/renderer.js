@@ -1,57 +1,18 @@
 import { project, unproject } from './geometry.js';
-import { VertexStream } from './vertices.js';
+import { VertexStream, PlanetStream } from './vertices.js';
+import {planetVertex,planetFragment} from './planet-shaders.js';
+import {clampZoom} from './camera.js';
+import {bodyDiameter,orbitPath,strongestPerturber,fitZoom} from './appearance.js';
 import {updateTrails} from './trails.js';
 import {PreviewCache} from './preview.js';
 
-const VERTEX = `#version 300 es
-layout(location=0) in vec2 a_pos;
-layout(location=1) in float a_size;
-layout(location=2) in vec3 a_color;
-layout(location=3) in vec2 a_kind;
-uniform vec2 u_resolution;
-uniform float u_zoom, u_tilt, u_dpr;
-out vec3 v_color;
-out vec2 v_kind;
-void main(){
-  gl_Position=vec4(a_pos.x/u_zoom*u_resolution.y/u_resolution.x,a_pos.y/u_zoom*u_tilt,0,1);
-  gl_PointSize=a_size*u_dpr;
-  v_color=a_color; v_kind=a_kind;
-}`;
-const FRAGMENT = `#version 300 es
-precision highp float;
-in vec3 v_color;
-in vec2 v_kind;
-uniform float u_time;
-out vec4 outColor;
-float noise(vec3 p){return sin(p.x*17.+sin(p.y*13.))*sin(p.y*21.+p.z*19.);}
-void main(){
- vec2 uv=gl_PointCoord*2.-1.; float r=length(uv);
- if(r>1.)discard;
- if(v_kind.x<0.5){
-  float core=1.-smoothstep(.28,.41,r);
-  float corona=exp(-r*5.)*.8;
-  float flare=1.+.08*sin(atan(uv.y,uv.x)*11.+u_time*.6);
-  outColor=vec4(mix(v_color,vec3(1.,.96,.78),core),max(core,corona*flare)*(1.-smoothstep(.8,1.,r)));return;
- }
- if(r>.78){
-  float halo=(1.-smoothstep(.78,1.,r))*.18;
-  float ring=v_kind.y*exp(-pow((r-.91)*75.,2.))*.9;
-  outColor=vec4(v_color,halo+ring);return;
- }
- vec2 p=uv/.78; vec3 n=vec3(p.x,-p.y,sqrt(max(0.,1.-dot(p,p))));
- float light=max(.08,dot(n,normalize(vec3(-.6,.5,1.))));
- float texture=1.+noise(n*2.)*.16;
- if(v_kind.x>2.5 && v_kind.x<3.5)texture=.85+.22*sin(n.y*24.+noise(n)*2.);
- float rim=pow(1.-n.z,3.); vec3 color=v_color*light*texture+v_color*rim*.3;
- outColor=vec4(color,1.-smoothstep(.76,.78,r));
-}`;
 const LINE_VERTEX = `#version 300 es
 layout(location=0) in vec2 a_pos;
 layout(location=1) in vec4 a_color;
-uniform vec2 u_resolution;
+uniform vec2 u_resolution,u_center;
 uniform float u_zoom,u_tilt;
 out vec4 v_color;
-void main(){gl_Position=vec4(a_pos.x/u_zoom*u_resolution.y/u_resolution.x,a_pos.y/u_zoom*u_tilt,0,1);v_color=a_color;}`;
+void main(){gl_Position=vec4((a_pos.x-u_center.x)/u_zoom*u_resolution.y/u_resolution.x,(a_pos.y-u_center.y)/u_zoom*u_tilt,0,1);v_color=a_color;}`;
 const LINE_FRAGMENT = `#version 300 es
 precision highp float;
 in vec4 v_color;out vec4 outColor;void main(){outColor=v_color;}`;
@@ -59,13 +20,13 @@ const BG_VERTEX = `#version 300 es
 void main(){vec2 p=vec2(float((gl_VertexID<<1)&2),float(gl_VertexID&2));gl_Position=vec4(p*2.-1.,0,1);}`;
 const BG_FRAGMENT = `#version 300 es
 precision highp float;
-uniform vec2 u_resolution,u_zone,u_star;
+uniform vec2 u_resolution,u_zone,u_star,u_center;
 uniform float u_zoom,u_tilt,u_time,u_grid;
 out vec4 outColor;
 float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 void main(){
  vec2 uv=gl_FragCoord.xy/u_resolution;
- vec2 pos=(uv*2.-1.)*u_zoom*vec2(u_resolution.x/u_resolution.y,1./u_tilt);
+ vec2 pos=(uv*2.-1.)*u_zoom*vec2(u_resolution.x/u_resolution.y,1./u_tilt)+u_center;
  float r=length(pos-u_star);
  vec3 color=mix(vec3(.013,.022,.044),vec3(.027,.052,.079),exp(-length((uv-vec2(.5,.6))*2.)));
  vec2 cell=floor(gl_FragCoord.xy/75.), f=fract(gl_FragCoord.xy/75.);
@@ -83,19 +44,20 @@ void main(){
  outColor=vec4(color,1.);
 }`;
 
-const COLORS = {star:[1,.65,.22], rocky:[.9,.49,.3], ice:[.35,.77,.88], giant:[.75,.59,.91], dust:[.65,.69,.74]};
+const COLORS = {star:[1,.65,.22], rocky:[.9,.49,.3], ice:[.35,.77,.88], giant:[.93,.73,.48], dust:[.65,.69,.74]};
 const KINDS = {star:0,rocky:1,ice:2,giant:3,dust:4};
 
 export class Renderer {
   constructor(canvas, onError = () => {}) {
     this.previewCache=new PreviewCache();
     this.canvas=canvas; this.onError=onError; this.zoom=3.5; this.tilt=.62; this.maxDpr=2;
-    this.lineStream=new VertexStream(64*192*12+241*12);this.pointStream=new VertexStream(65*8);
+    this.lineStream=new VertexStream(64*192*12+1200*12);this.pointStream=new PlanetStream(65*16);
+    this.center={x:0,y:0};this.follow=null;this.inputMode='navigate';this.cameraActiveUntil=0;this.impacts=[];this.lastEvent=0;
     this.trails=new Map(); this.selected=null; this.showGrid=true;
     this.showTrails=true; this.showPreview=true; this.reduceMotion=false; this.state=null; this.draft=null; this.lost=false;
     const gl=canvas.getContext('webgl2',{alpha:false,antialias:false,powerPreference:'high-performance'});
     if(!gl) throw new Error('WebGL 2 is unavailable. Enable hardware acceleration or try another browser.');
-    this.gl=gl; this.init();
+    this.gl=gl;this.pointLimit=gl.getParameter(gl.ALIASED_POINT_SIZE_RANGE)[1]; this.init();
     canvas.addEventListener('webglcontextlost',event=>{event.preventDefault();this.lost=true;this.onError('Graphics paused. Waiting for the graphics device to recover.');});
     canvas.addEventListener('webglcontextrestored',()=>{try{this.init();this.lost=false;this.onError('Graphics restored.');}catch(error){this.lost=true;this.onError('Graphics could not recover. Your experiment is intact; export it before reloading. '+error.message);}});
   }
@@ -111,12 +73,12 @@ export class Renderer {
   }
   init(){
     const gl=this.gl;this.locations=new Map();
-    this.points=this.program(VERTEX,FRAGMENT);this.lines=this.program(LINE_VERTEX,LINE_FRAGMENT);this.background=this.program(BG_VERTEX,BG_FRAGMENT);
+    this.points=this.program(planetVertex,planetFragment);this.lines=this.program(LINE_VERTEX,LINE_FRAGMENT);this.background=this.program(BG_VERTEX,BG_FRAGMENT);
     this.pointBuffer=gl.createBuffer();this.lineBuffer=gl.createBuffer();
     this.emptyVAO=gl.createVertexArray();this.pointVAO=gl.createVertexArray();this.lineVAO=gl.createVertexArray();
     gl.bindVertexArray(this.pointVAO);gl.bindBuffer(gl.ARRAY_BUFFER,this.pointBuffer);
     gl.bufferData(gl.ARRAY_BUFFER,this.pointStream.data.byteLength,gl.DYNAMIC_DRAW);
-    for(const [loc,size,offset] of [[0,2,0],[1,1,8],[2,3,12],[3,2,24]]){gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,size,gl.FLOAT,false,32,offset);}
+    for(const [loc,size,offset] of [[0,2,0],[1,1,8],[2,3,12],[3,2,24],[4,4,32],[5,3,48],[6,1,60]]){gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,size,gl.FLOAT,false,64,offset);}
     gl.bindVertexArray(this.lineVAO);gl.bindBuffer(gl.ARRAY_BUFFER,this.lineBuffer);
     gl.bufferData(gl.ARRAY_BUFFER,this.lineStream.data.byteLength,gl.DYNAMIC_DRAW);
     for(const [loc,size,offset] of [[0,2,0],[1,4,8]]){gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,size,gl.FLOAT,false,24,offset);}
@@ -128,29 +90,62 @@ export class Renderer {
     if(!locations.has(name))locations.set(name,this.gl.getUniformLocation(program,name));
     return locations.get(name);
   }
+  set selected(value){this._selected=value;this.selectedPath=null;this.perturber=null;}
+  get selected(){return this._selected;}
   set draft(value){this._draft=value;this.previewPath=this.previewCache.update(value);}
   get draft(){return this._draft;}
   setState(state){
     updateTrails(this.trails,this.state,state);
+    const replaced=!this.state||state.generation!==this.state.generation||state.tick<this.state.tick;
+    if(replaced){this.impacts=[];this.lastEvent=state.events.at(-1)?.id||0;this.follow=null;this.center={x:state.bodies[0].pos.x,y:state.bodies[0].pos.y};}
+    else for(const event of state.events){if(event.id>this.lastEvent&&event.impact)this.impacts.push({...event.impact,body:event.body,time:performance.now()/1000});}
+    this.lastEvent=state.events.at(-1)?.id||this.lastEvent;
+    this.impacts=this.impacts.slice(-12);
+    const tracked=state.bodies.find(b=>b.id===this.follow);
+    if(tracked)this.center={...tracked.pos};
+    else if(this.follow!==null)this.follow=null;
     if(!state.bodies.some(body=>body.id===this.selected))this.selected=null;
-    this.state=state;this.orbitById=new Map(state.orbits);this.sortedBodies=[...state.bodies].sort((a,b)=>a.pos.y-b.pos.y);
+    this.previousState=this.state;this.previousReceived=this.receivedAt;this.receivedAt=performance.now()/1000;
+    this.state=state;this.orbitById=new Map(state.orbits);this.moonOrbitById=new Map(state.moon_orbits||[]);this.sortedBodies=[...state.bodies].sort((a,b)=>a.pos.y-b.pos.y);this.previousBodies=new Map((this.previousState?.bodies||[]).map(b=>[b.id,b]));
+    const selected=state.bodies.find(b=>b.id===this.selected);this.selectedPath=selected?orbitPath(this.moonOrbitById.get(selected.id)||this.orbitById.get(selected.id)):[];this.perturber=strongestPerturber(selected,state.bodies);
   }
-  toWorld(x,y){const r=this.canvas.getBoundingClientRect();return unproject(x-r.left,y-r.top,r.width,r.height,this.zoom,this.tilt);}
-  toScreen(x,y){const r=this.canvas.getBoundingClientRect();return project(x,y,r.width,r.height,this.zoom,this.tilt);}
+  toWorld(x,y){const r=this.canvas.getBoundingClientRect();const p=unproject(x-r.left,y-r.top,r.width,r.height,this.zoom,this.tilt);return [p[0]+this.center.x,p[1]+this.center.y];}
+  toScreen(x,y){const r=this.canvas.getBoundingClientRect();return project(x-this.center.x,y-this.center.y,r.width,r.height,this.zoom,this.tilt);}
+  fit(){
+    if(!this.state)return;this.follow=null;this.center={...this.state.bodies[0].pos};
+    const r=this.canvas.getBoundingClientRect();this.cameraTo(this.center,fitZoom(this.state.bodies,r.width,r.height,this.tilt,this.center));
+  }
+  cameraTo(center,zoom){this.panVelocity=null;this.cameraActiveUntil=performance.now()+400;this.cameraTween={start:performance.now(),from:{...this.center},center:{...center},zoom:clampZoom(zoom),fromZoom:this.zoom};}
+  updateCamera(now){
+    if(this.cameraTween){const t=Math.min(1,(now-this.cameraTween.start)/350),ease=1-(1-t)**3,a=this.cameraTween;this.zoom=a.fromZoom+(a.zoom-a.fromZoom)*ease;this.center={x:a.from.x+(a.center.x-a.from.x)*ease,y:a.from.y+(a.center.y-a.from.y)*ease};if(t===1)this.cameraTween=null;}
+    else if(this.panVelocity){const dt=Math.min(32,Math.max(0,now-(this.lastCameraTime||now))),v=this.panVelocity;this.center={x:this.center.x+v.x*dt,y:this.center.y+v.y*dt};v.x*=Math.exp(-dt/110);v.y*=Math.exp(-dt/110);if(Math.hypot(v.x,v.y)<this.zoom*.00001)this.panVelocity=null;this.lastCameraTime=now;}
+    else if(this.follow!==null){const b=this.state?.bodies.find(body=>body.id===this.follow);if(b)this.center={...b.pos};}
+  }
+  focus(bodyId){
+    const b=this.state?.bodies.find(body=>body.id===bodyId);if(!b)return;
+    this.follow=bodyId;this.selected=bodyId;
+    const moons=this.state.bodies.filter(m=>m.parent===bodyId),host=this.state.bodies.find(p=>p.id===b.parent);
+    const zoom=moons.length?Math.max(b.radius*7,...moons.map(m=>Math.hypot(m.pos.x-b.pos.x,m.pos.y-b.pos.y)*1.6)):host?Math.hypot(host.pos.x-b.pos.x,host.pos.y-b.pos.y)*1.8:b.id===0?3.5:Math.max(b.radius*8,.35);
+    this.cameraTo(b.pos,zoom);
+  }
+  focusEvent(event){if(event.impact){this.follow=null;this.center={...event.impact.position};this.zoom=Math.min(this.zoom,2);this.selected=event.body;}else this.focus(event.body);}
   uniforms(program,time){
     const gl=this.gl;gl.useProgram(program);
     gl.uniform2f(this.location(program,'u_resolution'),this.canvas.width,this.canvas.height);
+    gl.uniform2f(this.location(program,'u_center'),this.center.x,this.center.y);
+    gl.uniform1f(this.location(program,'u_pointLimit'),this.pointLimit);
     gl.uniform1f(this.location(program,'u_zoom'),this.zoom);gl.uniform1f(this.location(program,'u_tilt'),this.tilt);
     gl.uniform1f(this.location(program,'u_dpr'),this.dpr);gl.uniform1f(this.location(program,'u_time'),time);
   }
   draw(time){
-    if(this.reduceMotion)time=0;
+    this.updateCamera(time*1000);
+    const animationTime=this.reduceMotion?0:time;
     if(this.lost || !this.state)return;
     const gl=this.gl,canvas=this.canvas,r=canvas.getBoundingClientRect();this.dpr=Math.min(devicePixelRatio||1,this.maxDpr);
     const width=Math.max(1,Math.round(r.width*this.dpr)),height=Math.max(1,Math.round(r.height*this.dpr));
     if(canvas.width!==width||canvas.height!==height){canvas.width=width;canvas.height=height;}
     gl.viewport(0,0,width,height);
-    this.uniforms(this.background,time);gl.bindVertexArray(this.emptyVAO);
+    this.uniforms(this.background,animationTime);gl.bindVertexArray(this.emptyVAO);
     const star=this.state.bodies[0];
     gl.uniform2f(this.location(this.background,'u_star'),star.pos.x,star.pos.y);
     gl.uniform2f(this.location(this.background,'u_zone'),this.state.status.zone_inner,this.state.status.zone_outer);
@@ -168,17 +163,39 @@ export class Renderer {
         lines.line(path[i-1][0]+star.pos.x,path[i-1][1]+star.pos.y,path[i][0]+star.pos.x,path[i][1]+star.pos.y,[.94,.76,.4],.5);
       }
     }
+    const selected=this.state.bodies.find(b=>b.id===this.selected),orbit=this.moonOrbitById.get(this.selected)||this.orbitById.get(this.selected);
+    if(selected&&orbit){
+      const path=this.selectedPath||(this.selectedPath=orbitPath(orbit));const anchor=this.moonOrbitById.has(selected.id)?this.state.bodies.find(b=>b.id===selected.parent)||star:star;
+      for(let i=1;i<path.length;i++)lines.line(path[i-1][0]+anchor.pos.x,path[i-1][1]+anchor.pos.y,path[i][0]+anchor.pos.x,path[i][1]+anchor.pos.y,[.35,.80,1],.7);
+      const source=this.perturber||strongestPerturber(selected,this.state.bodies);
+      if(source&&source.ratio>.002)lines.line(selected.pos.x,selected.pos.y,source.body.pos.x,source.body.pos.y,[1,.63,.28],Math.min(.7,.2+source.ratio));
+    }
+    this.impacts=this.impacts.filter(impact=>time-impact.time<3);
+    if(!this.reduceMotion)for(const impact of this.impacts){
+      const age=time-impact.time,alpha=Math.max(0,1-age/3),radius=.025+age*.13;
+      for(let i=0;i<32;i++){
+        const a=i*Math.PI/16,b=(i+1)*Math.PI/16;
+        lines.line(impact.position.x+Math.cos(a)*radius,impact.position.y+Math.sin(a)*radius,impact.position.x+Math.cos(b)*radius,impact.position.y+Math.sin(b)*radius,[1,.55,.18],alpha*.8);
+        if(i%2===0){const d=radius*(1.25+(i%5)*.1);lines.line(impact.position.x+Math.cos(a)*d*.8,impact.position.y+Math.sin(a)*d*.8,impact.position.x+Math.cos(a)*d,impact.position.y+Math.sin(a)*d,[1,.8,.4],alpha*.8);}
+      }
+    }
     this.uniforms(this.lines,time);gl.bindVertexArray(this.lineVAO);gl.bindBuffer(gl.ARRAY_BUFFER,this.lineBuffer);
     gl.bufferSubData(gl.ARRAY_BUFFER,0,lines.view());gl.drawArrays(gl.LINES,0,lines.length/6);
     const points=this.pointStream.reset();
     for(const b of this.sortedBodies){
       const o=this.orbitById.get(b.id);
-      const c=o?.habitable?[.35,.82,.62]:COLORS[b.kind];
-      const size=b.kind==='star'?116:b.kind==='dust'?8:b.kind==='giant'?41:25+Math.min(8,Math.cbrt(b.mass/3e-6));
-      points.point(b.pos.x,b.pos.y,size,c,KINDS[b.kind],Number(this.selected===b.id));
+      const c=b.kind==='star'?(b.mass<.85?[1,.48,.19]:b.mass>1.2?[.65,.8,1]:COLORS.star):COLORS[b.kind];
+      const size=bodyDiameter(b,r.height,this.zoom);
+      const dx=star.pos.x-b.pos.x,dy=(star.pos.y-b.pos.y)*this.tilt,dist=Math.hypot(dx,dy)||1;
+      const heat=this.impacts.filter(impact=>impact.body===b.id).reduce((h,impact)=>Math.max(h,Math.max(0,1-(time-impact.time)/3)),0);
+      const previous=this.previousBodies.get(b.id),interval=this.receivedAt-this.previousReceived;
+      const mix=this.state.playing&&previous&&this.previousState?.generation===this.state.generation&&interval>0&&interval<.2?Math.min(1,Math.max(0,(time-this.receivedAt)/interval)):1;
+      const x=previous?previous.pos.x+(b.pos.x-previous.pos.x)*mix:b.pos.x,y=previous?previous.pos.y+(b.pos.y-previous.pos.y)*mix:b.pos.y;
+      points.point(x,y,size,c,KINDS[b.kind],Number(this.selected===b.id),[(b.id*.6180339)%1,(b.material?.ice||0)/b.mass,Number(o?.habitable||false),b.rotation||0],[dx/dist,dy/dist,.45],heat);
+
     }
-    if(this.draft&&this.showPreview)points.point(star.pos.x+this.draft.radius*Math.cos(this.draft.angle),star.pos.y+this.draft.radius*Math.sin(this.draft.angle),25,[.96,.76,.4],1,1);
-    this.uniforms(this.points,time);gl.bindVertexArray(this.pointVAO);gl.bindBuffer(gl.ARRAY_BUFFER,this.pointBuffer);
-    gl.bufferSubData(gl.ARRAY_BUFFER,0,points.view());gl.drawArrays(gl.POINTS,0,points.length/8);
+    if(this.draft&&this.showPreview)points.point(star.pos.x+this.draft.radius*Math.cos(this.draft.angle),star.pos.y+this.draft.radius*Math.sin(this.draft.angle),bodyDiameter({kind:this.draft.kind,mass:(this.draft.mass||1)*3.003e-6},r.height,this.zoom),[.96,.76,.4],1,1);
+    this.uniforms(this.points,animationTime);gl.bindVertexArray(this.pointVAO);gl.bindBuffer(gl.ARRAY_BUFFER,this.pointBuffer);
+    gl.bufferSubData(gl.ARRAY_BUFFER,0,points.view());gl.drawArrays(gl.POINTS,0,points.length/16);return true;
   }
 }

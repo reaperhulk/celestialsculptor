@@ -772,3 +772,21 @@ Validation: 55 native tests pass, including 20-year prograde/retrograde moon sur
 causal neighboring-body perturbation, collision volume/momentum/orbit checks and
 old-executable replay fixtures. Clippy is clean; actual WASM tests verify impacts,
 moons and reverse spin as well as the existing native/WASM parity suite.
+
+### 102 — Readable worlds, close-up navigation and device frame timing
+
+Review needs: show merger growth and changed orbits; replace tiny generic planets;
+make navigation deliberate on mouse and touch; inspect moons at their own scale;
+measure actual rendered frames on the device instead of assuming 60 fps.
+Implemented: radius-proportional bodies, lit procedural terrain/oceans/clouds/ice,
+banded ringed giants, star-relative lighting, impact heat and expanding debris,
+selected osculating orbits and neighboring-pull readings. Drag pans by default;
+placement is explicit. Pointer-anchored wheel zoom, moving pinch centers, inertial
+pan, body follow, Fit, keyboard navigation and moon-scale zoom share tested camera
+math. Added custom mass, orbital direction, moon and independent spin controls.
+The View toggle and ?fps=1 show rendered FPS, p95 interval, draw CPU time and tick
+throughput. Rendering interpolates worker snapshots; buffers remain bounded.
+Validation: headless camera, radius-growth, orbital geometry and frame-meter tests
+pass. Browser tests exercise navigation without accidental edits, moon controls and
+the URL flag. Mobile statistics occupy a separate strip; the release browser matrix
+and screenshots review real shader compilation and standard viewport control fit.

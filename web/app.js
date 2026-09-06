@@ -1,4 +1,7 @@
 import { Renderer } from './renderer.js';
+import {clampZoom} from './camera.js';
+import {FrameMeter,fpsFlag} from './performance.js';
+import {strongestPerturber} from './appearance.js';
 import { installInput } from './input.js';
 import { readProfile, writeProfile, canPlay, nextMission, award, normalizeProfile } from './progression.js';
 import {deviceStorage,parseReplay,saveExperiment,savedExperiments,archiveExperiment,parseArchive} from './storage.js';
@@ -18,6 +21,7 @@ const $=id=>document.getElementById(id);
 let state=null, missions=[], mission=0, renderer, selectedBody=null, ready=false, toastTimer;
 const storage=deviceStorage();
 const viewSettings=readViewSettings(storage,matchMedia('(prefers-reduced-motion: reduce)').matches);
+viewSettings.showFps=fpsFlag(location.search,viewSettings.showFps);
 const sound=new Soundscape();sound.setVolume(viewSettings.volume);const eventCursor=new EventCursor();
 let profile=readProfile(storage),awardedThisRun=false,saveEpoch=0,autosaveTimer;
 
@@ -35,12 +39,17 @@ function workerFailed(message){ready=false;clearTimeout(startupTimer);worker?.te
 const startupTimer=setTimeout(()=>workerFailed('The simulation is taking too long to load. Check your connection and reload.'),30000);
 if(startupError)workerFailed(startupError);
 function action(type,data={}){return send(type,data).catch(error=>toast(error.message));}
-function draft(){return parseLaunchFields({kind:$('kind').value,radius:$('radius').value,angle:$('angle').value,speed:$('speed').value});}
+function draft(){return {...parseLaunchFields({kind:$('kind').value,radius:$('radius').value,angle:$('angle').value,speed:$('speed').value}),mass:Number($('body-mass').value)};}
 function updateDraft(){
   let d;try{d=draft();}catch(error){if(renderer)renderer.draft=null;$('launch').disabled=true;$('orbit-reading').textContent=error.message;return;}
   if(renderer)renderer.draft=d;
   $('radius-range').value=String(d.radius);$('speed-range').value=String(d.speed*100);
-  const issue=placementIssue(state?.status,d.kind);$('launch').disabled=!ready||Boolean(issue);$('launch').title=issue;
+  const tool=state?.status.tools.find(t=>t.kind===d.kind);
+  $('body-mass').min=String(tool?.min_mass??.1);$('body-mass').max=String(tool?.max_mass??10);$('body-mass').disabled=state?.rules_version===1;
+  const massIssue=!Number.isFinite(d.mass)||d.mass<Number($('body-mass').min)||d.mass>Number($('body-mass').max)?'Choose a mass within the range for this world type.':d.mass>(state?.status.remaining??Infinity)?'Not enough matter for this mass.':'';
+  $('mass-summary').textContent=`Mass & launch angle · ${d.mass} Earth${d.mass===1?'':'s'}`;
+  $('mass-help').textContent=state?.rules_version===1?'This restored experiment uses its original fixed masses. Start a fresh system for custom masses.':`Costs ${d.mass} matter. More mass means stronger gravity and a larger world.`;
+  const issue=massIssue||placementIssue(state?.status,d.kind);$('launch').disabled=!ready||Boolean(issue);$('launch').title=issue;
   $('orbit-reading').textContent=issue||(d.speed>Math.SQRT2?'Escape trajectory · a world without a sun':Math.abs(d.speed-1)<.015?'Circular orbit · a quiet beginning':d.speed<.2?'Falling inward · likely stellar impact':'Elliptical orbit · watch the close approach');
 }
 function setMissionUI(){
@@ -71,6 +80,7 @@ async function reset(next=mission,overrides={}){
   toast(error.message);return false;
  }
 }
+let moonHost=null;
 let inspectorIds='';
 function inspect(){
   const ids=state?.bodies.map(b=>b.id).join(',')||'';
@@ -79,6 +89,10 @@ function inspect(){
     for(const b of state?.bodies||[]){const option=document.createElement('option');option.value=String(b.id);option.textContent=b.id===0?'The star':`World ${b.id} · ${b.kind}`;$('inspect-body').append(option);}
   }
   const body=state?.bodies.find(b=>b.id===selectedBody);
+  $('spin-controls').hidden=!body||body.id===0||state?.rules_version===1;
+  $('moon-tools').hidden=!body||body.id===0||body.parent!==null||state?.rules_version===1||(mission!==null&&mission<4);
+  if(body&&body.id!==moonHost&&!$('moon-tools').hidden){moonHost=body.id;const orbit=state.orbits.find(([id])=>id===body.id)?.[1],mass=Math.max(.001,Math.min(.1,body.mass/3.003e-6*.01)),min=1.3*(body.radius+.002*Math.cbrt(mass)),max=orbit.periapsis*Math.cbrt(body.mass/(3*state.bodies[0].mass))*.45;
+   $('moon-mass').value=String(Number(mass.toFixed(3)));$('moon-mass').max=String(Math.min(10,body.mass/3.003e-6*.1));$('moon-distance').value=String(Number(Math.sqrt(min*max).toFixed(4)));$('moon-guidance').textContent=`World ${body.id}. A conservative starting region is ${min.toFixed(4)}–${max.toFixed(4)} AU. Moons remain free to drift, collide, or escape.`;}
   $('nudge-controls').hidden=!body||body.id===0||(mission!==null&&mission<4);
   const p=$('inspector');
   p.replaceChildren();const label=document.createElement('span');label.className='eyebrow';label.textContent='OBSERVATION';p.append(label);
@@ -86,12 +100,13 @@ function inspect(){
   if(!body)text.textContent='Select a world in the view or body list.';
   else if(body.id===0)text.textContent=`${body.mass.toFixed(2)} solar masses. The potential habitable zone spans ${state.status.zone_inner.toFixed(2)}–${state.status.zone_outer.toFixed(2)} AU.`;
   else{
-    const orbit=state.orbits.find(([id])=>id===body.id)?.[1];
-    text.textContent=`World ${body.id} · ${body.kind}\n${(body.mass/3.003e-6).toFixed(2)} Earth masses · ${orbit.distance.toFixed(2)} AU\n${orbit.habitable?'Potentially habitable':orbit.calm?'Calm orbit':orbit.bound?'Eccentric orbit':'Escaping'} · e = ${orbit.eccentricity.toFixed(3)}\nClosest: ${orbit.periapsis.toFixed(2)} AU\nFarthest: ${orbit.bound?orbit.apoapsis.toFixed(2)+' AU':'unbounded'}\nPeriod: ${orbit.period_years===null?'no return':orbit.period_years.toFixed(2)+' years'}`;
+    const moonOrbit=state.moon_orbits?.find(([id])=>id===body.id)?.[1];const orbit=moonOrbit||state.orbits.find(([id])=>id===body.id)?.[1];
+    text.textContent=`World ${body.id} · ${body.kind}${moonOrbit?` · Moon of ${body.parent}`:''}\n${(body.mass/3.003e-6).toFixed(2)} Earth masses · ${orbit.distance.toFixed(2)} AU\n${orbit.habitable?'Potentially habitable':orbit.calm?'Calm orbit':orbit.bound?'Eccentric orbit':'Escaping'} · e = ${orbit.eccentricity.toFixed(3)}\nClosest: ${orbit.periapsis.toFixed(2)} AU\nFarthest: ${orbit.bound?orbit.apoapsis.toFixed(2)+' AU':'unbounded'}\nPeriod: ${orbit.period_years===null?'no return':orbit.period_years.toFixed(2)+' years'}`;
     text.style.whiteSpace='pre-line';
   }
   p.append(text);
   if(body)$('inspect-body').value=String(body.id);
+  if(body&&body.id!==0){const source=strongestPerturber(body,state.bodies),facts=document.createElement('p');facts.textContent=`Contact radius: ${body.radius.toFixed(4)} AU. Material: ${((body.material?.ice||0)/body.mass*100).toFixed(0)}% ice, ${((body.material?.gas||0)/body.mass*100).toFixed(0)}% gas.`;p.append(facts);if(source){const pull=document.createElement('p');pull.className='gravity-reading';pull.textContent=`Strongest neighbor: World ${source.body.id} · ${(source.ratio*100).toFixed(source.ratio<.01?2:1)}% of the star's pull. The blue outline is this world's current orbit; neighbors can bend it.`;p.append(pull);}}
 }
 $('inspect-body').onchange=()=>{selectedBody=Number($('inspect-body').value);if(renderer)renderer.selected=selectedBody;inspect();};
 for(const button of document.querySelectorAll('[data-nudge]'))button.onclick=()=>{const command={type:'nudge',id:selectedBody,tangential:0,radial:0};command[button.dataset.nudge]=Number(button.dataset.amount);action('command',{command});};
@@ -216,7 +231,8 @@ $('next-mission').onclick=()=>reset(mission===9?null:mission+1);
 $('clear').onclick=()=>confirmReset(()=>reset());
 $('star-mass').onchange=()=>{const star_mass=Number($('star-mass').value);confirmReset(()=>reset(mission,{star_mass}),()=>{$('star-mass').value=String(state.config.star_mass);});};
 $('seed').onchange=()=>{try{const seed=parseSeed($('seed').value);confirmReset(()=>reset(mission,{seed}),()=>{$('seed').value=String(state.config.seed);});}catch(error){toast(error.message);$('seed').value=String(state?.config.seed??42);}};
-$('launch-form').onsubmit=event=>{event.preventDefault();if(ready)send('command',{command:{type:'launch',...draft()}}).catch(error=>toast(error.message));};
+function launchCommand(){const d=draft();d.speed*=Number($('orbit-direction').value);return state?.rules_version===1?{type:'launch',kind:d.kind,radius:d.radius,angle:d.angle,speed:d.speed}:{type:'launch_mass',...d};}
+$('launch-form').onsubmit=event=>{event.preventDefault();if(ready)send('command',{command:launchCommand()}).catch(error=>toast(error.message));};
 $('seed-belt').onclick=()=>action('command',{command:{type:'seed_belt',radius:Number($('radius').value)}});
 function diskDraft(){return diskCommand({radius:$('disk-radius').value,spread:$('disk-width').value,count:$('disk-count').value,disorder:$('disk-disorder').value});}
 function updateDisk(){
@@ -225,7 +241,8 @@ function updateDisk(){
 }
 for(const id of ['disk-radius','disk-width','disk-count','disk-disorder'])$(id).oninput=updateDisk;
 $('disk-form').onsubmit=event=>{event.preventDefault();try{send('command',{command:diskDraft()}).then(()=>toast('Debris placed. Run the system to watch it evolve.')).catch(error=>toast(error.message));}catch(error){toast(error.message);}};
-for(const id of ['kind','radius','speed','angle'])$(id).addEventListener('input',updateDraft);
+$('kind').addEventListener('change',()=>{$('body-mass').value=String({rocky:1,ice:2,giant:state?.rules_version===1?50:318,dust:.25}[$('kind').value]);updateDraft();});
+for(const id of ['kind','radius','speed','angle','body-mass'])$(id).addEventListener('input',updateDraft);
 for(const id of ['radius','speed'])$(id+'-range').oninput=()=>{$(id).value=$(id+'-range').value;updateDraft();};
 $('play').onclick=()=>action('play',{value:!state?.playing});$('step').onclick=()=>action('step');$('rewind').onclick=()=>action('rewind');
 $('undo').onclick=()=>action('undo').then(()=>renderer?.trails.clear());
@@ -238,8 +255,14 @@ for(const [id,key] of [['show-grid','showGrid'],['show-trails','showTrails'],['s
 }
 $('render-quality').value=String(viewSettings.maxDpr);if(renderer)renderer.maxDpr=viewSettings.maxDpr;
 $('render-quality').onchange=()=>{viewSettings.maxDpr=Number($('render-quality').value);if(renderer)renderer.maxDpr=viewSettings.maxDpr;writeViewSettings(storage,viewSettings);};
-$('reset-view').onclick=()=>{if(renderer){renderer.zoom=3.5;renderer.tilt=.62;$('view').textContent='Top view';}};
-$('zoom-in').onclick=()=>{if(renderer)renderer.zoom=Math.max(1,renderer.zoom*.8);};$('zoom-out').onclick=()=>{if(renderer)renderer.zoom=Math.min(9,renderer.zoom/ .8);};
+$('reset-view').onclick=()=>{if(renderer){renderer.zoom=3.5;renderer.center={x:0,y:0};renderer.follow=null;renderer.tilt=.62;$('view').textContent='Top view';}};
+$('place-mode').onclick=()=>{if(!renderer)return;renderer.inputMode=renderer.inputMode==='place'?'navigate':'place';$('place-mode').setAttribute('aria-pressed',String(renderer.inputMode==='place'));$('place-mode').classList.toggle('active',renderer.inputMode==='place');$('scene-hint').textContent=renderer.inputMode==='place'?'Tap or drag to choose a launch position':'Drag to pan · Pinch to zoom · Double tap to follow';};
+$('moon-form').onsubmit=event=>{event.preventDefault();send('command',{command:{type:'launch_moon',parent:selectedBody,kind:'rocky',mass:Number($('moon-mass').value),distance:Number($('moon-distance').value),angle:0,speed:Number($('moon-direction').value)}}).then(()=>{renderer?.focus(selectedBody);toast('Moon placed. Every body contributes to its orbit.');}).catch(error=>toast(error.message));};
+$('spin-forward').onclick=()=>action('command',{command:{type:'spin',id:selectedBody,rate:1}});$('spin-reverse').onclick=()=>action('command',{command:{type:'spin',id:selectedBody,rate:-1}});
+$('fit-view').onclick=()=>renderer?.fit();
+$('follow-body').onclick=()=>renderer?.focus(selectedBody);
+$('show-orbit').onclick=()=>{if(renderer)renderer.selected=selectedBody;toast('Blue: current orbit. Amber: the strongest neighboring gravitational pull.');};
+$('zoom-in').onclick=()=>{if(renderer)renderer.zoom=clampZoom(renderer.zoom*.8);};$('zoom-out').onclick=()=>{if(renderer)renderer.zoom=clampZoom(renderer.zoom/.8);};
 for(const button of document.querySelectorAll('[data-panel]'))if(button.tagName==='BUTTON')button.onclick=()=>{document.body.dataset.panel=button.dataset.panel;for(const other of document.querySelectorAll('.mobile-tabs button')){other.classList.toggle('active',other===button);other.setAttribute('aria-pressed',String(other===button));}};
 $('help').onclick=()=>$('help-dialog').showModal();for(const button of document.querySelectorAll('.dialog-close'))button.onclick=()=>$('help-dialog').close();
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&ready){action('play',{value:false});autosave();}});
@@ -253,6 +276,9 @@ document.addEventListener('keydown',event=>{
   if(!ready||document.querySelector('dialog[open]')||/INPUT|SELECT|TEXTAREA|BUTTON/.test(event.target.tagName))return;
   if(event.repeat&&(event.code==='Space'||['l','r'].includes(event.key.toLowerCase())))return;
   if(event.code==='Space'){event.preventDefault();$('play').click();}
+  else if(event.key.toLowerCase()==='f'){event.preventDefault();renderer?.fit();}
+  else if(event.key==='Escape'&&renderer?.inputMode==='place')$('place-mode').click();
+  else if(['w','a','s','d'].includes(event.key.toLowerCase())&&renderer){event.preventDefault();renderer.follow=null;renderer.center={x:renderer.center.x+({a:-1,d:1}[event.key]||0)*renderer.zoom*.08,y:renderer.center.y+({w:1,s:-1}[event.key]||0)*renderer.zoom*.08};renderer.cameraActiveUntil=performance.now()+300;}
   else if(event.key.toLowerCase()==='r')$('rewind').click();
   else if(event.key.toLowerCase()==='l')$('launch-form').requestSubmit();
   else if(event.key==='+'||event.key==='=')$('zoom-in').click();
@@ -264,8 +290,16 @@ document.addEventListener('keydown',event=>{
     updateDraft();
   }
 });
-const frameClock=new FrameClock();
-function frame(time){if(frameClock.due(time,{playing:state?.playing,batterySaver:viewSettings.maxDpr===1,reduceMotion:viewSettings.reduceMotion,hidden:document.hidden}))renderer?.draw(time/1000);requestAnimationFrame(frame);}requestAnimationFrame(frame);
+const frameClock=new FrameClock(),frameMeter=new FrameMeter();
+$('show-fps').checked=viewSettings.showFps;$('fps-overlay').hidden=!viewSettings.showFps;
+$('show-fps').onchange=()=>{viewSettings.showFps=$('show-fps').checked;$('fps-overlay').hidden=!viewSettings.showFps;writeViewSettings(storage,viewSettings);frameMeter.reset();};
+function frame(time){
+ if(frameClock.due(time,{playing:state?.playing||time<(renderer?.cameraActiveUntil||0),batterySaver:viewSettings.maxDpr===1,reduceMotion:viewSettings.reduceMotion,hidden:document.hidden})){
+  const start=performance.now(),drawn=renderer?.draw(time/1000);
+  if(viewSettings.showFps&&drawn){frameMeter.record(time,performance.now()-start);const report=frameMeter.report(time,state?.tick||0);if(report){globalThis.__celestialPerformance=report;$('fps-overlay').textContent=`${report.fps.toFixed(0)} fps · p95 ${report.p95.toFixed(1)} ms\nDraw CPU ${report.drawMs.toFixed(1)} ms · ${report.ticksPerSecond.toFixed(0)} ticks/s\n${state.bodies.length} bodies · DPR ${renderer.dpr}`;}}
+ }
+ requestAnimationFrame(frame);
+}requestAnimationFrame(frame);
 updateDraft();
 
 let recipes=null;
@@ -274,7 +308,7 @@ $('recipes').onclick=async()=>{
   if(!recipes){const response=await fetch(new URL('./recipes.json',import.meta.url));if(!response.ok)throw new Error('Starting points could not load. Try again.');recipes=await response.json();}
   $('recipe-list').replaceChildren();
   for(const recipe of recipes){const button=document.createElement('button');button.className='recipe-choice';const title=document.createElement('strong'),description=document.createElement('span');title.textContent=recipe.name;description.textContent=recipe.description;button.append(title,description);
-   button.onclick=()=>{$('recipes-dialog').close();confirmReset(async()=>{try{saveEpoch++;const replay=JSON.stringify({version:1,config:{...recipe.config,seed:parseSeed($('seed').value)},commands:recipe.commands.map(command=>({tick:0,command})),end_tick:0});await send('import',{replay});await autosave();toast(recipe.name+' is ready. Run it or make it your own.');}catch(error){toast(error.message);}});};
+   button.onclick=()=>{$('recipes-dialog').close();confirmReset(async()=>{try{saveEpoch++;const replay=JSON.stringify({version:recipe.version||2,config:{...recipe.config,seed:parseSeed($('seed').value)},commands:recipe.commands.map(command=>({tick:0,command})),end_tick:0});await send('import',{replay});await autosave();renderer?.fit();toast(recipe.name+' is ready. Run it or make it your own.');}catch(error){toast(error.message);}});};
    $('recipe-list').append(button);
   }
   $('recipes-dialog').showModal();
