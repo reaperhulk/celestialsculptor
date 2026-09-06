@@ -1,0 +1,13 @@
+[package]
+name = "celestial-wasm"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+celestial-sim = { path = "../sim" }
+serde_json.workspace = true
+wasm-bindgen = "=0.2.104"
