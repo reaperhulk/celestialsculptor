@@ -101,3 +101,27 @@ fn final_challenge_exposes_all_three_independent_requirements() {
     assert!(goals.iter().all(|g| g.current == 0));
     assert!(!s.condition);
 }
+#[test]
+fn tool_availability_reports_authoritative_costs_unlocks_and_capacity() {
+    let mut w = World::new(Config::default()).unwrap();
+    let status = w.status();
+    assert_eq!(status.available_slots, 63);
+    assert_eq!(status.actions_remaining, 2048);
+    assert!(status.tools[0].unlocked);
+    assert!(!status.tools[1].unlocked);
+    assert_eq!(status.tools[2].cost, 50.0);
+    assert!(!status.tools[2].affordable);
+    for i in 0..8 {
+        w.apply(Command::Launch {
+            kind: Kind::Rocky,
+            radius: 1.0,
+            angle: i as f64,
+            speed: 1.0,
+        })
+        .unwrap();
+    }
+    let status = w.status();
+    assert!(!status.tools[0].affordable);
+    assert_eq!(status.available_slots, 55);
+    assert_eq!(status.actions_remaining, 2040);
+}

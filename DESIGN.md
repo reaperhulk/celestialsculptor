@@ -423,6 +423,12 @@ Review needs: The headless CLI read an entire file before enforcing its size lim
 Implemented: Limit reads to one byte beyond the import cap, reject ambiguous arguments, and provide discoverable help.
 Validation: Process-level CLI tests verify help, exit failures, missing and extra arguments, oversized files and malformed replays.
 
+### 52 — Expose authoritative tool costs and remaining editing capacity
+
+Review needs: The interface duplicated unlock thresholds and could only discover budget or capacity errors after submitting an action.
+Implemented: Publish fixed-size tool availability plus body and command capacity directly from Rust status.
+Validation: Campaign tests verify starting unlocks, giant cost, budget depletion and capacity changes after eight accepted commands.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;

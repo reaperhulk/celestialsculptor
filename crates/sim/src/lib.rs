@@ -201,8 +201,18 @@ pub struct Orbit {
     pub habitable: bool,
     pub calm: bool,
 }
+#[derive(Clone, Copy, Debug, Serialize)]
+pub struct ToolAvailability {
+    pub kind: Kind,
+    pub cost: f64,
+    pub unlocked: bool,
+    pub affordable: bool,
+}
 #[derive(Clone, Debug, Serialize)]
 pub struct Status {
+    pub available_slots: usize,
+    pub actions_remaining: usize,
+    pub tools: [ToolAvailability; 4],
     pub objectives: [Option<Objective>; 3],
     pub exhausted: bool,
     pub years: f64,
@@ -647,6 +657,14 @@ impl World {
     }
     pub fn status(&self) -> Status {
         let mut s = Status {
+            available_slots: MAX_BODIES - self.bodies.len(),
+            actions_remaining: 2048 - self.commands.len(),
+            tools: [Kind::Rocky, Kind::Ice, Kind::Giant, Kind::Dust].map(|kind| ToolAvailability {
+                kind,
+                cost: kind.cost(),
+                unlocked: self.allowed(kind),
+                affordable: self.spent + kind.cost() <= self.budget() + 1e-8,
+            }),
             objectives: [None; 3],
             exhausted: self.exhausted(),
             years: self.tick as f64 * DT,
