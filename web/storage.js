@@ -1,3 +1,4 @@
+import {normalizeProfile} from './progression.js';
 export const SAVE_KEY='celestial-sculptor.experiment.v1';
 export const BACKUP_KEY=SAVE_KEY+'.backup';
 export function deviceStorage(){try{return globalThis.localStorage;}catch{return null;}}
@@ -19,4 +20,13 @@ export function savedExperiments(storage){
   const saved=[];
   for(const key of [SAVE_KEY,BACKUP_KEY])try{const text=storage.getItem(key);if(text){parseReplay(text);saved.push(text);}}catch{/* Try the previous snapshot. */}
   return saved;
+}
+export function archiveExperiment(replay,profile){return JSON.stringify({format:'celestial-archive',version:1,profile:normalizeProfile(profile),replay:parseReplay(replay)});}
+export function parseArchive(text){
+  if(typeof text!=='string'||text.length>600_000)throw new Error('Choose a backup smaller than 600 KB.');
+  let value;try{value=JSON.parse(text);}catch{throw new Error('This file is not valid JSON.');}
+  if(value?.format!=='celestial-archive')return {replay:JSON.stringify(parseReplay(text)),profile:null};
+  if(value.version!==1)throw new Error('This backup version is unsupported.');
+  const replay=JSON.stringify(value.replay);parseReplay(replay);
+  return {replay,profile:normalizeProfile(value.profile)};
 }

@@ -1,7 +1,7 @@
 import { Renderer } from './renderer.js';
 import { installInput } from './input.js';
-import { readProfile, writeProfile, canPlay, nextMission, award } from './progression.js';
-import {deviceStorage,parseReplay,saveExperiment,savedExperiments} from './storage.js';
+import { readProfile, writeProfile, canPlay, nextMission, award, normalizeProfile } from './progression.js';
+import {deviceStorage,parseReplay,saveExperiment,savedExperiments,archiveExperiment,parseArchive} from './storage.js';
 import {Soundscape} from './audio.js';
 
 const $=id=>document.getElementById(id);
@@ -142,20 +142,22 @@ async function autosave(){
   }catch{$('save-status').textContent='Save pending';}finally{saveBusy=false;}
 }
 setInterval(autosave,3000);
+function download(content,name){const url=URL.createObjectURL(new Blob([content],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 $('export').onclick=async()=>{
   try{
-    const {replay}=await send('export'),url=URL.createObjectURL(new Blob([replay],{type:'application/json'}));
-    const a=document.createElement('a');a.href=url;a.download='celestial-experiment.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+    const {replay}=await send('export');download(replay,'celestial-experiment.json');
   }catch(error){toast(error.message);}
 };
+$('backup').onclick=async()=>{try{const {replay}=await send('export');download(archiveExperiment(replay,profile),'celestial-backup.json');}catch(error){toast(error.message);}};
 $('import').onclick=()=>$('import-file').click();
 $('import-file').onchange=async()=>{
   const file=$('import-file').files[0];$('import-file').value='';if(!file)return;
   try{
-    if(file.size>512_000)throw new Error('Choose an experiment smaller than 512 KB.');
-    const replay=await file.text(),data=parseReplay(replay);
-    if(data.config.mission!==null&&!canPlay(profile,data.config.mission))throw new Error('Complete earlier challenges before importing this challenge.');
-    confirmReset(async()=>{try{saveEpoch++;await send('import',{replay});renderer?.trails.clear();await autosave();toast('Experiment imported, paused.');}catch(error){toast(error.message);}});
+    if(file.size>600_000)throw new Error('Choose an experiment or backup smaller than 600 KB.');
+    const archive=parseArchive(await file.text()),replay=archive.replay,data=parseReplay(replay);
+    const merged=normalizeProfile({version:1,completed:[...profile.completed,...(archive.profile?.completed||[])]});
+    if(data.config.mission!==null&&!canPlay(merged,data.config.mission))throw new Error('Complete earlier challenges before importing this challenge.');
+    confirmReset(async()=>{try{saveEpoch++;await send('import',{replay});profile=merged;if(state.status.completed&&mission!==null)profile=award(profile,mission);writeProfile(storage,profile);renderState(state);renderer?.trails.clear();await autosave();toast('Experiment imported, paused.');}catch(error){toast(error.message);}});
   }catch(error){toast(error.message);}
 };
 $('confirm-cancel').onclick=()=>$('confirm-dialog').close();

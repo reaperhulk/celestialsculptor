@@ -219,6 +219,12 @@ Review needs: Let players declutter dense systems, hide predictive guides, and h
 Implemented: Grid, trails, preview and decorative-motion controls, a camera reset, and an explanation of the two-body preview assumption.
 Validation: Production build and static DOM/module checks pass; controls only affect presentation.
 
+### 18 — Back up discoveries with portable experiments
+
+Review needs: A replay alone cannot move earned discoveries to another device; imports must keep existing progress and preserve CLI-compatible raw replays.
+Implemented: A versioned full backup format, explicit backup download, raw-replay compatibility, and progress merging only after Rust accepts the experiment.
+Validation: Archive round-trip and compatibility tests pass with the complete Node suite and web build checks.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
