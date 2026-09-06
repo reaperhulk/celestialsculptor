@@ -549,6 +549,12 @@ Review needs: Time and outcomes continued changing behind replacement confirmati
 Implemented: Pause before confirmation, resume the same visible timeline on cancellation, serialize confirmations and contain callback errors.
 Validation: Static checks pass; a browser regression checks a frozen tick during confirmation and resumed playback after cancellation.
 
+### 73 — Normalize wheel units and ignore extra fingers during camera gestures
+
+Review needs: Line-mode mouse wheels zoomed much more slowly than pixel devices, and a third touch could unexpectedly move the launch draft.
+Implemented: Normalize wheel deltas before applying bounded zoom and reserve all multi-touch input for the active camera gesture.
+Validation: Input tests compare equivalent pixel, line and page gestures, reverse motion, nonfinite samples and large-delta bounds.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;

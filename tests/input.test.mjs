@@ -12,3 +12,9 @@ test('picking chooses closest world and does not select empty space',()=>{
  assert.equal(nearestBody(bodies,9,9,(x,y)=>[x,y]),2);
  assert.equal(nearestBody(bodies,100,100,(x,y)=>[x,y]),null);
 });
+
+test('wheel zoom normalizes pixel line and page units with bounded jumps',async()=>{
+ const {wheelZoom}=await import('../web/input.js');
+ assert.equal(wheelZoom(2,1),wheelZoom(32,0));assert.equal(wheelZoom(.1,2,800),wheelZoom(80,0));
+ assert.equal(wheelZoom(NaN),1);assert.equal(wheelZoom(10000),wheelZoom(150));assert.ok(Math.abs(wheelZoom(50)*wheelZoom(-50)-1)<1e-12);
+});
