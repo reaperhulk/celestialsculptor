@@ -453,6 +453,12 @@ Review needs: The body list depended on renderer-owned selection, so graphics fa
 Implemented: Own selection in the app and provide a clear graphics-failure message while keeping the worker and all form controls available.
 Validation: Static checks pass; a CI browser regression disables WebGL and exercises real WASM placement, inspection, nudge and stepping.
 
+### 57 — Fingerprint every deployable application asset
+
+Review needs: Revision metadata identified a build but did not prove that its worker modules and WASM bytes belonged to that build.
+Implemented: Emit a sorted SHA-256 and size manifest for all runtime assets, and verify it in the local and CI static gate.
+Validation: A fresh WASM build passes complete asset integrity comparison.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;

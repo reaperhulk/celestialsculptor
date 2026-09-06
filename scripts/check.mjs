@@ -1,6 +1,7 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 import assert from 'node:assert/strict';
+import {assetManifest} from './integrity.mjs';
 for(const name of await readdir('web'))if(name.endsWith('.js')){
   const r=spawnSync(process.execPath,['--check',`web/${name}`],{stdio:'inherit'});
   assert.equal(r.status,0,`Syntax: ${name}`);
@@ -14,3 +15,6 @@ for(const [,id] of app.matchAll(/\$\('([^']+)'\)/g))assert.ok(ids.includes(id),`
 for(const [,path] of html.matchAll(/(?:src|href)="\.\/([^"]+)"/g))await readFile(`dist/${path}`);
 assert.ok((await readFile('dist/pkg/celestial_wasm_bg.wasm')).length>8,'WASM artifact is missing');
 console.log('Web modules, DOM contracts, and built entrypoints verified.');
+
+const build=JSON.parse(await readFile('dist/build-info.json','utf8'));
+assert.deepEqual(await assetManifest('dist'),build.assets,'Built assets differ from their integrity manifest');
