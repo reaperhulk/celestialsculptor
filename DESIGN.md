@@ -459,6 +459,12 @@ Review needs: Revision metadata identified a build but did not prove that its wo
 Implemented: Emit a sorted SHA-256 and size manifest for all runtime assets, and verify it in the local and CI static gate.
 Validation: A fresh WASM build passes complete asset integrity comparison.
 
+### 58 — Verify every published module against the tested artifact
+
+Review needs: A successful HTTP response could still serve a stale worker, mixed release, or wrong WASM MIME type.
+Implemented: Verify the deployed revision, required asset set, file sizes, SHA-256 hashes and WASM content type with bounded parallel requests and CDN retries.
+Validation: Offline publication tests reject stale revisions, altered module bytes, missing workers and invalid WASM serving types.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
