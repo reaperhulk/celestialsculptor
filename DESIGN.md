@@ -173,6 +173,16 @@ one-time Pages source setting, which the connected API does not expose.
 Validation: local native and WASM gates pass; workflow is pushed for Actions
 verification. Public deployment verification waits for Pages enablement.
 
+### 13 — Browser integration gate
+
+Review needs: test actual worker startup and WebGL shader compilation; complete a
+goal through UI controls; verify save reload and viewport fit; retain failure traces.
+Implemented: production static test server with Pages subpath/MIME behavior,
+desktop/phone Playwright scenarios, and a browser gate before artifact upload.
+Validation: static checks and the headless logic suite pass. Local Chromium launch
+is blocked by the workspace's socket restrictions; the identical browser suite
+runs in the authorized GitHub Actions pipeline. Its results drive the next review.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
