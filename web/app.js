@@ -54,19 +54,28 @@ async function reset(next=mission){
   await action('reset',{config:{seed:42,mission,star_mass:Number($('star-mass').value)}});
   autosave();
 }
+let inspectorIds='';
 function inspect(){
+  const ids=state?.bodies.map(b=>b.id).join(',')||'';
+  if(ids!==inspectorIds){
+    inspectorIds=ids;$('inspect-body').replaceChildren();
+    for(const b of state?.bodies||[]){const option=document.createElement('option');option.value=String(b.id);option.textContent=b.id===0?'The star':`World ${b.id} · ${b.kind}`;$('inspect-body').append(option);}
+  }
   const body=state?.bodies.find(b=>b.id===renderer?.selected);
   const p=$('inspector');
   p.replaceChildren();const label=document.createElement('span');label.className='eyebrow';label.textContent='OBSERVATION';p.append(label);
   const text=document.createElement('p');
-  if(!body||body.id===0)text.textContent='Select a world to inspect its orbit.';
+  if(!body)text.textContent='Select a world in the view or body list.';
+  else if(body.id===0)text.textContent=`${body.mass.toFixed(2)} solar masses. The potential habitable zone spans ${state.status.zone_inner.toFixed(2)}–${state.status.zone_outer.toFixed(2)} AU.`;
   else{
     const orbit=state.orbits.find(([id])=>id===body.id)?.[1];
-    text.textContent=`World ${body.id} · ${body.kind}\n${(body.mass/3.003e-6).toFixed(2)} Earth masses · ${orbit.distance.toFixed(2)} AU\n${orbit.habitable?'Potentially habitable':orbit.calm?'Calm orbit':orbit.bound?'Eccentric orbit':'Escaping'} · e = ${orbit.eccentricity.toFixed(3)}`;
+    text.textContent=`World ${body.id} · ${body.kind}\n${(body.mass/3.003e-6).toFixed(2)} Earth masses · ${orbit.distance.toFixed(2)} AU\n${orbit.habitable?'Potentially habitable':orbit.calm?'Calm orbit':orbit.bound?'Eccentric orbit':'Escaping'} · e = ${orbit.eccentricity.toFixed(3)}\nClosest: ${orbit.periapsis.toFixed(2)} AU\nFarthest: ${orbit.bound?orbit.apoapsis.toFixed(2)+' AU':'unbounded'}\nPeriod: ${orbit.period_years===null?'no return':orbit.period_years.toFixed(2)+' years'}`;
     text.style.whiteSpace='pre-line';
   }
   p.append(text);
+  if(body)$('inspect-body').value=String(body.id);
 }
+$('inspect-body').onchange=()=>{if(renderer)renderer.selected=Number($('inspect-body').value);inspect();};
 let lastUI=0,lastEventSignature='';
 function renderState(next){
   if(next.config.mission!==mission){mission=next.config.mission;awardedThisRun=false;setMissionUI();}

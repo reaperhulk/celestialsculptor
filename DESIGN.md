@@ -203,6 +203,16 @@ benchmarks, median/max latency and tick throughput, and JSON reports (`npm run b
 Validation: the benchmark runs the same 2,048 fixed ticks on both targets. Timing
 is reported rather than using flaky absolute shared-runner performance gates.
 
+### 16 — Useful orbital inspection
+
+Review needs: explain why a world satisfies or misses a goal; make all bodies
+selectable without precise pointer input; show meaningful stellar information.
+Implemented: keyboard-accessible body selector, mass/distance/eccentricity,
+periapsis/apoapsis, orbital period, escape status, and stellar habitable-zone bounds.
+Orbital period is computed in Rust, with independent Kepler-law regression tests.
+Validation: 19 native tests and WASM parity pass; production web contracts pass.
+The Pages release from iteration 13 passed its public revision and asset checks.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;

@@ -177,6 +177,7 @@ pub const MISSIONS: [Mission; 10] = [
 
 #[derive(Clone, Copy, Debug, Serialize)]
 pub struct Orbit {
+    pub period_years: Option<f64>,
     pub distance: f64,
     pub eccentricity: f64,
     pub bound: bool,
@@ -500,6 +501,7 @@ impl World {
             && apoapsis <= outer
             && body.mass < 10.0 * EARTH;
         Orbit {
+            period_years: bound.then(|| TAU * (axis.powi(3) / mu).sqrt()),
             distance,
             eccentricity,
             bound,

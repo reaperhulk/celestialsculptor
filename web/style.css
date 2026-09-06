@@ -11,3 +11,5 @@
 .save-tools{display:flex;gap:7px;margin-top:18px}.save-tools button{flex:1;font-size:12px;min-height:36px}.save-status{font-size:11px;margin:8px 0;color:#8197ad}
 
 .header-actions{display:flex;align-items:center;gap:9px}.header-actions #sound{padding:4px 8px;font-size:20px;min-height:35px}@media(max-width:760px){.header-actions{gap:4px}.header-actions #sound{font-size:17px;padding:3px 5px;min-height:30px}}
+
+.inspect-label{display:block;margin-top:23px}#inspect-body{margin-bottom:8px}.inspector{margin-top:10px;padding-top:12px}
