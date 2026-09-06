@@ -152,11 +152,18 @@ if(worker)worker.onmessage=async({data})=>{
   if(!channel.receive(data)&&data.type==='error')toast(data.message);
 };
 if(worker)worker.onerror=()=>workerFailed('The simulation could not start. Reload to try again.');
-function confirmReset(callback,onCancel=()=>{}){
-  if(!state||state.bodies.length===1){callback();return;}
-  $('confirm-dialog').showModal();let accepted=false;
-  $('confirm-dialog').onclose=()=>{if(!accepted)onCancel();};
-  $('confirm-ok').onclick=()=>{accepted=true;$('confirm-dialog').close();callback();};
+let confirming=false;
+async function confirmReset(callback,onCancel=()=>{}){
+ if(confirming)return;
+ if(!state||state.bodies.length===1){try{await callback();}catch(error){toast(error.message);}return;}
+ confirming=true;const wasPlaying=state.playing,generation=state.generation;
+ try{
+  if(wasPlaying)await send('play',{value:false});
+  const dialog=$('confirm-dialog');let accepted=false;
+  dialog.onclose=()=>{confirming=false;if(!accepted){onCancel();if(wasPlaying&&state?.generation===generation&&!document.hidden)action('play',{value:true});}};
+  $('confirm-ok').onclick=async()=>{accepted=true;dialog.close();try{await callback();}catch(error){toast(error.message);}};
+  dialog.showModal();
+ }catch(error){confirming=false;toast(error.message);}
 }
 async function saveSnapshot(){
   if(!ready||!state)return;

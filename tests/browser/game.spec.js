@@ -58,3 +58,9 @@ test('graphics context loss leaves physics usable and recovery resumes drawing',
  await expect.poll(()=>page.evaluate(()=>document.querySelector('canvas').getContext('webgl2').isContextLost())).toBe(false);
  await page.locator('#step').click();await expect(page.locator('#sim-years')).toHaveText('0.06');
 });
+test('replacement confirmation pauses time and cancellation resumes the same run',async({page})=>{
+ await page.locator('#launch').click();await page.locator('#play').click();await expect(page.locator('#play')).toHaveText('Ⅱ Pause');
+ await page.locator('#clear').click();await expect(page.locator('#confirm-dialog')).toBeVisible();await expect(page.locator('#play')).toHaveText('▶ Run');
+ const tick=await page.locator('#universe').getAttribute('data-tick');await page.waitForTimeout(120);await expect(page.locator('#universe')).toHaveAttribute('data-tick',tick);
+ await page.locator('#confirm-cancel').click();await expect(page.locator('#play')).toHaveText('Ⅱ Pause');await expect(page.locator('#planet-count')).toHaveText('1');await page.locator('#play').click();
+});

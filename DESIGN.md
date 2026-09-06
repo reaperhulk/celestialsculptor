@@ -543,6 +543,12 @@ Review needs: The new report carried a replay but required manual JSON extractio
 Implemented: Teach the CLI to unwrap versioned backups and reports with a bounded 600-KB document read, retaining the raw replay limit.
 Validation: Process-level tests execute an exported report and reject unsupported backup versions and oversized documents.
 
+### 72 — Pause experiments while the player decides whether to replace them
+
+Review needs: Time and outcomes continued changing behind replacement confirmations, and asynchronous callback failures were not consistently contained.
+Implemented: Pause before confirmation, resume the same visible timeline on cancellation, serialize confirmations and contain callback errors.
+Validation: Static checks pass; a browser regression checks a frozen tick during confirmation and resumed playback after cancellation.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
