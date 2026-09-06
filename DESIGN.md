@@ -92,6 +92,15 @@ static build script, native-versus-WASM numerical comparisons for all 20 scenari
 and bridge error atomicity tests. Native ES modules avoid a runtime framework.
 Validation: release WASM builds and 21 Node tests run without a DOM or GPU.
 
+### 05 — Worker lifecycle and bounded playback
+
+Review needs: keep physics off the UI thread; make resets/imports atomic; bound
+catch-up after stalls; pause at mission completion; expose errors to the player.
+Implemented: dedicated ES-module worker, tested runtime command protocol, bounded
+tick accumulator, explicit speed presets, step/rewind/export/import, and completion
+pause. Runtime tests instantiate the real compiled WASM engine.
+Validation: 24 Node tests pass, including controller lifecycle and backpressure.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
