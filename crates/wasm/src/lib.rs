@@ -33,6 +33,9 @@ impl Simulation {
     pub fn snapshot(&self) -> String {
         serde_json::json!({ "bodies": self.world.bodies, "status": self.world.status(), "events": self.world.events, "tick": self.world.tick, "config": self.world.config, "orbits": self.world.bodies.iter().skip(1).map(|b| (b.id, self.world.orbit(b))).collect::<Vec<_>>() }).to_string()
     }
+    pub fn flags(&self) -> u8 {
+        u8::from(self.world.completed) | (u8::from(self.world.exhausted()) << 1)
+    }
     pub fn export_replay(&self) -> String {
         serde_json::to_string(&self.world.replay()).expect("finite replay")
     }

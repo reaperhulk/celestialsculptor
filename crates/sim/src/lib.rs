@@ -606,7 +606,7 @@ impl World {
         let n = self.bodies.len() as u64;
         (n * n.saturating_sub(1) / 2).max(1)
     }
-    fn exhausted(&self) -> bool {
+    pub fn exhausted(&self) -> bool {
         self.tick >= MAX_TICKS || self.work_units + self.tick_work() > MAX_WORK_UNITS
     }
     pub fn from_replay(replay: Replay) -> Result<Self, String> {

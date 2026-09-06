@@ -9,8 +9,9 @@ try {
   setInterval(() => {
     const now = performance.now();
     try {
+      const wasPlaying=runtime.playing;
       runtime.advanceElapsed((now - previous) / 1000);
-      if (runtime.playing || now - lastState >= 50) {
+      if ((runtime.playing && now - lastState >= 33) || (wasPlaying && !runtime.playing)) {
         runtime.state(); lastState = now;
       }
     } catch (error) {

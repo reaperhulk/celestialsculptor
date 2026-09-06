@@ -45,10 +45,10 @@ export class Runtime {
     const ticks = Math.floor(this.debt);
     this.debt -= ticks;
     if (ticks) {
-      const previous = JSON.parse(this.sim.snapshot()).status;
+      const previous = this.sim.flags();
       this.sim.advance(ticks);
-      const current = JSON.parse(this.sim.snapshot()).status;
-      if (current.exhausted || (!previous.completed && current.completed)) this.playing = false;
+      const current = this.sim.flags();
+      if ((current & 2) || (!(previous & 1) && (current & 1))) this.playing = false;
     }
   }
 }

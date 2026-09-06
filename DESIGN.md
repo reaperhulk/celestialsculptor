@@ -243,6 +243,12 @@ Review needs: The viewport gate covered only two sizes, and short screens could 
 Implemented: Seven desktop, tablet, phone and landscape configurations; document-height assertions; compact-screen overlay rules; smaller-screen branding and safe-area handling.
 Validation: Production/static checks pass. The expanded 28-case browser matrix runs in GitHub Actions.
 
+### 22 — Reduce worker serialization and paused traffic
+
+Review needs: Playback serialized the full world twice per batch merely to inspect completion, and paused worlds emitted redundant snapshots.
+Implemented: A compact WASM status flag API, thirty-Hz active snapshot publication, immediate completion updates, and no idle heartbeat traffic.
+Validation: A real-WASM runtime regression proves stepping performs no full snapshot reads; native/WASM parity and controller tests pass.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;

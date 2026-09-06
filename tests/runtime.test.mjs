@@ -32,3 +32,10 @@ test('completion pauses playback and export preserves authoritative commands', (
   r.handle({type:'export',id:5}); assert.equal(JSON.parse(messages.at(-1).replay).commands.length,1);
   r.sim.free();
 });
+test('worker stepping does not serialize full snapshots for completion polling',()=>{
+ const {r}=setup();const snapshot=r.sim.snapshot.bind(r.sim);let reads=0;
+ r.sim.snapshot=()=>{reads++;return snapshot();};
+ r.handle({type:'play',value:true});reads=0;
+ for(let i=0;i<20;i++)r.advanceElapsed(.016);
+ assert.equal(reads,0);assert.equal(r.sim.flags(),0);r.sim.free();
+});
