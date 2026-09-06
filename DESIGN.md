@@ -591,6 +591,12 @@ Review needs: Opt-in sound had a fixed output level and no way to adjust it inde
 Implemented: Add a remembered volume control with smooth gain changes, clamped input and no automatic audio activation.
 Validation: Audio and preference tests cover pre-activation volume, bounds, malformed gains and muted settings; fresh build checks pass.
 
+### 80 — Preview disk boundaries and explain formation limits
+
+Review needs: Individually valid disk fields could combine into an invalid radial span or exceed remaining body capacity.
+Implemented: Show the whole disk range, validate combined conditions before submission, and explain matter, action and body limits from Rust status.
+Validation: Disk guidance tests cover edge overlap, empty fields, exact capacity and budget boundaries; build checks pass.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;

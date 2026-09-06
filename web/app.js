@@ -11,6 +11,7 @@ import {FrameClock} from './cadence.js';
 import {CoalescedTask} from './coalesce.js';
 import {goalMessage} from './guidance.js';
 import {diagnosticReport} from './report.js';
+import {diskCommand,diskIssue} from './disk.js';
 import {readViewSettings,writeViewSettings} from './preferences.js';
 
 const $=id=>document.getElementById(id);
@@ -104,7 +105,7 @@ function renderState(next){
   if(!present)return;lastUI=performance.now();
   const s=next.status,m=mission===null?null:missions[mission];
   for(const tool of s.tools){const option=[...$('kind').options].find(option=>option.value===tool.kind);if(option)option.disabled=!tool.unlocked;}
-  updateDraft();
+  updateDraft();updateDisk();
   for(const button of document.querySelectorAll('[data-nudge]'))button.disabled=s.remaining<1||s.actions_remaining===0;
   const objectives=JSON.stringify(s.objectives);
   if(objectives!==lastObjectives){lastObjectives=objectives;$('objectives').replaceChildren();for(const goal of s.objectives.filter(Boolean)){const li=document.createElement('li'),label=document.createElement('span'),value=document.createElement('strong');label.textContent=goal.label;value.textContent=`${goal.current} / ${goal.target}`;li.classList.toggle('met',goal.current>=goal.target);li.append(label,value);$('objectives').append(li);}}
@@ -215,8 +216,13 @@ $('star-mass').onchange=()=>{const star_mass=Number($('star-mass').value);confir
 $('seed').onchange=()=>{try{const seed=parseSeed($('seed').value);confirmReset(()=>reset(mission,{seed}),()=>{$('seed').value=String(state.config.seed);});}catch(error){toast(error.message);$('seed').value=String(state?.config.seed??42);}};
 $('launch-form').onsubmit=event=>{event.preventDefault();if(ready)send('command',{command:{type:'launch',...draft()}}).catch(error=>toast(error.message));};
 $('seed-belt').onclick=()=>action('command',{command:{type:'seed_belt',radius:Number($('radius').value)}});
-$('disk-disorder').oninput=()=>$('disk-disorder-value').textContent=$('disk-disorder').value+'%';
-$('disk-form').onsubmit=event=>{event.preventDefault();send('command',{command:{type:'seed_disk',radius:Number($('disk-radius').value),spread:Number($('disk-width').value),count:Number($('disk-count').value),disorder:Number($('disk-disorder').value)/100}}).then(()=>{toast('Debris placed. Run the system to watch it evolve.');}).catch(error=>toast(error.message));};
+function diskDraft(){return diskCommand({radius:$('disk-radius').value,spread:$('disk-width').value,count:$('disk-count').value,disorder:$('disk-disorder').value});}
+function updateDisk(){
+ $('disk-disorder-value').textContent=$('disk-disorder').value+'%';
+ try{const command=diskDraft(),issue=diskIssue(command,state?.status);$('seed-disk').disabled=!ready||Boolean(issue);$('disk-summary').textContent=issue||`${command.count} fragments · ${(command.radius-command.spread/2).toFixed(2)}–${(command.radius+command.spread/2).toFixed(2)} AU`;}catch(error){$('seed-disk').disabled=true;$('disk-summary').textContent=error.message;}
+}
+for(const id of ['disk-radius','disk-width','disk-count','disk-disorder'])$(id).oninput=updateDisk;
+$('disk-form').onsubmit=event=>{event.preventDefault();try{send('command',{command:diskDraft()}).then(()=>toast('Debris placed. Run the system to watch it evolve.')).catch(error=>toast(error.message));}catch(error){toast(error.message);}};
 for(const id of ['kind','radius','speed','angle'])$(id).addEventListener('input',updateDraft);
 for(const id of ['radius','speed'])$(id+'-range').oninput=()=>{$(id).value=$(id+'-range').value;updateDraft();};
 $('play').onclick=()=>action('play',{value:!state?.playing});$('step').onclick=()=>action('step');$('rewind').onclick=()=>action('rewind');
