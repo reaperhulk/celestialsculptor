@@ -3,6 +3,7 @@ import { installInput } from './input.js';
 import { readProfile, writeProfile, canPlay, nextMission, award, normalizeProfile } from './progression.js';
 import {deviceStorage,parseReplay,saveExperiment,savedExperiments,archiveExperiment,parseArchive} from './storage.js';
 import {Soundscape} from './audio.js';
+import {shouldPresent} from './presentation.js';
 
 const $=id=>document.getElementById(id);
 let state=null, missions=[], mission=0, sequence=0, renderer, ready=false, toastTimer;
@@ -78,10 +79,11 @@ function inspect(){
 $('inspect-body').onchange=()=>{if(renderer)renderer.selected=Number($('inspect-body').value);inspect();};
 let lastUI=0,lastEventSignature='';
 function renderState(next){
+  const present=shouldPresent(state,next,lastUI,performance.now());
   if(next.config.mission!==mission){mission=next.config.mission;awardedThisRun=false;setMissionUI();}
   $('star-mass').value=String(next.config.star_mass);
   state=next;renderer?.setState(next);$('universe').dataset.tick=String(next.tick);
-  if(performance.now()-lastUI<80&&!next.id)return;lastUI=performance.now();
+  if(!present)return;lastUI=performance.now();
   const s=next.status,m=mission===null?null:missions[mission];
   if(s.completed&&mission!==null&&!awardedThisRun){
     awardedThisRun=true;profile=award(profile,mission);

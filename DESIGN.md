@@ -279,6 +279,12 @@ Review needs: A late merger can grow into an earlier body after that pair was al
 Implemented: Bounded repeated contact passes until no bodies merge, plus a last-substep three-body collision regression that checks momentum.
 Validation: Collision-chain, near-miss, conservation, campaign, and WASM parity tests pass.
 
+### 28 — Fix terminal UI updates and landscape creation access
+
+Review needs: The expanded browser matrix found a missed completion update after worker throttling and a launch button below the landscape panel viewport.
+Implemented: Semantic state transitions bypass UI throttling; short landscape layouts place the primary launch action first. The existing failing browser cases remain unchanged.
+Validation: Headless presentation regressions reproduce and cover the completion race; all Node tests and production checks pass. Actions reruns the 28 browser cases.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
