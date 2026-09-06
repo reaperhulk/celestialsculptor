@@ -183,6 +183,17 @@ Validation: static checks and the headless logic suite pass. Local Chromium laun
 is blocked by the workspace's socket restrictions; the identical browser suite
 runs in the authorized GitHub Actions pipeline. Its results drive the next review.
 
+### 14 — Continuous contact detection
+
+Review needs: endpoint-only collision checks can miss fast debris crossing during
+a substep; a fix must preserve nearby flybys and existing conservation behavior.
+Implemented: closest-approach tests on the relative drift segment, without changing
+the fixed timestep or allocating per-pair objects. Merged center-of-mass drift
+remains compatible with subsequent contact checks in the same substep.
+Validation: fast-impact and near-miss regressions, all 17 native tests, 20 campaign
+fixtures, and native/WASM parity pass. GitHub Actions also passed all 8 browser
+integration checks from iteration 13.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;

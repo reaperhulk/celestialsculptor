@@ -365,13 +365,13 @@ impl World {
         }
         let h = DT / 4.0;
         for _ in 0..4 {
-            self.merge_contacts();
+            self.merge_contacts(0.0);
             let a = self.accelerations();
             for (i, b) in self.bodies.iter_mut().enumerate() {
                 b.vel = b.vel.plus(a[i].scale(h / 2.0));
                 b.pos = b.pos.plus(b.vel.scale(h));
             }
-            self.merge_contacts();
+            self.merge_contacts(h);
             let a = self.accelerations();
             for (i, b) in self.bodies.iter_mut().enumerate() {
                 b.vel = b.vel.plus(a[i].scale(h / 2.0));
@@ -413,14 +413,25 @@ impl World {
             self.step();
         }
     }
-    fn merge_contacts(&mut self) {
+    fn merge_contacts(&mut self, sweep: f64) {
         let mut i = 0;
         while i < self.bodies.len() {
             let mut j = i + 1;
             while j < self.bodies.len() {
                 let a = &self.bodies[i];
                 let b = &self.bodies[j];
-                if a.pos.minus(b.pos).norm2() <= (a.radius + b.radius).powi(2) {
+                // Closest point on the relative drift segment catches fast bodies
+                // that pass through each other between endpoint samples.
+                let separation = a.pos.minus(b.pos);
+                let drift = a.vel.minus(b.vel).scale(sweep);
+                let fraction = if drift.norm2() > 0.0 {
+                    ((separation.x * drift.x + separation.y * drift.y) / drift.norm2())
+                        .clamp(0.0, 1.0)
+                } else {
+                    0.0
+                };
+                let closest = separation.minus(drift.scale(fraction));
+                if closest.norm2() <= (a.radius + b.radius).powi(2) {
                     let b = self.bodies.remove(j);
                     let a = &mut self.bodies[i];
                     let mass = a.mass + b.mass;
