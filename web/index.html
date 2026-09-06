@@ -49,7 +49,7 @@
         <button type="button" id="undo" class="undo">Undo last placement</button>
         <button type="button" id="seed-belt" hidden>Seed debris belt · 3 matter</button>
       </form>
-      <div class="star-settings"><label for="star-mass">Your star</label><select id="star-mass" disabled><option value="0.7">Amber dwarf · 0.7 Suns</option><option value="1" selected>Sun-like · 1 Sun</option><option value="1.4">Blue-white · 1.4 Suns</option></select><p>Changing the star begins a new experiment.</p></div>
+      <div class="star-settings"><label for="star-mass">Your star</label><select id="star-mass" disabled><option value="0.7">Amber dwarf · 0.7 Suns</option><option value="1" selected>Sun-like · 1 Sun</option><option value="1.4">Blue-white · 1.4 Suns</option></select><div class="row seed-row"><label for="seed">Experiment seed</label><input id="seed" type="number" min="0" max="4294967295" step="1" value="42"></div><p>Changing these conditions begins a new experiment. The same seed reproduces the same debris.</p></div>
       <label for="inspect-body" class="inspect-label">Inspect a body</label><select id="inspect-body"><option value="0">The star</option></select>
       <div id="inspector" class="inspector"><span class="eyebrow">OBSERVATION</span><p>Select a world to inspect its orbit.</p></div>
       <button id="clear" class="quiet">Start a fresh system</button>

@@ -4,6 +4,7 @@ import { readProfile, writeProfile, canPlay, nextMission, award, normalizeProfil
 import {deviceStorage,parseReplay,saveExperiment,savedExperiments,archiveExperiment,parseArchive} from './storage.js';
 import {Soundscape} from './audio.js';
 import {shouldPresent} from './presentation.js';
+import {parseSeed} from './conditions.js';
 
 const $=id=>document.getElementById(id);
 let state=null, missions=[], mission=0, sequence=0, renderer, ready=false, toastTimer;
@@ -43,7 +44,7 @@ function setMissionUI(){
   $('star-mass').disabled=mission!==null&&mission<2;
   $('next-mission').hidden=true;updateDraft();
 }
-async function reset(next=mission){
+async function reset(next=mission,overrides={}){
   if(!ready)return;
   if(next!==null&&!canPlay(profile,next)){toast('Complete the previous challenges first.');return;}
   mission=next;
@@ -52,7 +53,7 @@ async function reset(next=mission){
   heardEvents.clear();
   if(mission!==null&&mission<2)$('star-mass').value='1';
   setMissionUI();renderer?.trails.clear();
-  await action('reset',{config:{seed:42,mission,star_mass:Number($('star-mass').value)}});
+  await action('reset',{config:{seed:parseSeed($('seed').value),mission,star_mass:Number($('star-mass').value),...overrides}});
   autosave();
 }
 let inspectorIds='';
@@ -82,6 +83,8 @@ function renderState(next){
   const present=shouldPresent(state,next,lastUI,performance.now());
   if(next.config.mission!==mission){mission=next.config.mission;awardedThisRun=false;setMissionUI();}
   $('star-mass').value=String(next.config.star_mass);
+  if(document.activeElement!==$('seed'))$('seed').value=String(next.config.seed);
+  $('system-label').textContent=`EXPERIMENT ${String(next.config.seed).padStart(4,'0')}`;
   state=next;renderer?.setState(next);$('universe').dataset.tick=String(next.tick);
   if(!present)return;lastUI=performance.now();
   const s=next.status,m=mission===null?null:missions[mission];
@@ -179,7 +182,9 @@ $('campaign').onclick=()=>{
 };
 $('close-missions').onclick=()=>$('mission-dialog').close();
 $('next-mission').onclick=()=>reset(mission===9?null:mission+1);
-$('clear').onclick=()=>confirmReset(()=>reset());$('star-mass').onchange=()=>confirmReset(()=>reset(),()=>{$('star-mass').value=String(state.config.star_mass);});
+$('clear').onclick=()=>confirmReset(()=>reset());
+$('star-mass').onchange=()=>{const star_mass=Number($('star-mass').value);confirmReset(()=>reset(mission,{star_mass}),()=>{$('star-mass').value=String(state.config.star_mass);});};
+$('seed').onchange=()=>{try{const seed=parseSeed($('seed').value);confirmReset(()=>reset(mission,{seed}),()=>{$('seed').value=String(state.config.seed);});}catch(error){toast(error.message);$('seed').value=String(state?.config.seed??42);}};
 $('launch-form').onsubmit=event=>{event.preventDefault();if(ready)send('command',{command:{type:'launch',...draft()}}).then(()=>sound.event('launch')).catch(error=>toast(error.message));};
 $('seed-belt').onclick=()=>action('command',{command:{type:'seed_belt',radius:Number($('radius').value)}});
 for(const id of ['kind','radius','speed','angle'])$(id).addEventListener('input',updateDraft);

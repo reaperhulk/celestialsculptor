@@ -291,6 +291,12 @@ Review needs: Dense trails rebuilt large JavaScript and typed arrays and realloc
 Implemented: Fixed-capacity typed vertex streams, direct writes, reusable GPU buffers with subrange uploads, and explicit overflow guards.
 Validation: Maximum-body trail/preview capacity and buffer-reuse tests pass, along with production module checks.
 
+### 30 — Expose reproducible experiment seeds and transactional conditions
+
+Review needs: Debris always used seed 42, and live state updates could overwrite a proposed stellar change while its confirmation was open.
+Implemented: A validated full-range experiment seed control, seed identity in the scene, and captured condition overrides applied only after confirmation.
+Validation: Seed boundary tests, all Node tests, production build, and DOM contracts pass. Thirty review iterations are complete; the requested loop continues to 100.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
