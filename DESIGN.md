@@ -273,6 +273,12 @@ Review needs: Flattening later interventions into tick zero can exceed body limi
 Implemented: Core-owned rewind retaining only initial commands, atomic undo by replay reconstruction, a placement-undo control, and clearer help text.
 Validation: Initial-setup fidelity, undo replay equivalence, empty-undo atomicity, native tests, and WASM/controller tests pass.
 
+### 27 — Resolve collision chains to contact closure
+
+Review needs: A late merger can grow into an earlier body after that pair was already checked, leaving an unresolved overlap at the end of a substep.
+Implemented: Bounded repeated contact passes until no bodies merge, plus a last-substep three-body collision regression that checks momentum.
+Validation: Collision-chain, near-miss, conservation, campaign, and WASM parity tests pass.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;

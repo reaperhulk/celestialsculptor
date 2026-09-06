@@ -420,55 +420,63 @@ impl World {
         }
     }
     fn merge_contacts(&mut self, sweep: f64) {
-        let mut i = 0;
-        while i < self.bodies.len() {
-            let mut j = i + 1;
-            while j < self.bodies.len() {
-                let a = &self.bodies[i];
-                let b = &self.bodies[j];
-                // Closest point on the relative drift segment catches fast bodies
-                // that pass through each other between endpoint samples.
-                let separation = a.pos.minus(b.pos);
-                let drift = a.vel.minus(b.vel).scale(sweep);
-                let fraction = if drift.norm2() > 0.0 {
-                    ((separation.x * drift.x + separation.y * drift.y) / drift.norm2())
-                        .clamp(0.0, 1.0)
-                } else {
-                    0.0
-                };
-                let closest = separation.minus(drift.scale(fraction));
-                if closest.norm2() <= (a.radius + b.radius).powi(2) {
-                    let b = self.bodies.remove(j);
-                    let a = &mut self.bodies[i];
-                    let mass = a.mass + b.mass;
-                    let angular =
-                        a.mass * a.pos.cross(a.vel) + b.mass * b.pos.cross(b.vel) + a.spin + b.spin;
-                    a.pos = a.pos.scale(a.mass / mass).plus(b.pos.scale(b.mass / mass));
-                    a.vel = a.vel.scale(a.mass / mass).plus(b.vel.scale(b.mass / mass));
-                    a.mass = mass;
-                    a.spin = angular - mass * a.pos.cross(a.vel);
-                    if a.kind != Kind::Star && b.kind == Kind::Giant {
-                        a.kind = Kind::Giant;
-                    }
-                    if a.kind == Kind::Dust && mass >= 0.5 * EARTH {
-                        a.kind = Kind::Rocky;
-                    }
-                    a.radius = a.kind.radius(mass);
-                    let id = a.id;
-                    if a.kind == Kind::Star {
-                        self.absorbed += 1;
-                        self.emit("absorb", b.id, format!("World {} fell into the star", b.id));
+        loop {
+            let previous_count = self.bodies.len();
+            let mut i = 0;
+            while i < self.bodies.len() {
+                let mut j = i + 1;
+                while j < self.bodies.len() {
+                    let a = &self.bodies[i];
+                    let b = &self.bodies[j];
+                    // Closest point on the relative drift segment catches fast bodies
+                    // that pass through each other between endpoint samples.
+                    let separation = a.pos.minus(b.pos);
+                    let drift = a.vel.minus(b.vel).scale(sweep);
+                    let fraction = if drift.norm2() > 0.0 {
+                        ((separation.x * drift.x + separation.y * drift.y) / drift.norm2())
+                            .clamp(0.0, 1.0)
                     } else {
-                        self.collisions += 1;
-                        self.emit("collision", id, format!("Worlds {id} and {} merged", b.id));
+                        0.0
+                    };
+                    let closest = separation.minus(drift.scale(fraction));
+                    if closest.norm2() <= (a.radius + b.radius).powi(2) {
+                        let b = self.bodies.remove(j);
+                        let a = &mut self.bodies[i];
+                        let mass = a.mass + b.mass;
+                        let angular = a.mass * a.pos.cross(a.vel)
+                            + b.mass * b.pos.cross(b.vel)
+                            + a.spin
+                            + b.spin;
+                        a.pos = a.pos.scale(a.mass / mass).plus(b.pos.scale(b.mass / mass));
+                        a.vel = a.vel.scale(a.mass / mass).plus(b.vel.scale(b.mass / mass));
+                        a.mass = mass;
+                        a.spin = angular - mass * a.pos.cross(a.vel);
+                        if a.kind != Kind::Star && b.kind == Kind::Giant {
+                            a.kind = Kind::Giant;
+                        }
+                        if a.kind == Kind::Dust && mass >= 0.5 * EARTH {
+                            a.kind = Kind::Rocky;
+                        }
+                        a.radius = a.kind.radius(mass);
+                        let id = a.id;
+                        if a.kind == Kind::Star {
+                            self.absorbed += 1;
+                            self.emit("absorb", b.id, format!("World {} fell into the star", b.id));
+                        } else {
+                            self.collisions += 1;
+                            self.emit("collision", id, format!("Worlds {id} and {} merged", b.id));
+                        }
+                        // A growing contact radius can overlap bodies tested earlier.
+                        j = i + 1;
+                    } else {
+                        j += 1;
                     }
-                    // A growing contact radius can overlap bodies tested earlier.
-                    j = i + 1;
-                } else {
-                    j += 1;
                 }
+                i += 1;
             }
-            i += 1;
+            if self.bodies.len() == previous_count {
+                break;
+            }
         }
     }
     pub fn zone(&self) -> (f64, f64) {
