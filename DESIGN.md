@@ -249,6 +249,12 @@ Review needs: Playback serialized the full world twice per batch merely to inspe
 Implemented: A compact WASM status flag API, thirty-Hz active snapshot publication, immediate completion updates, and no idle heartbeat traffic.
 Validation: A real-WASM runtime regression proves stepping performs no full snapshot reads; native/WASM parity and controller tests pass.
 
+### 23 — Protect active deployments during continuous iteration
+
+Review needs: Canceling every prior main-branch run can interrupt Pages publication while frequent improvements are pushed.
+Implemented: PR runs still cancel superseded work, while main-branch releases finish and only the newest pending main run is retained by Actions concurrency.
+Validation: Workflow YAML parses and dependency/permission gates are checked; existing simulation and browser jobs remain deployment prerequisites.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
