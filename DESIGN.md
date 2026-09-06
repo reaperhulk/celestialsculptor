@@ -405,6 +405,12 @@ Review needs: The renderer drew every display refresh while paused, including 12
 Implemented: Cap active rendering at 60 FPS, battery mode and paused scenes at 30, reduced-motion idle scenes at 15, and skip hidden frames.
 Validation: A synthetic 120-Hz clock verifies all four frame budgets and immediate visibility recovery.
 
+### 49 — Add reproducible sandbox starting points with verified outcomes
+
+Review needs: A blank sandbox provided little guidance for discovering formation, stellar escape and giant interactions.
+Implemented: Define four data-driven initial-condition recipes and test their promised outcomes directly in native Rust.
+Validation: Quiet garden, crowded nursery, distant giant and wanderer recipes exhibit their stated behavior after four simulated years and replay exactly.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;

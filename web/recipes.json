@@ -1,0 +1,127 @@
+[
+  {
+    "id": "quiet-garden",
+    "name": "A quiet garden",
+    "description": "Three widely spaced worlds and a potentially habitable orbit.",
+    "commands": [
+      {
+        "type": "launch",
+        "kind": "rocky",
+        "radius": 0.6,
+        "angle": 0,
+        "speed": 1
+      },
+      {
+        "type": "launch",
+        "kind": "ice",
+        "radius": 1.2,
+        "angle": 2,
+        "speed": 1
+      },
+      {
+        "type": "launch",
+        "kind": "rocky",
+        "radius": 2,
+        "angle": 4,
+        "speed": 1
+      }
+    ],
+    "config": {
+      "seed": 719,
+      "mission": null,
+      "star_mass": 1
+    }
+  },
+  {
+    "id": "crowded-nursery",
+    "name": "A crowded nursery",
+    "description": "A narrow, disordered disk. Watch impacts assemble larger bodies.",
+    "commands": [
+      {
+        "type": "seed_disk",
+        "radius": 2,
+        "spread": 0.08,
+        "disorder": 0.35,
+        "count": 32
+      }
+    ],
+    "config": {
+      "seed": 719,
+      "mission": null,
+      "star_mass": 1
+    }
+  },
+  {
+    "id": "giant-shepherd",
+    "name": "The distant giant",
+    "description": "Four inner worlds share a system with an outer gas giant.",
+    "commands": [
+      {
+        "type": "launch",
+        "kind": "rocky",
+        "radius": 0.5,
+        "angle": 0,
+        "speed": 1
+      },
+      {
+        "type": "launch",
+        "kind": "rocky",
+        "radius": 0.8,
+        "angle": 1,
+        "speed": 1
+      },
+      {
+        "type": "launch",
+        "kind": "ice",
+        "radius": 1.2,
+        "angle": 2,
+        "speed": 1
+      },
+      {
+        "type": "launch",
+        "kind": "rocky",
+        "radius": 2,
+        "angle": 3,
+        "speed": 1
+      },
+      {
+        "type": "launch",
+        "kind": "giant",
+        "radius": 4.5,
+        "angle": 4,
+        "speed": 1
+      }
+    ],
+    "config": {
+      "seed": 719,
+      "mission": null,
+      "star_mass": 1
+    }
+  },
+  {
+    "id": "wanderer",
+    "name": "The wanderer",
+    "description": "One world has enough speed to leave. Compare its path to its bound neighbor.",
+    "commands": [
+      {
+        "type": "launch",
+        "kind": "rocky",
+        "radius": 1,
+        "angle": 0,
+        "speed": 1.8
+      },
+      {
+        "type": "launch",
+        "kind": "ice",
+        "radius": 2,
+        "angle": 3,
+        "speed": 1
+      }
+    ],
+    "config": {
+      "seed": 719,
+      "mission": null,
+      "star_mass": 1
+    }
+  }
+]
