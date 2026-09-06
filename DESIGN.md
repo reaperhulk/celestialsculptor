@@ -387,6 +387,12 @@ Review needs: Imports and rewinds could replay old sound effects, while heard-ev
 Implemented: Version worker timelines and replace the event set with a constant-space cursor; add disk and burn motifs to real event playback.
 Validation: Actual-WASM timeline-generation tests and cursor tests cover failed imports, rewinds, duplicate snapshots and new events.
 
+### 46 — Clear visual history when an experiment timeline changes
+
+Review needs: Same-tick undo or import could connect an old path to a different world with the same body ID.
+Implemented: Update trail history using timeline generations, prune removed bodies even while paused, and clear vanished selections.
+Validation: Trail regressions verify same-tick replacement, deletion, paused duplicates and the 192-point bound.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;

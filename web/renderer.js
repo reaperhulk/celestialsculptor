@@ -1,5 +1,6 @@
 import { project, unproject, launchPath } from './geometry.js';
 import { VertexStream } from './vertices.js';
+import {updateTrails} from './trails.js';
 
 const VERTEX = `#version 300 es
 layout(location=0) in vec2 a_pos;
@@ -88,7 +89,7 @@ export class Renderer {
   constructor(canvas, onError = () => {}) {
     this.canvas=canvas; this.onError=onError; this.zoom=3.5; this.tilt=.62;
     this.lineStream=new VertexStream(64*192*12+241*12);this.pointStream=new VertexStream(65*8);
-    this.trails=new Map(); this.lastTick=-1; this.selected=null; this.showGrid=true;
+    this.trails=new Map(); this.selected=null; this.showGrid=true;
     this.showTrails=true; this.showPreview=true; this.reduceMotion=false; this.state=null; this.draft=null; this.lost=false;
     const gl=canvas.getContext('webgl2',{alpha:false,antialias:false,powerPreference:'high-performance'});
     if(!gl) throw new Error('WebGL 2 is unavailable. Enable hardware acceleration or try another browser.');
@@ -128,17 +129,9 @@ export class Renderer {
   set draft(value){this._draft=value;this.previewPath=value?launchPath(value.radius,value.angle,value.speed):[];}
   get draft(){return this._draft;}
   setState(state){
-    if(state.tick<this.lastTick || (state.tick===0 && this.lastTick!==0))this.trails.clear();
-    if(state.tick!==this.lastTick){
-      const live=new Set(state.bodies.map(b=>b.id));
-      for(const id of this.trails.keys())if(!live.has(id))this.trails.delete(id);
-      for(const b of state.bodies){
-        if(b.kind==='star')continue;
-        const trail=this.trails.get(b.id)||[];trail.push([b.pos.x,b.pos.y]);
-        if(trail.length>192)trail.shift();this.trails.set(b.id,trail);
-      }
-    }
-    this.state=state;this.lastTick=state.tick;this.orbitById=new Map(state.orbits);this.sortedBodies=[...state.bodies].sort((a,b)=>a.pos.y-b.pos.y);
+    updateTrails(this.trails,this.state,state);
+    if(!state.bodies.some(body=>body.id===this.selected))this.selected=null;
+    this.state=state;this.orbitById=new Map(state.orbits);this.sortedBodies=[...state.bodies].sort((a,b)=>a.pos.y-b.pos.y);
   }
   toWorld(x,y){const r=this.canvas.getBoundingClientRect();return unproject(x-r.left,y-r.top,r.width,r.height,this.zoom,this.tilt);}
   toScreen(x,y){const r=this.canvas.getBoundingClientRect();return project(x,y,r.width,r.height,this.zoom,this.tilt);}
