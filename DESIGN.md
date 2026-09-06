@@ -65,6 +65,15 @@ commands, seed RNG, tick-stamped replays, and physics regression tests.
 Validation: all 6 native regression tests pass in release mode, including a
 100-year orbit with relative energy drift below 1e-7. Rust format check passes.
 
+### 02 — Bounded, lossless replay
+
+Review needs: reject malformed or resource-heavy imports; ensure generated belts
+are reproducible; prevent the running game from exceeding its export limit; retain
+floating-point command values through JSON.
+Implemented: 600-year experiment cap, explicit exhausted status, exact float JSON
+round trips, and replay / atomic belt / seeded RNG / property regression coverage.
+Validation: 11 native tests, including 64 generated replay cases, pass.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;

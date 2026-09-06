@@ -8,6 +8,7 @@ pub const DT: f64 = 1.0 / 512.0;
 pub const MAX_BODIES: usize = 64;
 pub const SOFTENING: f64 = 0.002;
 pub const SAVE_VERSION: u32 = 1;
+pub const MAX_TICKS: u64 = 512 * 600;
 
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct V2 {
@@ -184,6 +185,7 @@ pub struct Orbit {
 }
 #[derive(Clone, Debug, Serialize)]
 pub struct Status {
+    pub exhausted: bool,
     pub years: f64,
     pub remaining: f64,
     pub planets: usize,
@@ -357,6 +359,9 @@ impl World {
     }
     /// Each tick always runs four kick-drift-kick substeps. Speed never changes dt.
     pub fn step(&mut self) {
+        if self.tick >= MAX_TICKS {
+            return;
+        }
         let h = DT / 4.0;
         for _ in 0..4 {
             self.merge_contacts();
@@ -493,6 +498,7 @@ impl World {
     }
     pub fn status(&self) -> Status {
         let mut s = Status {
+            exhausted: self.tick >= MAX_TICKS,
             years: self.tick as f64 * DT,
             remaining: (self.budget() - self.spent).max(0.0),
             planets: 0,
@@ -580,7 +586,7 @@ impl World {
     pub fn from_replay(replay: Replay) -> Result<Self, String> {
         // Import is work-bounded. No untrusted state or derived scores are accepted.
         if replay.version != SAVE_VERSION
-            || replay.end_tick > 512 * 600
+            || replay.end_tick > MAX_TICKS
             || replay.commands.len() > 2048
         {
             return Err("Unsupported or oversized experiment".into());
