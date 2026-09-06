@@ -297,6 +297,12 @@ Review needs: Debris always used seed 42, and live state updates could overwrite
 Implemented: A validated full-range experiment seed control, seed identity in the scene, and captured condition overrides applied only after confirmation.
 Validation: Seed boundary tests, all Node tests, production build, and DOM contracts pass. Thirty review iterations are complete; the requested loop continues to 100.
 
+### 31 — Add seeded debris disks with controllable disorder
+
+Review needs: A single narrow belt limits initial-condition experiments and makes formation outcomes repetitive.
+Implemented: An authoritative SeedDisk command with radial width, body count, orbital-speed disorder, deterministic generation, atomic limits, and matter accounting.
+Validation: Seeded disk evolution and replay equivalence, invalid-disk atomicity, native regression tests, and WASM parity pass.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;

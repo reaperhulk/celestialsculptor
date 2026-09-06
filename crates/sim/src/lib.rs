@@ -115,6 +115,12 @@ pub enum Command {
     SeedBelt {
         radius: f64,
     },
+    SeedDisk {
+        radius: f64,
+        spread: f64,
+        disorder: f64,
+        count: u32,
+    },
 }
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct RecordedCommand {
@@ -269,6 +275,38 @@ impl World {
             return Err("This experiment has reached its 2048-action limit".into());
         }
         match command.clone() {
+            Command::SeedDisk {
+                radius,
+                spread,
+                disorder,
+                count,
+            } => {
+                if !self.allowed(Kind::Dust) {
+                    return Err("Debris tools are not unlocked in this challenge".into());
+                }
+                if !radius.is_finite()
+                    || !spread.is_finite()
+                    || !disorder.is_finite()
+                    || !(4..=40).contains(&count)
+                    || !(0.05..=2.0).contains(&spread)
+                    || !(0.0..=0.6).contains(&disorder)
+                    || radius - spread / 2.0 < 0.25
+                    || radius + spread / 2.0 > 6.0
+                {
+                    return Err("Choose 4–40 debris bodies, width 0.05–2 AU, disorder 0–60%, within 0.25–6 AU".into());
+                }
+                if self.bodies.len() + count as usize > MAX_BODIES
+                    || self.spent + count as f64 * 0.25 > self.budget() + 1e-8
+                {
+                    return Err("Not enough matter or body capacity for this disk".into());
+                }
+                for i in 0..count {
+                    let r = radius + (self.random() - 0.5) * spread;
+                    let angle = (i as f64 + self.random() * 0.6) * TAU / count as f64;
+                    let speed = 1.0 + (self.random() * 2.0 - 1.0) * disorder;
+                    self.launch(Kind::Dust, r, angle, speed);
+                }
+            }
             Command::Launch {
                 kind,
                 radius,
