@@ -447,6 +447,12 @@ Review needs: Dialogs relied on visual headings without accessible names, and ac
 Implemented: Connect dialog labels, expose pressed states for mode and panel controls, and extend the static gate to detect broken accessible references.
 Validation: The expanded DOM contract check passes for all labels, descriptions and control targets.
 
+### 56 — Keep body inspection and orbital edits usable without WebGL
+
+Review needs: The body list depended on renderer-owned selection, so graphics failure unnecessarily disabled otherwise independent game interactions.
+Implemented: Own selection in the app and provide a clear graphics-failure message while keeping the worker and all form controls available.
+Validation: Static checks pass; a CI browser regression disables WebGL and exercises real WASM placement, inspection, nudge and stepping.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;

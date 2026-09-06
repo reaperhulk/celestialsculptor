@@ -11,7 +11,7 @@ import {FrameClock} from './cadence.js';
 import {readViewSettings,writeViewSettings} from './preferences.js';
 
 const $=id=>document.getElementById(id);
-let state=null, missions=[], mission=0, renderer, ready=false, toastTimer;
+let state=null, missions=[], mission=0, renderer, selectedBody=null, ready=false, toastTimer;
 const storage=deviceStorage();
 const viewSettings=readViewSettings(storage,matchMedia('(prefers-reduced-motion: reduce)').matches);
 const sound=new Soundscape();const eventCursor=new EventCursor();
@@ -19,7 +19,7 @@ let profile=readProfile(storage),awardedThisRun=false,saveBusy=false,saveEpoch=0
 
 function toast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,5000);}
 function fail(message){$('loading').hidden=false;$('loading').querySelector('p').textContent=message;$('play').disabled=true;}
-try { renderer=new Renderer($('universe'),toast); } catch(error){fail(error.message);}
+try { renderer=new Renderer($('universe'),toast); } catch(error){fail(error.message+' You can still sculpt, run, inspect and export using the controls.');}
 const worker=new Worker(new URL('./worker.js',import.meta.url),{type:'module'});
 const channel=new RequestChannel(message=>worker.postMessage(message));
 function send(type,data={}){return channel.send(type,data);}
@@ -68,7 +68,7 @@ function inspect(){
     inspectorIds=ids;$('inspect-body').replaceChildren();
     for(const b of state?.bodies||[]){const option=document.createElement('option');option.value=String(b.id);option.textContent=b.id===0?'The star':`World ${b.id} · ${b.kind}`;$('inspect-body').append(option);}
   }
-  const body=state?.bodies.find(b=>b.id===renderer?.selected);
+  const body=state?.bodies.find(b=>b.id===selectedBody);
   $('nudge-controls').hidden=!body||body.id===0||(mission!==null&&mission<4);
   const p=$('inspector');
   p.replaceChildren();const label=document.createElement('span');label.className='eyebrow';label.textContent='OBSERVATION';p.append(label);
@@ -83,8 +83,8 @@ function inspect(){
   p.append(text);
   if(body)$('inspect-body').value=String(body.id);
 }
-$('inspect-body').onchange=()=>{if(renderer)renderer.selected=Number($('inspect-body').value);inspect();};
-for(const button of document.querySelectorAll('[data-nudge]'))button.onclick=()=>{const command={type:'nudge',id:renderer?.selected,tangential:0,radial:0};command[button.dataset.nudge]=Number(button.dataset.amount);action('command',{command});};
+$('inspect-body').onchange=()=>{selectedBody=Number($('inspect-body').value);if(renderer)renderer.selected=selectedBody;inspect();};
+for(const button of document.querySelectorAll('[data-nudge]'))button.onclick=()=>{const command={type:'nudge',id:selectedBody,tangential:0,radial:0};command[button.dataset.nudge]=Number(button.dataset.amount);action('command',{command});};
 let lastUI=0,lastEventSignature='',lastObjectives='';
 function renderState(next){
   const present=shouldPresent(state,next,lastUI,performance.now());
@@ -92,6 +92,7 @@ function renderState(next){
   $('star-mass').value=String(next.config.star_mass);
   if(document.activeElement!==$('seed'))$('seed').value=String(next.config.seed);
   $('system-label').textContent=`EXPERIMENT ${String(next.config.seed).padStart(4,'0')}`;
+  if(!next.bodies.some(body=>body.id===selectedBody))selectedBody=null;
   state=next;renderer?.setState(next);$('universe').dataset.tick=String(next.tick);
   if(!present)return;lastUI=performance.now();
   const s=next.status,m=mission===null?null:missions[mission];
@@ -221,7 +222,7 @@ $('sound').onclick=async()=>{try{const enabled=await sound.toggle();$('sound').s
 document.addEventListener('visibilitychange',()=>sound.visibility(document.hidden).catch(()=>{}));
 if(renderer)installInput($('universe'),renderer,{
   onDraft:({radius,angle})=>{$('radius').value=radius.toFixed(2);$('angle').value=String(Math.round(angle));updateDraft();},
-  onSelect:inspect,
+  onSelect:()=>{selectedBody=renderer.selected;inspect();},
 });
 document.addEventListener('keydown',event=>{
   if(!ready||document.querySelector('dialog[open]')||/INPUT|SELECT|TEXTAREA|BUTTON/.test(event.target.tagName))return;
