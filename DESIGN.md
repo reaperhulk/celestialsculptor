@@ -525,6 +525,12 @@ Review needs: Worker construction errors escaped the app and a stalled WASM down
 Implemented: Catch startup failure, bound initialization time, release pending requests, disable dead controls, and present a reload action.
 Validation: Static checks pass; a browser regression injects worker construction failure and verifies visible recovery without uncaught errors.
 
+### 69 — Export self-contained bug reports for headless reproduction
+
+Review needs: A report of unexpected behavior lacked the exact commands and build context needed to reproduce it independently of graphics.
+Implemented: Add an explicit help action exporting an import-compatible backup with revision, browser, viewport and display settings.
+Validation: Report tests prove reproduction metadata is retained and the same file still restores the experiment and discoveries.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;

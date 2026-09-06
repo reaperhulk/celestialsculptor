@@ -10,6 +10,7 @@ import {EventCursor} from './events.js';
 import {FrameClock} from './cadence.js';
 import {CoalescedTask} from './coalesce.js';
 import {goalMessage} from './guidance.js';
+import {diagnosticReport} from './report.js';
 import {readViewSettings,writeViewSettings} from './preferences.js';
 
 const $=id=>document.getElementById(id);
@@ -264,3 +265,9 @@ $('recipes').onclick=async()=>{
  }catch(error){toast(error.message);}
 };
 $('close-recipes').onclick=()=>$('recipes-dialog').close();
+
+$('debug-report').onclick=async()=>{
+ try{const {replay}=await send('export');const response=await fetch(new URL('./build-info.json',import.meta.url));if(!response.ok)throw new Error('Build details could not load. Export the experiment instead.');
+ const build=await response.json();download(diagnosticReport(replay,profile,build,{browser:navigator.userAgent,viewport:{width:innerWidth,height:innerHeight,pixelRatio:devicePixelRatio},webgl:Boolean(renderer),view:viewSettings}),'celestial-bug-report.json');
+ }catch(error){toast(error.message);}
+};
