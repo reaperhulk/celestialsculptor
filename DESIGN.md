@@ -579,6 +579,12 @@ Review needs: The natural-exhaustion test exposed billions of no-op step calls a
 Implemented: Break the batch loop as soon as the experiment is exhausted, preserving state while bounding actual execution work.
 Validation: The unchanged u32::MAX batch and replay regression passes with early termination; all workspace tests pass.
 
+### 78 — Publish representative game screenshots for release review
+
+Review needs: Passing geometry and interaction checks did not give reviewers a convenient view of the actual rendered release.
+Implemented: Capture deterministic paused desktop and phone systems through real UI commands and retain the images as CI artifacts.
+Validation: Preview test syntax and browser discovery pass; screenshots are captured in the authorized CI browser environment.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
