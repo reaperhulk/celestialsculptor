@@ -60,3 +60,5 @@ cargo run --release --locked -p celestial-sim --bin sculptor -- replay celestial
 ```
 
 [DESIGN.md](DESIGN.md) records architecture, scientific limits and every review iteration.
+
+Project source is available under the [MIT license](LICENSE).

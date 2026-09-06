@@ -663,6 +663,12 @@ Review needs: The recipe heading referenced an undefined gold token, silently fa
 Implemented: Use the established amber token and add a stylesheet contract that catches missing custom properties while allowing explicit fallbacks.
 Validation: Token regression tests and the full static build contract pass.
 
+### 92 — Complete the project license and align package metadata
+
+Review needs: The Rust workspace declared MIT licensing but the public repository lacked the corresponding license file and npm metadata.
+Implemented: Add the declared MIT license, align npm and lockfile metadata, and extend the release contract to detect license mismatches.
+Validation: The metadata contract passes and the license is linked from the project README.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
