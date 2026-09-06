@@ -441,6 +441,12 @@ Review needs: A nonfinite elapsed sample permanently made tick debt NaN, and str
 Implemented: Ignore invalid clock samples, require a boolean play state, and report null protocol messages as ordinary errors.
 Validation: Actual-WASM runtime tests verify unchanged state after invalid samples and successful advancement afterward.
 
+### 55 — Name dialogs and expose active modes to assistive technology
+
+Review needs: Dialogs relied on visual headings without accessible names, and active mode and panel states were conveyed only by color.
+Implemented: Connect dialog labels, expose pressed states for mode and panel controls, and extend the static gate to detect broken accessible references.
+Validation: The expanded DOM contract check passes for all labels, descriptions and control targets.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;

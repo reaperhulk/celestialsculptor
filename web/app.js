@@ -35,6 +35,7 @@ function updateDraft(){
 }
 function setMissionUI(){
   const m=mission===null?null:missions[mission];
+  $('campaign').setAttribute('aria-pressed',String(mission!==null));$('sandbox').setAttribute('aria-pressed',String(mission===null));
   $('campaign').classList.toggle('active',mission!==null);$('sandbox').classList.toggle('active',mission===null);
   $('mission-index').textContent=m?`CHALLENGE ${String(mission+1).padStart(2,'0')} / 10`:'OPEN EXPLORATION';
   $('mission-name').textContent=m?.name||'Your universe';
@@ -213,7 +214,7 @@ $('render-quality').value=String(viewSettings.maxDpr);if(renderer)renderer.maxDp
 $('render-quality').onchange=()=>{viewSettings.maxDpr=Number($('render-quality').value);if(renderer)renderer.maxDpr=viewSettings.maxDpr;writeViewSettings(storage,viewSettings);};
 $('reset-view').onclick=()=>{if(renderer){renderer.zoom=3.5;renderer.tilt=.62;$('view').textContent='Top view';}};
 $('zoom-in').onclick=()=>{if(renderer)renderer.zoom=Math.max(1,renderer.zoom*.8);};$('zoom-out').onclick=()=>{if(renderer)renderer.zoom=Math.min(9,renderer.zoom/ .8);};
-for(const button of document.querySelectorAll('[data-panel]'))if(button.tagName==='BUTTON')button.onclick=()=>{document.body.dataset.panel=button.dataset.panel;for(const other of document.querySelectorAll('.mobile-tabs button'))other.classList.toggle('active',other===button);};
+for(const button of document.querySelectorAll('[data-panel]'))if(button.tagName==='BUTTON')button.onclick=()=>{document.body.dataset.panel=button.dataset.panel;for(const other of document.querySelectorAll('.mobile-tabs button')){other.classList.toggle('active',other===button);other.setAttribute('aria-pressed',String(other===button));}};
 $('help').onclick=()=>$('help-dialog').showModal();for(const button of document.querySelectorAll('.dialog-close'))button.onclick=()=>$('help-dialog').close();
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&ready){action('play',{value:false});autosave();}});
 $('sound').onclick=async()=>{try{const enabled=await sound.toggle();$('sound').setAttribute('aria-pressed',String(enabled));$('sound').setAttribute('aria-label',enabled?'Mute sound':'Enable sound');$('sound').classList.toggle('active',enabled);}catch(error){toast(error.message);}};

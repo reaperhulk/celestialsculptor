@@ -8,6 +8,7 @@ for(const name of await readdir('web'))if(name.endsWith('.js')){
 const html=await readFile('web/index.html','utf8');
 const ids=[...html.matchAll(/\bid="([^"]+)"/g)].map(m=>m[1]);
 assert.equal(ids.length,new Set(ids).size,'Duplicate DOM identifiers');
+for(const [,refs] of html.matchAll(/(?:aria-labelledby|aria-describedby|for)="([^"]+)"/g))for(const id of refs.split(/\s+/))assert.ok(ids.includes(id),`Broken accessible label reference: ${id}`);
 const app=await readFile('web/app.js','utf8');
 for(const [,id] of app.matchAll(/\$\('([^']+)'\)/g))assert.ok(ids.includes(id),`Missing DOM element: ${id}`);
 for(const [,path] of html.matchAll(/(?:src|href)="\.\/([^"]+)"/g))await readFile(`dist/${path}`);

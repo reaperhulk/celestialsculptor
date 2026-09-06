@@ -42,3 +42,4 @@ body{padding-top:env(safe-area-inset-top)}
 
 .nudges p{font-size:13px}.nudges>div{display:grid;grid-template-columns:1fr 1fr;gap:6px}.nudges button{font-size:13px;padding:8px 5px}
 .recipe-choice{display:flex;flex-direction:column;align-items:flex-start;gap:7px;width:100%;padding:16px;margin-top:10px;text-align:left;white-space:normal}.recipe-choice strong{color:var(--gold);font-size:16px}.recipe-choice span{color:var(--muted);font-size:14px;line-height:1.5}
+summary:focus-visible{outline:2px solid var(--amber);outline-offset:3px}
