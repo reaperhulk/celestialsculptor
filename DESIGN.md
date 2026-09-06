@@ -231,6 +231,12 @@ Review needs: The 600-year cap alone still permits slow imports of dense systems
 Implemented: A deterministic 20-million pair-tick work budget, explicit exhausted state, replay work-limit validation, and a player-facing limit explanation.
 Validation: Native budget and replay tests, production WASM build, and native/WASM parity pass.
 
+### 20 — Improve control readability and touch targets
+
+Review needs: Several regular labels and journal entries used undersized type, while mobile creation controls needed more vertical room.
+Implemented: Fourteen-pixel primary labels, a twelve-pixel secondary floor, larger button targets, and a taller mobile sculpting panel with simplified canvas hints.
+Validation: Production build and static web checks pass; the browser viewport suite remains a required release gate.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
