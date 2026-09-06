@@ -495,6 +495,12 @@ Review needs: The bounded journal eventually hid older outcomes, and stellar abs
 Implemented: Publish lifetime collision, escape and absorption totals in status and independently test retained plus escaped mass.
 Validation: Native tests confirm an absorbed world increases stellar mass while an escaped world is accounted for separately.
 
+### 64 — Give sandbox play its own guidance and persistent outcome totals
+
+Review needs: Sandbox text asked players to meet a nonexistent goal, while old collisions disappeared from the short journal.
+Implemented: Use mode-aware guidance, hide sandbox goal progress, and show lifetime mergers, escapes and stellar impacts.
+Validation: Guidance tests cover empty and active sandbox, held conditions, completion and exhaustion; DOM checks pass.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;

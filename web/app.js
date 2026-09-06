@@ -9,6 +9,7 @@ import {RequestChannel} from './channel.js';
 import {EventCursor} from './events.js';
 import {FrameClock} from './cadence.js';
 import {CoalescedTask} from './coalesce.js';
+import {goalMessage} from './guidance.js';
 import {readViewSettings,writeViewSettings} from './preferences.js';
 
 const $=id=>document.getElementById(id);
@@ -113,9 +114,10 @@ function renderState(next){
   $('sim-years').textContent=s.years.toFixed(2);$('matter').textContent=s.remaining.toLocaleString(undefined,{maximumFractionDigits:2});
   $('planet-count').textContent=String(s.planets);$('calm-count').textContent=String(s.calm);$('habitable-count').textContent=String(s.habitable);
   $('goal-progress').value=s.progress;$('goal-time').textContent=m?(m.hold_years?`${s.held_years.toFixed(1)} / ${m.hold_years} yr`:s.completed?'Complete':'Discovery'):'Free play';
-  $('goal-state').textContent=s.completed?'Discovery made. Beautifully done.':s.condition?'Conditions met. Let the system settle.':next.bodies.length===1?'Place your first world to begin.':'Adjust your conditions to meet the goal.';
+  $('goal-state').textContent=goalMessage(s,mission,next.bodies.length);
+  $('goal-label').textContent=m?(m.hold_years?'Maintain conditions':'Make a discovery'):'Open exploration';$('goal-progress').hidden=mission===null;
+  $('outcome-totals').textContent=`${s.collisions} mergers · ${s.ejections} escapes · ${s.absorbed} stellar impacts`;
   $('play').textContent=next.playing?'Ⅱ Pause':'▶ Run';$('play').disabled=!ready||s.exhausted;
-  if(s.exhausted)$('goal-state').textContent='Experiment limit reached. Export it to keep it, or start a fresh system.';
   $('system-title').textContent=s.completed?'A little order, from the unknown.':s.planets>0?'Gravity has the pen now.':'A beginning, in starlight.';
   const eventSignature=JSON.stringify(next.events);
   for(const event of eventCursor.consume(next.generation,next.events))sound.event(event.kind);
