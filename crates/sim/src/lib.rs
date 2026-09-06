@@ -106,6 +106,11 @@ impl Default for Config {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Command {
+    Nudge {
+        id: u32,
+        tangential: f64,
+        radial: f64,
+    },
     Launch {
         kind: Kind,
         radius: f64,
@@ -282,6 +287,55 @@ impl World {
             return Err("This experiment has reached its 2048-action limit".into());
         }
         match command.clone() {
+            Command::Nudge {
+                id,
+                tangential,
+                radial,
+            } => {
+                if self.config.mission.is_some_and(|m| m < 4) {
+                    return Err("Orbital nudges unlock with debris tools".into());
+                }
+                if id == 0
+                    || !tangential.is_finite()
+                    || !radial.is_finite()
+                    || tangential.abs() > 0.25
+                    || radial.abs() > 0.25
+                    || tangential.abs() + radial.abs() < 1e-12
+                {
+                    return Err("Nudge a world by up to 25% of local circular speed".into());
+                }
+                let index = self
+                    .bodies
+                    .iter()
+                    .position(|b| b.id == id)
+                    .ok_or("That world is no longer in this system")?;
+                if self.spent + 1.0 > self.budget() + 1e-8 {
+                    return Err("An orbital nudge needs 1 matter".into());
+                }
+                let star = &self.bodies[0];
+                let b = &self.bodies[index];
+                let r = b.pos.minus(star.pos);
+                let v = b.vel.minus(star.vel);
+                let distance = r.norm();
+                let direction = r.scale(1.0 / distance);
+                let handedness = if r.cross(v) < 0.0 { -1.0 } else { 1.0 };
+                let tangent = V2::new(-direction.y, direction.x).scale(handedness);
+                let circular = (G * (star.mass + b.mass) / distance).sqrt();
+                let impulse = direction
+                    .scale(radial * circular)
+                    .plus(tangent.scale(tangential * circular));
+                self.bodies[index].vel = self.bodies[index].vel.plus(impulse);
+                self.spent += 1.0;
+                self.emit(
+                    "nudge",
+                    id,
+                    format!(
+                        "Adjusted world {id}: tangential {:+.0}%, radial {:+.0}%",
+                        tangential * 100.0,
+                        radial * 100.0
+                    ),
+                );
+            }
             Command::SeedDisk {
                 radius,
                 spread,

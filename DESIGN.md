@@ -327,6 +327,12 @@ Review needs: Multi-part challenges did not show whether world count, giant coun
 Implemented: A fixed-size Rust objective set used directly to evaluate goals and a live requirement checklist in the mission panel, with no per-tick heap allocation.
 Validation: All authored winning/losing scenarios and a three-part final-goal regression pass; WASM parity and web contracts pass.
 
+### 36 — Add budgeted orbital nudges as replayable interventions
+
+Review needs: Players could only add bodies after starting a run; rescuing or deliberately destabilizing an orbit needs a controlled physical intervention.
+Implemented: Validated radial/tangential velocity nudges costing one matter, advanced-tool unlocks, body-target checks, motion-direction handling, and journal/replay support.
+Validation: Velocity, mass, position, replay, invalid-target and atomicity regressions pass with native and WASM suites.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
