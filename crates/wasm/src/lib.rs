@@ -3,12 +3,14 @@ use serde::Serialize;
 
 #[derive(Serialize)]
 struct Snapshot<'a> {
+    rules_version: u32,
     bodies: &'a [Body],
     status: Status,
     events: &'a [Event],
     tick: u64,
     config: &'a Config,
     orbits: Vec<(u32, Orbit)>,
+    moon_orbits: Vec<(u32, Orbit)>,
 }
 use wasm_bindgen::prelude::*;
 
@@ -49,11 +51,18 @@ impl Simulation {
     }
     pub fn snapshot(&self) -> String {
         serde_json::to_string(&Snapshot {
+            rules_version: self.world.rules_version,
             bodies: &self.world.bodies,
             status: self.world.status(),
             events: &self.world.events,
             tick: self.world.tick,
             config: &self.world.config,
+            moon_orbits: self
+                .world
+                .bodies
+                .iter()
+                .filter_map(|b| self.world.moon_orbit(b).map(|o| (b.id, o)))
+                .collect(),
             orbits: self
                 .world
                 .bodies

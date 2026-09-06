@@ -755,3 +755,20 @@ inclined three-dimensional orbits, an in-game mission editor, resonance-focused
 lessons, and larger systems with separately benchmarked spatial acceleration.
 Future changes should preserve the headless-first verification contract, review
 saved-replay compatibility, and retain the exact-artifact Pages release path.
+
+### 101 — Mutual gravity, growing impacts, moons and reversible rotation
+
+Review needs: make mutual gravity consequential and prove it without graphics;
+correct order-dependent merger types; support satellites and retrograde motion;
+keep existing experiments reproducible as physical contact precision improves.
+Implemented: custom bounded Earth masses, conserved rock/ice/gas composition,
+impact mass/radius/energy/orbit evidence, moon placement inside a conservative Hill
+limit, signed orbital speeds, and independent axial spin. Version 2 uses 0.0001 AU
+softening and 0.002 AU Earth reference contact radii so moons fit inside Hill regions.
+Every body still attracts every other body, including the reacting star. Version 1
+imports retain their original radii, softening and merger classification. Display
+sizes remain exaggerated; the model is planar and mergers remain inelastic.
+Validation: 55 native tests pass, including 20-year prograde/retrograde moon survival,
+causal neighboring-body perturbation, collision volume/momentum/orbit checks and
+old-executable replay fixtures. Clippy is clean; actual WASM tests verify impacts,
+moons and reverse spin as well as the existing native/WASM parity suite.

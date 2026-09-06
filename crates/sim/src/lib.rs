@@ -9,7 +9,7 @@ pub const EARTH: f64 = 3.003e-6;
 pub const DT: f64 = 1.0 / 512.0;
 pub const MAX_BODIES: usize = 64;
 pub const SOFTENING: f64 = 0.002;
-pub const SAVE_VERSION: u32 = 1;
+pub const SAVE_VERSION: u32 = 2;
 pub const MAX_TICKS: u64 = 512 * 600;
 pub const MAX_WORK_UNITS: u64 = 20_000_000;
 
@@ -64,6 +64,14 @@ impl Kind {
     pub fn cost(self) -> f64 {
         self.mass() / EARTH
     }
+    pub fn mass_range(self) -> (f64, f64) {
+        match self {
+            Self::Rocky | Self::Ice => (0.1, 10.0),
+            Self::Giant => (10.0, 1000.0),
+            Self::Dust => (0.02, 0.5),
+            Self::Star => (0.0, 0.0),
+        }
+    }
     fn radius(self, mass: f64) -> f64 {
         // Deliberately enlarged contact radii make accretion observable in a short game.
         if self == Self::Star {
@@ -74,6 +82,49 @@ impl Kind {
     }
 }
 
+/// Conserved constituent masses; display type is derived from these after a merger.
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq)]
+pub struct Material {
+    pub rock: f64,
+    pub ice: f64,
+    pub gas: f64,
+}
+impl Material {
+    fn new(kind: Kind, mass: f64) -> Self {
+        match kind {
+            Kind::Ice => Self {
+                ice: mass,
+                ..Self::default()
+            },
+            Kind::Giant | Kind::Star => Self {
+                gas: mass,
+                ..Self::default()
+            },
+            _ => Self {
+                rock: mass,
+                ..Self::default()
+            },
+        }
+    }
+    fn plus(self, other: Self) -> Self {
+        Self {
+            rock: self.rock + other.rock,
+            ice: self.ice + other.ice,
+            gas: self.gas + other.gas,
+        }
+    }
+    fn kind(self, mass: f64) -> Kind {
+        if self.gas / mass >= 0.1 {
+            Kind::Giant
+        } else if mass < 0.5 * EARTH {
+            Kind::Dust
+        } else if self.ice / mass >= 0.35 {
+            Kind::Ice
+        } else {
+            Kind::Rocky
+        }
+    }
+}
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Body {
     pub id: u32,
@@ -84,6 +135,13 @@ pub struct Body {
     pub vel: V2,
     /// Unresolved spin retains angular momentum after inelastic merging.
     pub spin: f64,
+    pub material: Material,
+    pub birth_mass: f64,
+    pub initially_bound: bool,
+    pub parent: Option<u32>,
+    pub rotation: f64,
+    pub mergers: u32,
+    pub debris_origin: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -106,6 +164,25 @@ impl Default for Config {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Command {
+    LaunchMoon {
+        parent: u32,
+        kind: Kind,
+        mass: f64,
+        distance: f64,
+        angle: f64,
+        speed: f64,
+    },
+    Spin {
+        id: u32,
+        rate: f64,
+    },
+    LaunchMass {
+        kind: Kind,
+        mass: f64,
+        radius: f64,
+        angle: f64,
+        speed: f64,
+    },
     Nudge {
         id: u32,
         tangential: f64,
@@ -141,15 +218,31 @@ pub struct Replay {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct Impact {
+    pub position: V2,
+    pub consumed: u32,
+    pub masses: [f64; 2],
+    pub mass: f64,
+    pub radius_before: f64,
+    pub radius_after: f64,
+    pub relative_speed: f64,
+    pub dissipated_energy: f64,
+    pub eccentricity_before: f64,
+    pub eccentricity_after: f64,
+}
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Event {
     pub id: u32,
     pub tick: u64,
     pub kind: String,
     pub body: u32,
     pub text: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub impact: Option<Impact>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct World {
+    pub rules_version: u32,
     pub config: Config,
     pub bodies: Vec<Body>,
     pub tick: u64,
@@ -157,6 +250,7 @@ pub struct World {
     pub work_units: u64,
     pub collisions: u32,
     pub ejections: u32,
+    pub assisted_ejections: u32,
     pub absorbed: u32,
     pub escaped_mass: f64,
     pub held_ticks: u64,
@@ -192,6 +286,7 @@ pub const MISSIONS: [Mission; 10] = [
 
 #[derive(Clone, Copy, Debug, Serialize)]
 pub struct Orbit {
+    pub periapsis_angle: f64,
     pub period_years: Option<f64>,
     pub distance: f64,
     pub eccentricity: f64,
@@ -205,6 +300,8 @@ pub struct Orbit {
 pub struct ToolAvailability {
     pub kind: Kind,
     pub cost: f64,
+    pub min_mass: f64,
+    pub max_mass: f64,
     pub unlocked: bool,
     pub affordable: bool,
 }
@@ -212,6 +309,7 @@ pub struct ToolAvailability {
 pub struct Status {
     pub collisions: u32,
     pub ejections: u32,
+    pub assisted_ejections: u32,
     pub absorbed: u32,
     pub available_slots: usize,
     pub actions_remaining: usize,
@@ -225,6 +323,9 @@ pub struct Status {
     pub habitable: usize,
     pub giants: usize,
     pub debris: usize,
+    pub moons: usize,
+    pub grown: usize,
+    pub formed: usize,
     pub held_years: f64,
     pub progress: f64,
     pub condition: bool,
@@ -258,8 +359,16 @@ impl World {
             pos: V2::default(),
             vel: V2::default(),
             spin: 0.0,
+            material: Material::new(Kind::Star, config.star_mass),
+            birth_mass: config.star_mass,
+            initially_bound: true,
+            parent: None,
+            rotation: 0.0,
+            mergers: 0,
+            debris_origin: false,
         };
         Ok(Self {
+            rules_version: SAVE_VERSION,
             rng: config.seed.max(1),
             config,
             bodies: vec![star],
@@ -268,6 +377,7 @@ impl World {
             work_units: 0,
             collisions: 0,
             ejections: 0,
+            assisted_ejections: 0,
             absorbed: 0,
             escaped_mass: 0.0,
             held_ticks: 0,
@@ -303,6 +413,113 @@ impl World {
             return Err("This experiment has reached its 2048-action limit".into());
         }
         match command.clone() {
+            Command::LaunchMoon {
+                parent,
+                kind,
+                mass,
+                distance,
+                angle,
+                speed,
+            } => {
+                if self.rules_version < 2 || self.config.mission.is_some_and(|m| m < 4) {
+                    return Err("Moon creation is available with advanced orbital tools".into());
+                }
+                let host = self
+                    .bodies
+                    .iter()
+                    .find(|b| b.id == parent && b.id != 0 && b.parent.is_none())
+                    .cloned()
+                    .ok_or("Select a planet to host a moon")?;
+                let moon_mass = mass * EARTH;
+                let min = 1.3 * (host.radius + self.contact_radius(kind, moon_mass));
+                let max = self.hill_radius(&host) * 0.45;
+                if !matches!(kind, Kind::Rocky | Kind::Ice)
+                    || !mass.is_finite()
+                    || !(0.001..=10.0).contains(&mass)
+                    || moon_mass > host.mass * 0.1
+                    || !distance.is_finite()
+                    || !(min..=max).contains(&distance)
+                    || !angle.is_finite()
+                    || angle.abs() > 100.0 * TAU
+                    || !speed.is_finite()
+                    || !(0.2..=1.4).contains(&speed.abs())
+                    || !self.orbit(&host).bound
+                {
+                    return Err(format!("Choose a moon below 10% of its planet's mass, at {min:.4}–{max:.4} AU, and 20–140% orbital speed"));
+                }
+                if self.bodies.len() >= MAX_BODIES || self.spent + mass > self.budget() + 1e-8 {
+                    return Err("Not enough matter or body capacity for a moon".into());
+                }
+                let d = V2::new(angle.cos(), angle.sin());
+                let soft = self.softening();
+                let v = (G * (host.mass + moon_mass) * distance * distance
+                    / (distance * distance + soft * soft).powf(1.5))
+                .sqrt()
+                    * speed;
+                self.launch_mass(kind, moon_mass, 1.0, angle, 1.0);
+                let moon = self.bodies.last_mut().expect("moon just created");
+                moon.pos = host.pos.plus(d.scale(distance));
+                moon.vel = host.vel.plus(V2::new(-d.y, d.x).scale(v));
+                moon.parent = Some(parent);
+                self.emit(
+                    "placed",
+                    self.next_id - 1,
+                    format!(
+                        "Moon around World {parent}: {mass:.3} Earth masses at {distance:.4} AU"
+                    ),
+                );
+            }
+            Command::Spin { id, rate } => {
+                if self.rules_version < 2 || !rate.is_finite() || rate.abs() > TAU * 1000.0 {
+                    return Err("Choose a rotation rate up to 1000 turns per year".into());
+                }
+                let b = self
+                    .bodies
+                    .iter_mut()
+                    .find(|b| b.id == id && id != 0)
+                    .ok_or("Select a world to rotate")?;
+                b.spin = 0.4 * b.mass * b.radius * b.radius * rate;
+                self.emit(
+                    "spin",
+                    id,
+                    format!(
+                        "World {id} now spins {}",
+                        if rate < 0.0 {
+                            "clockwise"
+                        } else {
+                            "counterclockwise"
+                        }
+                    ),
+                );
+            }
+
+            Command::LaunchMass {
+                kind,
+                mass,
+                radius,
+                angle,
+                speed,
+            } => {
+                if self.rules_version < 2 {
+                    return Err("Custom masses need a new experiment".into());
+                }
+                let (min, max) = kind.mass_range();
+                if !mass.is_finite() || !(min..=max).contains(&mass) {
+                    return Err(format!(
+                        "Choose {min}–{max} Earth masses for this world type"
+                    ));
+                }
+                self.validate_launch(kind, radius, angle, speed, mass)?;
+                self.launch_mass(kind, mass * EARTH, radius, angle, speed);
+                self.emit(
+                    "placed",
+                    self.next_id - 1,
+                    format!(
+                        "Placed {mass:.2} Earth masses at {radius:.2} AU and {:.0}% orbital speed",
+                        speed * 100.0
+                    ),
+                );
+            }
             Command::Nudge {
                 id,
                 tangential,
@@ -394,23 +611,7 @@ impl World {
                 angle,
                 speed,
             } => {
-                if !self.allowed(kind) {
-                    return Err("That body is not unlocked in this challenge".into());
-                }
-                if !radius.is_finite()
-                    || !(0.25..=6.0).contains(&radius)
-                    || !angle.is_finite()
-                    || angle.abs() > TAU * 100.0
-                    || !speed.is_finite()
-                    || !(0.0..=2.2).contains(&speed)
-                {
-                    return Err("Choose a radius of 0.25–6 AU and speed of 0–220%".into());
-                }
-                if self.bodies.len() >= MAX_BODIES
-                    || self.spent + kind.cost() > self.budget() + 1e-8
-                {
-                    return Err("Not enough matter or body capacity".into());
-                }
+                self.validate_launch(kind, radius, angle, speed, kind.cost())?;
                 self.launch(kind, radius, angle, speed);
                 self.emit(
                     "placed",
@@ -454,23 +655,80 @@ impl World {
         });
         Ok(())
     }
+    fn validate_launch(
+        &self,
+        kind: Kind,
+        radius: f64,
+        angle: f64,
+        speed: f64,
+        cost: f64,
+    ) -> Result<(), String> {
+        if !self.allowed(kind) {
+            return Err("That body is not unlocked in this challenge".into());
+        }
+        if !radius.is_finite()
+            || !(0.25..=6.0).contains(&radius)
+            || !angle.is_finite()
+            || angle.abs() > TAU * 100.0
+            || !speed.is_finite()
+            || !(if self.rules_version == 1 { 0.0 } else { -2.2 }..=2.2).contains(&speed)
+        {
+            return Err("Choose a radius of 0.25–6 AU and speed of 0–220%".into());
+        }
+        if self.bodies.len() >= MAX_BODIES || self.spent + cost > self.budget() + 1e-8 {
+            return Err("Not enough matter or body capacity".into());
+        }
+        Ok(())
+    }
     fn launch(&mut self, kind: Kind, radius: f64, angle: f64, speed: f64) {
+        self.launch_mass(kind, kind.mass(), radius, angle, speed);
+    }
+    fn launch_mass(&mut self, kind: Kind, mass: f64, radius: f64, angle: f64, speed: f64) {
         let star = &self.bodies[0];
         let direction = V2::new(angle.cos(), angle.sin());
-        let mass = kind.mass();
         let v = (G * (star.mass + mass) / radius).sqrt() * speed;
         let body = Body {
             id: self.next_id,
             kind,
             mass,
-            radius: kind.radius(mass),
+            radius: self.contact_radius(kind, mass),
             pos: star.pos.plus(direction.scale(radius)),
             vel: star.vel.plus(V2::new(-direction.y, direction.x).scale(v)),
             spin: 0.0,
+            material: Material::new(kind, mass),
+            birth_mass: mass,
+            initially_bound: speed.abs() < 2.0_f64.sqrt(),
+            parent: None,
+            rotation: 0.0,
+            mergers: 0,
+            debris_origin: kind == Kind::Dust,
         };
         self.next_id += 1;
-        self.spent += kind.cost();
+        self.spent += mass / EARTH;
         self.bodies.push(body);
+    }
+    fn softening(&self) -> f64 {
+        if self.rules_version == 1 {
+            SOFTENING
+        } else {
+            0.0001
+        }
+    }
+    fn contact_radius(&self, kind: Kind, mass: f64) -> f64 {
+        let radius = kind.radius(mass);
+        if self.rules_version >= 2 && kind != Kind::Star {
+            radius * 2.0 / 9.0
+        } else {
+            radius
+        }
+    }
+    pub fn hill_radius(&self, body: &Body) -> f64 {
+        self.orbit(body).periapsis * (body.mass / (3.0 * self.bodies[0].mass)).cbrt()
+    }
+    pub fn moon_orbit(&self, body: &Body) -> Option<Orbit> {
+        let parent = self.bodies.iter().find(|b| Some(b.id) == body.parent)?;
+        let orbit = self.orbit_around(body, parent);
+        (orbit.bound && orbit.distance < self.hill_radius(parent)).then_some(orbit)
     }
     fn emit(&mut self, kind: &str, body: u32, text: String) {
         if self.events.len() == 24 {
@@ -482,6 +740,7 @@ impl World {
             kind: kind.into(),
             body,
             text,
+            impact: None,
         });
         self.next_event += 1;
     }
@@ -490,7 +749,7 @@ impl World {
         for i in 0..self.bodies.len() {
             for j in (i + 1)..self.bodies.len() {
                 let d = self.bodies[j].pos.minus(self.bodies[i].pos);
-                let r2 = d.norm2() + SOFTENING * SOFTENING;
+                let r2 = d.norm2() + self.softening().powi(2);
                 let f = d.scale(G / (r2 * r2.sqrt()));
                 a[i] = a[i].plus(f.scale(self.bodies[j].mass));
                 a[j] = a[j].minus(f.scale(self.bodies[i].mass));
@@ -511,6 +770,10 @@ impl World {
             for (i, b) in self.bodies.iter_mut().enumerate() {
                 b.vel = b.vel.plus(a[i].scale(h / 2.0));
                 b.pos = b.pos.plus(b.vel.scale(h));
+                if self.rules_version >= 2 && b.id != 0 {
+                    b.rotation = (b.rotation + b.spin / (0.4 * b.mass * b.radius * b.radius) * h)
+                        .rem_euclid(TAU);
+                }
             }
             self.merge_contacts(h);
             let a = self.accelerations();
@@ -525,6 +788,7 @@ impl World {
                 let b = self.bodies.remove(i);
                 self.escaped_mass += b.mass;
                 self.ejections += 1;
+                self.assisted_ejections += u32::from(b.initially_bound);
                 self.emit(
                     "escape",
                     b.id,
@@ -578,9 +842,19 @@ impl World {
                     };
                     let closest = separation.minus(drift.scale(fraction));
                     if closest.norm2() <= (a.radius + b.radius).powi(2) {
+                        let before = self.orbit(&self.bodies[i]).eccentricity;
                         let b = self.bodies.remove(j);
                         let a = &mut self.bodies[i];
                         let mass = a.mass + b.mass;
+                        let masses = [a.mass, b.mass];
+                        let radius_before = a.radius;
+                        let relative_speed = a.vel.minus(b.vel).norm();
+                        let dissipated_energy =
+                            0.5 * a.mass * b.mass / mass * relative_speed.powi(2);
+                        a.material = a.material.plus(b.material);
+                        a.mergers += b.mergers + 1;
+                        a.debris_origin &= b.debris_origin;
+                        a.initially_bound &= b.initially_bound;
                         let angular = a.mass * a.pos.cross(a.vel)
                             + b.mass * b.pos.cross(b.vel)
                             + a.spin
@@ -589,20 +863,56 @@ impl World {
                         a.vel = a.vel.scale(a.mass / mass).plus(b.vel.scale(b.mass / mass));
                         a.mass = mass;
                         a.spin = angular - mass * a.pos.cross(a.vel);
-                        if a.kind != Kind::Star && b.kind == Kind::Giant {
-                            a.kind = Kind::Giant;
+                        if self.rules_version == 1 {
+                            if a.kind != Kind::Star && b.kind == Kind::Giant {
+                                a.kind = Kind::Giant;
+                            }
+                            if a.kind == Kind::Dust && mass >= 0.5 * EARTH {
+                                a.kind = Kind::Rocky;
+                            }
+                        } else if a.kind != Kind::Star {
+                            a.kind = a.material.kind(mass);
                         }
-                        if a.kind == Kind::Dust && mass >= 0.5 * EARTH {
-                            a.kind = Kind::Rocky;
-                        }
-                        a.radius = a.kind.radius(mass);
+                        a.radius = a.kind.radius(mass)
+                            * if self.rules_version >= 2 && a.kind != Kind::Star {
+                                2.0 / 9.0
+                            } else {
+                                1.0
+                            };
                         let id = a.id;
+                        let position = a.pos;
+                        let radius_after = a.radius;
                         if a.kind == Kind::Star {
                             self.absorbed += 1;
                             self.emit("absorb", b.id, format!("World {} fell into the star", b.id));
                         } else {
                             self.collisions += 1;
                             self.emit("collision", id, format!("Worlds {id} and {} merged", b.id));
+                            if self.rules_version >= 2 {
+                                let after = self.orbit(&self.bodies[i]).eccentricity;
+                                let event = self.events.last_mut().expect("just emitted collision");
+                                event.text = format!("Impact → {:.2} Earth masses · radius +{:.0}% · orbit e {before:.2} → {after:.2}", mass / EARTH, (radius_after / radius_before - 1.0) * 100.0);
+                                event.impact = Some(Impact {
+                                    position,
+                                    consumed: b.id,
+                                    masses,
+                                    mass,
+                                    radius_before,
+                                    radius_after,
+                                    relative_speed,
+                                    dissipated_energy,
+                                    eccentricity_before: before,
+                                    eccentricity_after: after,
+                                });
+                            }
+                        }
+                        for child in &mut self.bodies {
+                            if child.parent == Some(b.id) {
+                                child.parent = Some(id);
+                            }
+                            if child.parent == Some(child.id) {
+                                child.parent = None;
+                            }
                         }
                         // A growing contact radius can overlap bodies tested earlier.
                         j = i + 1;
@@ -622,7 +932,9 @@ impl World {
         (0.85 * scale, 1.55 * scale)
     }
     pub fn orbit(&self, body: &Body) -> Orbit {
-        let star = &self.bodies[0];
+        self.orbit_around(body, &self.bodies[0])
+    }
+    fn orbit_around(&self, body: &Body, star: &Body) -> Orbit {
         let r = body.pos.minus(star.pos);
         let v = body.vel.minus(star.vel);
         let distance = r.norm().max(1e-12);
@@ -650,7 +962,15 @@ impl World {
             && periapsis >= inner
             && apoapsis <= outer
             && body.mass < 10.0 * EARTH;
+        let e_vector = r
+            .scale(v.norm2() / mu - 1.0 / distance)
+            .minus(v.scale((r.x * v.x + r.y * v.y) / mu));
         Orbit {
+            periapsis_angle: if eccentricity > 1e-8 {
+                e_vector.y.atan2(e_vector.x)
+            } else {
+                r.y.atan2(r.x)
+            },
             period_years: bound.then(|| TAU * (axis.powi(3) / mu).sqrt()),
             distance,
             eccentricity,
@@ -665,12 +985,15 @@ impl World {
         let mut s = Status {
             collisions: self.collisions,
             ejections: self.ejections,
+            assisted_ejections: self.assisted_ejections,
             absorbed: self.absorbed,
             available_slots: MAX_BODIES - self.bodies.len(),
             actions_remaining: 2048 - self.commands.len(),
             tools: [Kind::Rocky, Kind::Ice, Kind::Giant, Kind::Dust].map(|kind| ToolAvailability {
                 kind,
                 cost: kind.cost(),
+                min_mass: kind.mass_range().0,
+                max_mass: kind.mass_range().1,
                 unlocked: self.allowed(kind),
                 affordable: self.spent + kind.cost() <= self.budget() + 1e-8,
             }),
@@ -683,6 +1006,9 @@ impl World {
             habitable: 0,
             giants: 0,
             debris: 0,
+            moons: 0,
+            grown: 0,
+            formed: 0,
             held_years: self.held_ticks as f64 * DT,
             progress: 0.0,
             condition: false,
@@ -692,6 +1018,12 @@ impl World {
         };
         for body in self.bodies.iter().skip(1) {
             let o = self.orbit(body);
+            if self.moon_orbit(body).is_some() {
+                s.moons += 1;
+                continue;
+            }
+            s.grown += usize::from(body.mergers > 0 && o.calm);
+            s.formed += usize::from(body.debris_origin && body.kind != Kind::Dust && o.calm);
             if body.kind == Kind::Dust {
                 s.debris += usize::from(o.calm);
             } else {
@@ -751,8 +1083,8 @@ impl World {
             for j in i + 1..self.bodies.len() {
                 e -= G * self.bodies[i].mass * self.bodies[j].mass
                     / (self.bodies[i].pos.minus(self.bodies[j].pos).norm2()
-                        + SOFTENING * SOFTENING)
-                        .sqrt();
+                        + self.softening().powi(2))
+                    .sqrt();
             }
         }
         e
@@ -770,7 +1102,7 @@ impl World {
     }
     pub fn replay(&self) -> Replay {
         Replay {
-            version: SAVE_VERSION,
+            version: self.rules_version,
             config: self.config.clone(),
             commands: self.commands.clone(),
             end_tick: self.tick,
@@ -801,13 +1133,14 @@ impl World {
     }
     pub fn from_replay(replay: Replay) -> Result<Self, String> {
         // Import is work-bounded. No untrusted state or derived scores are accepted.
-        if replay.version != SAVE_VERSION
+        if !(1..=SAVE_VERSION).contains(&replay.version)
             || replay.end_tick > MAX_TICKS
             || replay.commands.len() > 2048
         {
             return Err("Unsupported or oversized experiment".into());
         }
         let mut world = Self::new(replay.config)?;
+        world.rules_version = replay.version;
         for action in replay.commands {
             if action.tick < world.tick || action.tick > replay.end_tick {
                 return Err("Commands must be ordered inside the experiment".into());

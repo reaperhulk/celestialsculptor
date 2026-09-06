@@ -55,9 +55,9 @@ fn a_late_merger_resolves_new_contacts_with_previously_checked_bodies() {
     }
     w.bodies[1].pos = V2::new(1.0, 0.0);
     w.bodies[1].vel = V2::default();
-    w.bodies[2].pos = V2::new(1.019, -0.05);
+    w.bodies[2].pos = V2::new(1.0043, -0.04);
     w.bodies[2].vel = V2::new(0.0, 24.0);
-    w.bodies[3].pos = V2::new(1.019, 0.05);
+    w.bodies[3].pos = V2::new(1.0043, 0.04);
     w.bodies[3].vel = V2::new(0.0, -24.0);
     let momentum = w.momentum();
     w.step();

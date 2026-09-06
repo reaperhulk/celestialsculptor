@@ -49,7 +49,7 @@ fn circular_orbit_conserves_energy_and_momentum_over_100_years() {
 fn collision_conserves_mass_and_linear_and_angular_momentum() {
     let mut w = sandbox();
     launch(&mut w, 1.0, 0.0, 1.0);
-    launch(&mut w, 1.0, 0.01, 0.5);
+    launch(&mut w, 1.0, 0.002, 0.5);
     let mass: f64 = w.bodies.iter().map(|b| b.mass).sum();
     let momentum = w.momentum();
     let angular = w.angular_momentum();
