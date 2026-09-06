@@ -4,7 +4,7 @@ import { readProfile, writeProfile, canPlay, nextMission, award, normalizeProfil
 import {deviceStorage,parseReplay,saveExperiment,savedExperiments,archiveExperiment,parseArchive} from './storage.js';
 import {Soundscape} from './audio.js';
 import {shouldPresent} from './presentation.js';
-import {parseSeed,parseLaunchFields} from './conditions.js';
+import {parseSeed,parseLaunchFields,placementIssue} from './conditions.js';
 import {RequestChannel} from './channel.js';
 import {EventCursor} from './events.js';
 import {FrameClock} from './cadence.js';
@@ -27,10 +27,11 @@ function workerFailed(message){ready=false;channel.close(message);fail(message);
 function action(type,data={}){return send(type,data).catch(error=>toast(error.message));}
 function draft(){return parseLaunchFields({kind:$('kind').value,radius:$('radius').value,angle:$('angle').value,speed:$('speed').value});}
 function updateDraft(){
-  let d;try{d=draft();}catch(error){if(renderer)renderer.draft=null;$('orbit-reading').textContent=error.message;return;}
+  let d;try{d=draft();}catch(error){if(renderer)renderer.draft=null;$('launch').disabled=true;$('orbit-reading').textContent=error.message;return;}
   if(renderer)renderer.draft=d;
   $('radius-range').value=String(d.radius);$('speed-range').value=String(d.speed*100);
-  $('orbit-reading').textContent=d.speed>Math.SQRT2?'Escape trajectory · a world without a sun':Math.abs(d.speed-1)<.015?'Circular orbit · a quiet beginning':d.speed<.2?'Falling inward · likely stellar impact':'Elliptical orbit · watch the close approach';
+  const issue=placementIssue(state?.status,d.kind);$('launch').disabled=!ready||Boolean(issue);$('launch').title=issue;
+  $('orbit-reading').textContent=issue||(d.speed>Math.SQRT2?'Escape trajectory · a world without a sun':Math.abs(d.speed-1)<.015?'Circular orbit · a quiet beginning':d.speed<.2?'Falling inward · likely stellar impact':'Elliptical orbit · watch the close approach');
 }
 function setMissionUI(){
   const m=mission===null?null:missions[mission];
@@ -93,6 +94,9 @@ function renderState(next){
   state=next;renderer?.setState(next);$('universe').dataset.tick=String(next.tick);
   if(!present)return;lastUI=performance.now();
   const s=next.status,m=mission===null?null:missions[mission];
+  for(const tool of s.tools){const option=[...$('kind').options].find(option=>option.value===tool.kind);if(option)option.disabled=!tool.unlocked;}
+  updateDraft();
+  for(const button of document.querySelectorAll('[data-nudge]'))button.disabled=s.remaining<1||s.actions_remaining===0;
   const objectives=JSON.stringify(s.objectives);
   if(objectives!==lastObjectives){lastObjectives=objectives;$('objectives').replaceChildren();for(const goal of s.objectives.filter(Boolean)){const li=document.createElement('li'),label=document.createElement('span'),value=document.createElement('strong');label.textContent=goal.label;value.textContent=`${goal.current} / ${goal.target}`;li.classList.toggle('met',goal.current>=goal.target);li.append(label,value);$('objectives').append(li);}}
   if(s.completed&&mission!==null&&!awardedThisRun){

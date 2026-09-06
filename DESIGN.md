@@ -429,6 +429,12 @@ Review needs: The interface duplicated unlock thresholds and could only discover
 Implemented: Publish fixed-size tool availability plus body and command capacity directly from Rust status.
 Validation: Campaign tests verify starting unlocks, giant cost, budget depletion and capacity changes after eight accepted commands.
 
+### 53 — Explain unavailable placements before the player submits them
+
+Review needs: Players could repeatedly attempt unaffordable placements without an explanation until the worker rejected them.
+Implemented: Drive launch availability from Rust tool metadata, explain depleted matter or edit/body limits, and disable unaffordable nudges.
+Validation: Guidance tests cover each resource limit and unlocked state; DOM and syntax checks pass.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
