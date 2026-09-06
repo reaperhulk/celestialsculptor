@@ -12,7 +12,7 @@ export function saveExperiment(storage,text){
   try{
     parseReplay(text);
     const previous=storage.getItem(SAVE_KEY);
-    if(previous&&previous!==text)storage.setItem(BACKUP_KEY,previous);
+    if(previous&&previous!==text)try{parseReplay(previous);storage.setItem(BACKUP_KEY,previous);}catch{/* Preserve a valid backup when the primary is corrupt or quota is tight. */}
     storage.setItem(SAVE_KEY,text);return true;
   }catch{return false;}
 }

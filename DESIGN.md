@@ -339,6 +339,12 @@ Review needs: Orbital nudges need clear player controls, and simultaneous radial
 Implemented: Contextual speed/inward/outward nudge controls, one-matter cost labels, total-vector impulse validation, and generalized edit undo wording.
 Validation: Impulse-boundary native tests pass; browser coverage now nudges a real world and undoes the edit; production and Node checks pass.
 
+### 38 — Preserve recoverable saves under corruption and quota pressure
+
+Review needs: A corrupt primary could overwrite the last good backup, and backup quota failure prevented a fresh primary save.
+Implemented: Validate the previous snapshot before rotation and isolate optional backup writes from primary saving.
+Validation: Storage regressions verify corrupt-primary recovery and a full backup quota without losing the new primary.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;

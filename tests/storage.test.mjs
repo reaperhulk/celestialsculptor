@@ -18,3 +18,10 @@ test('portable backup includes normalized progress and preserves raw replay comp
  assert.equal(parseArchive(replay).profile,null);
  assert.throws(()=>parseArchive('{"format":"celestial-archive","version":99}'));
 });
+test('saving after recovery cannot replace the good backup with corrupt data',()=>{
+ const s=memory();s.setItem(BACKUP_KEY,replay);s.setItem(SAVE_KEY,'broken');
+ assert.ok(saveExperiment(s,replay));assert.equal(s.getItem(BACKUP_KEY),replay);
+ const next=replay.replace('"end_tick":0','"end_tick":8');
+ const quota={getItem:s.getItem,setItem:(key,value)=>{if(key===BACKUP_KEY)throw Error('quota');s.setItem(key,value);}};
+ assert.ok(saveExperiment(quota,next));assert.equal(s.getItem(SAVE_KEY),next);
+});
