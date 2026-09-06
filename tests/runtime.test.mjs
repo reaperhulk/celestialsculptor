@@ -46,3 +46,9 @@ test('timeline generations change only after successful history replacement',()=
  r.handle({type:'rewind'});assert.equal(r.generation,generation+1);
  assert.equal(messages.at(-1).generation,generation+1);r.sim.free();
 });
+test('invalid elapsed samples and malformed playback requests cannot poison the worker clock',()=>{
+ const {r,messages}=setup();r.handle({type:'play',value:'false'});assert.equal(r.playing,false);assert.equal(messages.at(-1).type,'error');
+ r.handle(null);assert.equal(messages.at(-1).type,'error');r.handle({type:'play',value:true});
+ const before=r.sim.snapshot();for(const elapsed of [NaN,Infinity,-Infinity,-1,0])r.advanceElapsed(elapsed);
+ assert.equal(r.sim.snapshot(),before);assert.equal(r.debt,0);r.advanceElapsed(.1);assert.equal(JSON.parse(r.sim.snapshot()).tick,10);r.sim.free();
+});

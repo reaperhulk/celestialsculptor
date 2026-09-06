@@ -435,6 +435,12 @@ Review needs: Players could repeatedly attempt unaffordable placements without a
 Implemented: Drive launch availability from Rust tool metadata, explain depleted matter or edit/body limits, and disable unaffordable nudges.
 Validation: Guidance tests cover each resource limit and unlocked state; DOM and syntax checks pass.
 
+### 54 — Reject malformed playback input without poisoning the worker clock
+
+Review needs: A nonfinite elapsed sample permanently made tick debt NaN, and string playback values were silently coerced to true.
+Implemented: Ignore invalid clock samples, require a boolean play state, and report null protocol messages as ordinary errors.
+Validation: Actual-WASM runtime tests verify unchanged state after invalid samples and successful advancement afterward.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;

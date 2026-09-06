@@ -15,7 +15,7 @@ export class Runtime {
     this.send({ type: 'state', id, ...snapshot, playing: this.playing, speed: this.speed, generation: this.generation });
   }
   handle(message) {
-    const { type, id } = message;
+    const { type, id } = message ?? {};
     try {
       if (type === 'reset') {
         const next = new this.Simulation(JSON.stringify(message.config));
@@ -24,7 +24,7 @@ export class Runtime {
         if (!this.sim) throw new Error('The simulation is still loading.');
         switch (type) {
           case 'command': this.sim.command(JSON.stringify(message.command)); break;
-          case 'play': this.playing = Boolean(message.value); this.debt = 0; break;
+          case 'play': if(typeof message.value!=='boolean')throw new Error('Playback requires true or false');this.playing = message.value; this.debt = 0; break;
           case 'speed':
             if (![0.25, 1, 4, 16].includes(message.value)) throw new Error('Invalid playback speed');
             this.speed = message.value; break;
@@ -42,7 +42,7 @@ export class Runtime {
     } catch (error) { this.send({ type: 'error', id, message: String(error?.message || error) }); }
   }
   advanceElapsed(seconds) {
-    if (!this.playing || !this.sim) return;
+    if (!this.playing || !this.sim || !Number.isFinite(seconds) || seconds <= 0) return;
     // Backpressure is explicit. A slow worker slows simulated time; dt never grows.
     this.debt = Math.min(128, this.debt + Math.max(0, Math.min(0.1, seconds)) * 102.4 * this.speed);
     const ticks = Math.floor(this.debt);
