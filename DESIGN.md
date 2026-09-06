@@ -83,6 +83,15 @@ budget/unlock tests, whole-orbit habitability test, and JSON-emitting `sculptor`
 CLI (`verify`, `fixtures`, `replay FILE`). Fixtures are shared with future WASM tests.
 Validation: all campaign fixtures and 15 native tests pass in release mode.
 
+### 04 — Real WASM build and cross-target parity
+
+Review needs: verify the deployed physics is the native engine; keep the web build
+small and static; test the JS boundary and malformed imports.
+Implemented: pinned wasm-bindgen crate/CLI contract, dependency-locked web package,
+static build script, native-versus-WASM numerical comparisons for all 20 scenarios,
+and bridge error atomicity tests. Native ES modules avoid a runtime framework.
+Validation: release WASM builds and 21 Node tests run without a DOM or GPU.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
