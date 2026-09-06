@@ -513,6 +513,12 @@ Review needs: Rejected audio resume left the sound toggle claiming it was enable
 Implemented: Commit the enabled state only after successful audio activation and serialize UI toggles while testing voice disposal and limits.
 Validation: Audio lifecycle tests cover blocked activation, recovery, visibility suspension and the twelve-voice resource cap.
 
+### 67 — Clarify orbital burn strength and test moving-frame directions
+
+Review needs: Burn labels implied a percentage of current speed even though impulses use local circular speed; radial and retrograde cases lacked coverage.
+Implemented: Explain the burn reference speed and verify radial direction after orbital motion, retrograde boosts, unlocks and exact budget exhaustion.
+Validation: Six native burn tests pass, including atomic rejection after the final matter unit is spent.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
