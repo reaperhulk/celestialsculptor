@@ -57,7 +57,9 @@ fn run() -> Result<(), String> {
             let w = World::from_replay(replay)?;
             println!(
                 "{}",
-                serde_json::json!({"bodies": w.bodies, "status": w.status(), "events": w.events})
+                serde_json::json!({"bodies": w.bodies, "status": w.status(), "events": w.events,"tick":w.tick,
+                    "orbits":w.bodies.iter().skip(1).map(|body|(body.id,w.orbit(body))).collect::<Vec<_>>(),
+                    "diagnostics":{"energy":w.energy(),"momentum":w.momentum(),"angular_momentum":w.angular_momentum(),"retained_mass":w.bodies.iter().map(|body|body.mass).sum::<f64>(),"escaped_mass":w.escaped_mass,"work_units":w.work_units,"commands":w.commands.len()}})
             );
         }
         _ => return Err(USAGE.into()),

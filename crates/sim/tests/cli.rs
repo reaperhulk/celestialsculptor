@@ -57,3 +57,32 @@ fn cli_replays_portable_backups_and_bug_reports_without_a_browser() {
         .contains("Unsupported backup version"));
     fs::remove_file(file).unwrap();
 }
+#[test]
+fn replay_output_exposes_orbits_and_conservation_diagnostics() {
+    use celestial_sim::*;
+    let file =
+        std::env::temp_dir().join(format!("sculptor-diagnostics-{}.json", std::process::id()));
+    let mut w = World::new(Config {
+        mission: None,
+        ..Config::default()
+    })
+    .unwrap();
+    w.apply(Command::Launch {
+        kind: Kind::Rocky,
+        radius: 1.0,
+        angle: 0.0,
+        speed: 1.0,
+    })
+    .unwrap();
+    w.advance(128);
+    fs::write(&file, serde_json::to_string(&w.replay()).unwrap()).unwrap();
+    let result = cli(&["replay", file.to_str().unwrap()]);
+    assert!(result.status.success());
+    let state: serde_json::Value = serde_json::from_slice(&result.stdout).unwrap();
+    assert_eq!(state["tick"], 128);
+    assert_eq!(state["orbits"][0][0], 1);
+    assert!(state["orbits"][0][1]["calm"].as_bool().unwrap());
+    assert!(state["diagnostics"]["energy"].as_f64().unwrap() < 0.0);
+    assert_eq!(state["diagnostics"]["commands"], 1);
+    fs::remove_file(file).unwrap();
+}

@@ -669,6 +669,12 @@ Review needs: The Rust workspace declared MIT licensing but the public repositor
 Implemented: Add the declared MIT license, align npm and lockfile metadata, and extend the release contract to detect license mismatches.
 Validation: The metadata contract passes and the license is linked from the project README.
 
+### 93 — Expose orbital and conservation diagnostics in headless replay output
+
+Review needs: The CLI reproduced body state but required callers to reimplement diagnostics to understand an unexpected orbit.
+Implemented: Report per-body orbital elements, tick, energy, momentum, angular momentum, retained/escaped mass and work usage with replay output.
+Validation: Process-level CLI tests verify useful orbital classifications and conservation metadata from a real evolved replay.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
