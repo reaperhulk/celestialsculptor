@@ -142,6 +142,7 @@ pub struct Replay {
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Event {
+    pub id: u32,
     pub tick: u64,
     pub kind: String,
     pub body: u32,
@@ -163,6 +164,7 @@ pub struct World {
     pub events: Vec<Event>,
     pub commands: Vec<RecordedCommand>,
     next_id: u32,
+    next_event: u32,
     rng: u32,
 }
 
@@ -260,6 +262,7 @@ impl World {
             events: vec![],
             commands: vec![],
             next_id: 1,
+            next_event: 1,
         })
     }
     fn random(&mut self) -> f64 {
@@ -461,11 +464,13 @@ impl World {
             self.events.remove(0);
         }
         self.events.push(Event {
+            id: self.next_event,
             tick: self.tick,
             kind: kind.into(),
             body,
             text,
         });
+        self.next_event += 1;
     }
     fn accelerations(&self) -> [V2; MAX_BODIES] {
         let mut a = [V2::default(); MAX_BODIES];

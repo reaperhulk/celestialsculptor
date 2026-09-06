@@ -80,3 +80,20 @@ fn combined_nudge_components_respect_the_total_impulse_limit() {
     })
     .unwrap();
 }
+#[test]
+fn repeated_same_tick_interventions_have_distinct_bounded_journal_entries() {
+    let mut w = world();
+    for i in 0..50 {
+        w.apply(Command::Nudge {
+            id: 1,
+            tangential: if i % 2 == 0 { 0.01 } else { -0.01 },
+            radial: 0.0,
+        })
+        .unwrap();
+    }
+    assert_eq!(w.events.len(), 24);
+    assert!(w.events.windows(2).all(|pair| pair[0].id + 1 == pair[1].id));
+    assert!(w.events.iter().all(|event| event.tick == 0));
+    assert_eq!(w.events.last().unwrap().id, 51);
+    assert_eq!(w, World::from_replay(w.replay()).unwrap());
+}

@@ -375,6 +375,12 @@ Review needs: Clearing a number field silently converted it to zero, drawing an 
 Implemented: Validate launch fields before unit conversion and show the field-specific correction while suppressing invalid geometry.
 Validation: Boundary, empty-field, nonfinite and type tests pass; app syntax checked.
 
+### 44 — Give journal events stable identities within each experiment
+
+Review needs: Tick, event kind and body were insufficient to distinguish repeated edits on a paused world.
+Implemented: Assign deterministic monotonic event IDs while retaining only the latest 24 journal entries.
+Validation: Fifty same-tick interventions remain distinct, bounded and exactly reproducible through replay.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
