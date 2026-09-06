@@ -13,7 +13,8 @@
     "serve": "node scripts/serve.mjs",
     "check": "node scripts/check.mjs",
     "bench": "node scripts/benchmark.mjs",
-    "verify": "node scripts/verify.mjs"
+    "verify": "node scripts/verify.mjs",
+    "report": "node scripts/release-report.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.55.0"

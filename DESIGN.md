@@ -693,6 +693,12 @@ Review needs: Runtime benchmarks did not prevent accidental bundle growth from s
 Implemented: Add deterministic total, WASM and JavaScript byte budgets to the static gate and document how to review deliberate increases.
 Validation: Budget boundary tests pass; the current release is approximately 383 KB uncompressed with a 285-KB WASM module.
 
+### 97 — Attach a machine-readable release inventory after the test gates
+
+Review needs: Reviewing a successful build required piecing together its revision, toolchain, content and payload from several logs.
+Implemented: Generate a release inventory from the actual WASM mission catalog and built assets, publish it as an artifact, and summarize it in Actions.
+Validation: The report command lists the current tested-build metadata, ten challenges, four recipes and verified payload sizes.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
