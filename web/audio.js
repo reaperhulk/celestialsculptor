@@ -12,8 +12,9 @@ export class Soundscape {
         const oscillator=this.context.createOscillator();oscillator.type='sine';oscillator.frequency.value=frequency;oscillator.connect(this.ambient);oscillator.start();
       }
     }
-    this.enabled=!this.enabled;
-    if(this.enabled){await this.context.resume();this.event('launch');}else await this.context.suspend();
+    const enabled=!this.enabled;
+    if(enabled)await this.context.resume();else await this.context.suspend();
+    this.enabled=enabled;if(enabled)this.event('launch');
     return this.enabled;
   }
   note(frequency,start,duration=.65){

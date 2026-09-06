@@ -507,6 +507,12 @@ Review needs: Context restoration could throw an uncaught shader or allocation e
 Implemented: Keep restoration failures contained with an export-first recovery message; exercise live context loss, continued stepping and restoration in CI.
 Validation: Renderer and browser spec syntax pass; the real-browser regression verifies world count and time survive loss and recovery.
 
+### 66 — Keep sound state accurate when browser audio activation fails
+
+Review needs: Rejected audio resume left the sound toggle claiming it was enabled, and rapid clicks could overlap transitions.
+Implemented: Commit the enabled state only after successful audio activation and serialize UI toggles while testing voice disposal and limits.
+Validation: Audio lifecycle tests cover blocked activation, recovery, visibility suspension and the twelve-voice resource cap.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
