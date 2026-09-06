@@ -5,3 +5,4 @@
 /playwright-report/
 /web/pkg/
 *.log
+/benchmark-results.json

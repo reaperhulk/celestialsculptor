@@ -194,6 +194,15 @@ Validation: fast-impact and near-miss regressions, all 17 native tests, 20 campa
 fixtures, and native/WASM parity pass. GitHub Actions also passed all 8 browser
 integration checks from iteration 13.
 
+### 15 — Reproducible performance harness
+
+Review needs: measure the real native/WASM cost before optimizing; exercise small,
+medium, and maximum-size systems; separate compilation from measured simulation.
+Implemented: deterministic 8/32/64-body fixtures, seven-sample native and WASM
+benchmarks, median/max latency and tick throughput, and JSON reports (`npm run bench`).
+Validation: the benchmark runs the same 2,048 fixed ticks on both targets. Timing
+is reported rather than using flaky absolute shared-runner performance gates.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;

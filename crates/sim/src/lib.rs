@@ -1,6 +1,7 @@
 //! Deterministic orbital game rules. No clock, browser, GPU, or operating-system RNG.
 use serde::{Deserialize, Serialize};
 use std::f64::consts::TAU;
+pub mod benchmark;
 pub mod scenarios;
 
 pub const G: f64 = 39.478_417_604_357_43; // AU, solar masses, years
