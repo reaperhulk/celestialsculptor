@@ -833,3 +833,25 @@ removal/restoration of later placements, branch commands and atomic rejection of
 invalid seeks. Notebook tests cover persistence, physical comparisons, corrupt data
 and capacity/storage failures. The browser regression saves, compares, reviews,
 forks and reloads checkpoints through the worker and local storage.
+
+### 105 — Smooth close-up cameras and bounded rendering work
+
+Review needs: following used unsmoothed worker positions; large sprites hit hardware
+point-size limits; RAF jitter could unnecessarily skip frames; moon guidance and
+star selection needed coverage as controls became more capable.
+Implemented: camera tracking, planet motion and hit testing share interpolated body
+positions. Camera transitions follow moving targets; Fit and zoom animate, manual
+navigation cancels old motion. Instanced WebGL 2 quads replace size-limited points
+while retaining three scene draw calls and reusable buffers. Tiny distant worlds
+skip expensive surface noise. A phase-based render clock tolerates RAF jitter and
+supports 60/120-Hz displays. Moon guidance updates with mass/host limits, unsupported
+slingshot burns are hidden, star selection is safe and gravity readings use the
+correct replay softening. FPS data includes camera/DPR/body counts in bug reports;
+returning from the background clears obsolete frame samples.
+Validation: 117 headless tests pass, including smooth tracked positions, wrapped
+rotation, jittered 60/120-Hz cadence, moon-region validity and safe star inspection.
+The 64-body WASM benchmark improved from 289.7 to 191.8 ms per 2,048 ticks on this
+x86_64 machine (34% less simulation CPU time); snapshots cost about 259 microseconds.
+These are CPU measurements, not an iPhone/iPad GPU frame-rate claim. Browser release
+checks compile the new shaders and capture moon-scale and notebook screenshots;
+on-device ?fps=1 remains the way to establish actual Apple-device performance.

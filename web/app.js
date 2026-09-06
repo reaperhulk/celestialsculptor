@@ -17,6 +17,7 @@ import {diagnosticReport} from './report.js';
 import {diskCommand,diskIssue} from './disk.js';
 import {readViewSettings,writeViewSettings} from './preferences.js';
 import {entry,readNotebook,writeNotebook,compare} from './notebook.js';
+import {moonRegion} from './moons.js';
 
 const $=id=>document.getElementById(id);
 let state=null, missions=[], mission=0, renderer, selectedBody=null, ready=false, toastTimer;
@@ -62,6 +63,7 @@ function setMissionUI(){
   $('mission-brief').textContent=m?.brief||'No goal, no hurry. Follow an idea and see what gravity makes of it.';
   $('mission-hint').textContent=m?.hint||'Try a crowded belt, a giant on an eccentric orbit, or a system around a smaller star.';
   $('reward').textContent=m?.unlock||'Every tool is available';
+  const speedLimit=state?.rules_version>=3&&mission===6?135:220;$('speed').max=String(speedLimit);$('speed-range').max=String(speedLimit);if(Number($('speed').value)>speedLimit)$('speed').value=String(speedLimit);
   $('launch-form').hidden=Boolean(state?.rules_version>=3&&mission!==null&&mission>=3&&mission<=5);
   const dust=state?.status.tools.find(t=>t.kind==='dust');
   $('seed-belt').hidden=!dust?.unlocked;
@@ -94,9 +96,11 @@ function inspect(){
   $('migration-tools').hidden=mission!==null||!body||body.id===0||body.parent!==null||state?.rules_version<3;
   $('spin-controls').hidden=!body||body.id===0||state?.rules_version===1;
   $('moon-tools').hidden=!body||body.id===0||body.parent!==null||state?.rules_version===1||(mission!==null&&mission<4);
-  if(body&&body.id!==moonHost&&!$('moon-tools').hidden){moonHost=body.id;const orbit=state.orbits.find(([id])=>id===body.id)?.[1],mass=Math.max(.001,Math.min(.1,body.mass/3.003e-6*.01)),min=1.3*(body.radius+.002*Math.cbrt(mass)),max=orbit.periapsis*Math.cbrt(body.mass/(3*state.bodies[0].mass))*.45;
-   $('moon-mass').value=String(Number(mass.toFixed(3)));$('moon-mass').max=String(Math.min(10,body.mass/3.003e-6*.1));$('moon-distance').value=String(Number(Math.sqrt(min*max).toFixed(4)));$('moon-guidance').textContent=`World ${body.id}. A conservative starting region is ${min.toFixed(4)}–${max.toFixed(4)} AU. Moons remain free to drift, collide, or escape.`;}
-  $('nudge-controls').hidden=!body||body.id===0||(mission!==null&&mission<4);
+  if(body&&!$('moon-tools').hidden){const hostKey=`${state.generation}:${body.id}`;
+   if(hostKey!==moonHost){moonHost=hostKey;const mass=Math.max(.001,Math.min(.1,body.mass/3.003e-6*.01));$('moon-mass').value=String(Number(mass.toFixed(3)));const region=moonRegion(body,state.orbits.find(([id])=>id===body.id)?.[1],state.bodies[0].mass,mass);$('moon-distance').value=String(Number(Math.sqrt(region.min*region.max).toFixed(4)));}
+   updateMoonRegion(body);
+  }
+  $('nudge-controls').hidden=!body||body.id===0||(mission!==null&&mission<4)||(state?.rules_version>=3&&mission===6);
   const p=$('inspector');
   p.replaceChildren();const label=document.createElement('span');label.className='eyebrow';label.textContent='OBSERVATION';p.append(label);
   const text=document.createElement('p');
@@ -109,8 +113,15 @@ function inspect(){
   }
   p.append(text);
   if(body)$('inspect-body').value=String(body.id);
-  if(body&&body.id!==0){const source=strongestPerturber(body,state.bodies),facts=document.createElement('p');facts.textContent=`Contact radius: ${body.radius.toFixed(4)} AU. Material: ${((body.material?.ice||0)/body.mass*100).toFixed(0)}% ice, ${((body.material?.gas||0)/body.mass*100).toFixed(0)}% gas.`;p.append(facts);if(source){const pull=document.createElement('p');pull.className='gravity-reading';pull.textContent=`Strongest neighbor: World ${source.body.id} · ${(source.ratio*100).toFixed(source.ratio<.01?2:1)}% of the star's pull. The blue outline is this world's current orbit; neighbors can bend it.`;p.append(pull);}}
+  if(body&&body.id!==0){const source=strongestPerturber(body,state.bodies,state.rules_version===1?.002:.0001),facts=document.createElement('p');facts.textContent=`Contact radius: ${body.radius.toFixed(4)} AU. Material: ${((body.material?.ice||0)/body.mass*100).toFixed(0)}% ice, ${((body.material?.gas||0)/body.mass*100).toFixed(0)}% gas.`;p.append(facts);if(source){const pull=document.createElement('p');pull.className='gravity-reading';pull.textContent=`Strongest neighbor: World ${source.body.id} · ${(source.ratio*100).toFixed(source.ratio<.01?2:1)}% of the star's pull. The blue outline is this world's current orbit; neighbors can bend it.`;p.append(pull);}}
 }
+function updateMoonRegion(body=state?.bodies.find(b=>b.id===selectedBody)){
+ if(!body||body.id===0)return;const mass=Number($('moon-mass').value),distance=Number($('moon-distance').value),region=moonRegion(body,state.orbits.find(([id])=>id===body.id)?.[1],state.bodies[0].mass,mass);
+ $('moon-mass').max=String(Math.min(10,body.mass/3.003e-6*.1));
+ $('add-moon').disabled=!region.available||distance<region.min||distance>region.max||mass>state.status.remaining;
+ $('moon-guidance').textContent=region.available?`World ${body.id}. For this mass, start between ${region.min.toFixed(4)} and ${region.max.toFixed(4)} AU. Space moons apart; all bodies can perturb them.`:'This mass or host orbit has no supported starting region. Try a lighter moon or a calmer, more distant host.';
+}
+$('moon-mass').oninput=()=>updateMoonRegion();$('moon-distance').oninput=()=>updateMoonRegion();
 $('inspect-body').onchange=()=>{selectedBody=Number($('inspect-body').value);if(renderer)renderer.selected=selectedBody;inspect();};
 for(const button of document.querySelectorAll('[data-nudge]'))button.onclick=()=>{const command={type:'nudge',id:selectedBody,tangential:0,radial:0};command[button.dataset.nudge]=Number(button.dataset.amount);action('command',{command});};
 let lastUI=0,lastEventSignature='',lastObjectives='';
@@ -263,14 +274,14 @@ for(const [id,key] of [['show-grid','showGrid'],['show-trails','showTrails'],['s
 }
 $('render-quality').value=String(viewSettings.maxDpr);if(renderer)renderer.maxDpr=viewSettings.maxDpr;
 $('render-quality').onchange=()=>{viewSettings.maxDpr=Number($('render-quality').value);if(renderer)renderer.maxDpr=viewSettings.maxDpr;writeViewSettings(storage,viewSettings);};
-$('reset-view').onclick=()=>{if(renderer){renderer.zoom=3.5;renderer.center={x:0,y:0};renderer.follow=null;renderer.tilt=.62;$('view').textContent='Top view';}};
+$('reset-view').onclick=()=>{if(renderer){renderer.follow=null;renderer.cameraTo(state?.bodies[0].pos||{x:0,y:0},3.5);renderer.tilt=.62;$('view').textContent='Top view';}};
 $('place-mode').onclick=()=>{if(!renderer)return;renderer.inputMode=renderer.inputMode==='place'?'navigate':'place';$('place-mode').setAttribute('aria-pressed',String(renderer.inputMode==='place'));$('place-mode').classList.toggle('active',renderer.inputMode==='place');$('scene-hint').textContent=renderer.inputMode==='place'?'Tap or drag to choose a launch position':'Drag to pan · Pinch to zoom · Double tap to follow';};
 $('moon-form').onsubmit=event=>{event.preventDefault();send('command',{command:{type:'launch_moon',parent:selectedBody,kind:'rocky',mass:Number($('moon-mass').value),distance:Number($('moon-distance').value),angle:0,speed:Number($('moon-direction').value)}}).then(()=>{renderer?.focus(selectedBody);toast('Moon placed. Every body contributes to its orbit.');}).catch(error=>toast(error.message));};
 $('spin-forward').onclick=()=>action('command',{command:{type:'spin',id:selectedBody,rate:1}});$('spin-reverse').onclick=()=>action('command',{command:{type:'spin',id:selectedBody,rate:-1}});
 $('fit-view').onclick=()=>renderer?.fit();
 $('follow-body').onclick=()=>renderer?.focus(selectedBody);
 $('show-orbit').onclick=()=>{if(renderer)renderer.selected=selectedBody;toast('Blue: current orbit. Amber: the strongest neighboring gravitational pull.');};
-$('zoom-in').onclick=()=>{if(renderer)renderer.zoom=clampZoom(renderer.zoom*.8);};$('zoom-out').onclick=()=>{if(renderer)renderer.zoom=clampZoom(renderer.zoom/.8);};
+$('zoom-in').onclick=()=>{if(renderer)renderer.cameraTo(renderer.center,clampZoom(renderer.zoom*.8));};$('zoom-out').onclick=()=>{if(renderer)renderer.cameraTo(renderer.center,clampZoom(renderer.zoom/.8));};
 for(const button of document.querySelectorAll('[data-panel]'))if(button.tagName==='BUTTON')button.onclick=()=>{document.body.dataset.panel=button.dataset.panel;for(const other of document.querySelectorAll('.mobile-tabs button')){other.classList.toggle('active',other===button);other.setAttribute('aria-pressed',String(other===button));}};
 $('help').onclick=()=>$('help-dialog').showModal();for(const button of document.querySelectorAll('.dialog-close'))button.onclick=()=>$('help-dialog').close();
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&ready){action('play',{value:false});autosave();}});
@@ -286,7 +297,7 @@ document.addEventListener('keydown',event=>{
   if(event.code==='Space'){event.preventDefault();$('play').click();}
   else if(event.key.toLowerCase()==='f'){event.preventDefault();renderer?.fit();}
   else if(event.key==='Escape'&&renderer?.inputMode==='place')$('place-mode').click();
-  else if(['w','a','s','d'].includes(event.key.toLowerCase())&&renderer){event.preventDefault();renderer.follow=null;renderer.center={x:renderer.center.x+({a:-1,d:1}[event.key]||0)*renderer.zoom*.08,y:renderer.center.y+({w:1,s:-1}[event.key]||0)*renderer.zoom*.08};renderer.cameraActiveUntil=performance.now()+300;}
+  else if(['w','a','s','d'].includes(event.key.toLowerCase())&&renderer){event.preventDefault();renderer.follow=null;renderer.cameraTween=null;renderer.panVelocity=null;renderer.center={x:renderer.center.x+({a:-1,d:1}[event.key.toLowerCase()]||0)*renderer.zoom*.08,y:renderer.center.y+({w:1,s:-1}[event.key.toLowerCase()]||0)*renderer.zoom*.08};renderer.cameraActiveUntil=performance.now()+300;}
   else if(event.key.toLowerCase()==='r')$('rewind').click();
   else if(event.key.toLowerCase()==='l')$('launch-form').requestSubmit();
   else if(event.key==='+'||event.key==='=')$('zoom-in').click();
@@ -300,14 +311,15 @@ document.addEventListener('keydown',event=>{
 });
 const frameClock=new FrameClock(),frameMeter=new FrameMeter();
 $('show-fps').checked=viewSettings.showFps;$('fps-overlay').hidden=!viewSettings.showFps;
-$('show-fps').onchange=()=>{viewSettings.showFps=$('show-fps').checked;$('fps-overlay').hidden=!viewSettings.showFps;writeViewSettings(storage,viewSettings);frameMeter.reset();};
+$('show-fps').onchange=()=>{viewSettings.showFps=$('show-fps').checked;$('fps-overlay').hidden=!viewSettings.showFps;writeViewSettings(storage,viewSettings);frameMeter.reset(performance.now(),state?.tick||0);};
 function frame(time){
  if(frameClock.due(time,{playing:state?.playing||time<(renderer?.cameraActiveUntil||0),batterySaver:viewSettings.maxDpr===1,reduceMotion:viewSettings.reduceMotion,hidden:document.hidden})){
   const start=performance.now(),drawn=renderer?.draw(time/1000);
-  if(viewSettings.showFps&&drawn){frameMeter.record(time,performance.now()-start);const report=frameMeter.report(time,state?.tick||0);if(report){globalThis.__celestialPerformance=report;$('fps-overlay').textContent=`${report.fps.toFixed(0)} fps · p95 ${report.p95.toFixed(1)} ms\nDraw CPU ${report.drawMs.toFixed(1)} ms · ${report.ticksPerSecond.toFixed(0)} ticks/s\n${state.bodies.length} bodies · DPR ${renderer.dpr}`;}}
+  if(viewSettings.showFps&&drawn){frameMeter.record(time,performance.now()-start);const report=frameMeter.report(time,state?.tick||0);if(report){globalThis.__celestialPerformance={...report,bodies:state.bodies.length,dpr:renderer.dpr,camera:{...renderer.center,zoom:renderer.zoom,following:renderer.follow}};$('fps-overlay').textContent=`${report.fps.toFixed(0)} fps · p95 ${report.p95.toFixed(1)} ms\nDraw CPU ${report.drawMs.toFixed(1)} ms · ${report.ticksPerSecond.toFixed(0)} ticks/s\n${state.bodies.length} bodies · DPR ${renderer.dpr}`;}}
  }
  requestAnimationFrame(frame);
 }requestAnimationFrame(frame);
+document.addEventListener('visibilitychange',()=>frameMeter.reset(performance.now(),state?.tick||0));
 updateDraft();
 
 let recipes=null;
@@ -326,7 +338,7 @@ $('close-recipes').onclick=()=>$('recipes-dialog').close();
 
 $('debug-report').onclick=async()=>{
  try{const {replay}=await send('export');const response=await fetch(new URL('./build-info.json',import.meta.url));if(!response.ok)throw new Error('Build details could not load. Export the experiment instead.');
- const build=await response.json();download(diagnosticReport(replay,profile,build,{browser:navigator.userAgent,viewport:{width:innerWidth,height:innerHeight,pixelRatio:devicePixelRatio},webgl:Boolean(renderer),view:viewSettings}),'celestial-bug-report.json');
+ const build=await response.json();download(diagnosticReport(replay,profile,build,{browser:navigator.userAgent,viewport:{width:innerWidth,height:innerHeight,pixelRatio:devicePixelRatio},webgl:Boolean(renderer),view:viewSettings,performance:globalThis.__celestialPerformance||null}),'celestial-bug-report.json');
  }catch(error){toast(error.message);}
 };
 

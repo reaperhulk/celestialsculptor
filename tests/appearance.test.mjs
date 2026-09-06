@@ -20,3 +20,4 @@ test('nearby massive neighbors dominate the nonstellar attraction reading',()=>{
 test('planet vertices carry complete style and light data without buffer overrun',()=>{
  const stream=new PlanetStream(32);stream.point(1,2,30,[1,.5,.2],2,1,[.3,.7,1,0],[1,0,.4],.2);assert.equal(stream.length,16);stream.point(0,0,2,[1,1,1],4,0);assert.equal(stream.length,32);assert.throws(()=>stream.point(0,0,2,[1,1,1],4,0),RangeError);
 });
+test('selecting the star has no osculating planetary path',()=>{assert.deepEqual(orbitPath(undefined),[]);assert.deepEqual(orbitPath(null),[]);});

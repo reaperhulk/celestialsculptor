@@ -7,21 +7,25 @@ layout(location=4) in vec4 a_style;
 layout(location=5) in vec3 a_light;
 layout(location=6) in float a_heat;
 uniform vec2 u_resolution,u_center;
-uniform float u_zoom,u_tilt,u_dpr,u_pointLimit;
+uniform float u_zoom,u_tilt,u_dpr;
 out vec3 v_color,v_light;
-out vec2 v_kind;
+out vec2 v_kind,v_uv;
+out float v_pixels;
 out vec4 v_style;
 out float v_heat;
 void main(){
  vec2 p=a_pos-u_center;
- gl_Position=vec4(p.x/u_zoom*u_resolution.y/u_resolution.x,p.y/u_zoom*u_tilt,0,1);
- gl_PointSize=min(a_size*u_dpr,u_pointLimit);
+ const vec2 corners[6]=vec2[6](vec2(-1,-1),vec2(1,-1),vec2(-1,1),vec2(-1,1),vec2(1,-1),vec2(1,1));
+ vec2 corner=corners[gl_VertexID];v_uv=vec2(corner.x,-corner.y);v_pixels=a_size*u_dpr;
+ vec2 center=vec2(p.x/u_zoom*u_resolution.y/u_resolution.x,p.y/u_zoom*u_tilt);
+ gl_Position=vec4(center+corner*a_size*u_dpr/u_resolution,0,1);
  v_color=a_color;v_kind=a_kind;v_style=a_style;v_light=a_light;v_heat=a_heat;
 }`;
 export const planetFragment=`#version 300 es
 precision highp float;
 in vec3 v_color,v_light;
-in vec2 v_kind;
+in vec2 v_kind,v_uv;
+in float v_pixels;
 in vec4 v_style;
 in float v_heat;
 uniform float u_time;
@@ -30,7 +34,7 @@ float hash(vec3 p){p=fract(p*.3183099+vec3(.1,.2,.3));p*=17.;return fract(p.x*p.
 float noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),mix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}
 float fbm(vec3 p){return .55*noise(p)+.27*noise(p*2.03)+.13*noise(p*4.11)+.05*noise(p*8.3);}
 void main(){
- vec2 uv=gl_PointCoord*2.-1.;float r=length(uv);if(r>1.)discard;
+ vec2 uv=v_uv;float r=length(uv);if(r>1.)discard;
  if(v_kind.x<.5){
   float core=1.-smoothstep(.28,.34,r),glow=exp(-r*5.)*.75;
   float turbulence=fbm(vec3(uv*9.,u_time*.12));
@@ -38,6 +42,7 @@ void main(){
   outColor=vec4(col,max(core,glow)*(1.-smoothstep(.8,1.,r)));return;
  }
  if(v_kind.x>3.5){float shape=length(uv*vec2(1.,1.3));outColor=vec4(v_color*(.55+.45*(1.-uv.x)),1.-smoothstep(.42,.67,shape));return;}
+ if(v_pixels<12.){float shade=.35+.65*max(0.,dot(normalize(vec3(uv.x,-uv.y,.6)),normalize(v_light)));outColor=vec4(v_color*shade,1.-smoothstep(.5,.65,r));return;}
  float sphere=.62;
  // Ring planes extend around giants; the back half is occluded by the globe.
  float ringRadius=length(vec2(uv.x+uv.y*.32,uv.y*2.8));

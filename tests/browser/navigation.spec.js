@@ -14,3 +14,11 @@ test('FPS can be enabled with a URL flag and disabled in view settings',async({p
  await page.goto('./?fps=1');await expect(page.locator('#play')).toBeEnabled();await expect(page.locator('#fps-overlay')).toContainText('fps');await expect.poll(()=>page.evaluate(()=>window.__celestialPerformance?.fps||0)).toBeGreaterThan(0);
  await page.locator('#display').click();await page.locator('#show-fps').uncheck();await page.locator('#close-display').click();await expect(page.locator('#fps-overlay')).toBeHidden();
 });
+test('the star stays selectable while time advances',async({page})=>{
+ await page.goto('./');await expect(page.locator('#play')).toBeEnabled();await page.locator('#launch').click();await page.locator('#inspect-body').selectOption('0');await page.locator('#step').click();await expect(page.locator('#inspector')).toContainText('solar masses');await expect(page.locator('#sim-years')).toHaveText('0.03');
+});
+test('real two-finger touch input combines pan and zoom without placing worlds',async({page})=>{
+ await page.goto('./?fps=1');await expect(page.locator('#play')).toBeEnabled();await expect.poll(()=>page.evaluate(()=>window.__celestialPerformance?.camera?.zoom||0)).toBeGreaterThan(0);const before=await page.evaluate(()=>window.__celestialPerformance.camera),r=await page.locator('#universe').boundingBox(),x=r.x+r.width*.5,y=r.y+r.height*.6;
+ const session=await page.context().newCDPSession(page);const touch=(a,b)=>[{x:a.x,y:a.y,id:1},{x:b.x,y:b.y,id:2}];await session.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:touch({x:x-30,y},{x:x+30,y})});await session.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:touch({x:x-45,y:y-15},{x:x+55,y:y+5})});await session.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+ await expect.poll(()=>page.evaluate(()=>window.__celestialPerformance.camera.zoom)).toBeLessThan(before.zoom*.8);await expect(page.locator('#radius')).toHaveValue('1');await expect(page.locator('#planet-count')).toHaveText('0');await session.detach();
+});

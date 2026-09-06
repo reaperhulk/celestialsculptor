@@ -9,9 +9,9 @@ export function launchFromPoint(x,y,star={x:0,y:0}){
  const dx=x-star.x,dy=y-star.y;
  return {radius:Math.max(.25,Math.min(6,Math.hypot(dx,dy))),angle:(Math.atan2(dy,dx)*180/Math.PI+360)%360};
 }
-export function nearestBody(bodies,x,y,toScreen,threshold=24,size=()=>0){
+export function nearestBody(bodies,x,y,toScreen,threshold=24,size=()=>0,position=body=>body.pos){
  let best=null,distance=Infinity;
- for(const body of bodies){const [sx,sy]=toScreen(body.pos.x,body.pos.y),d=Math.hypot(x-sx,y-sy),radius=Math.max(threshold,size(body));if(d<radius&&d<distance){distance=d;best=body.id;}}
+ for(const body of bodies){const p=position(body),[sx,sy]=toScreen(p.x,p.y),d=Math.hypot(x-sx,y-sy),radius=Math.max(threshold,size(body));if(d<radius&&d<distance){distance=d;best=body.id;}}
  return best;
 }
 export function installInput(canvas,renderer,{onDraft,onSelect}){
@@ -37,7 +37,7 @@ export function installInput(canvas,renderer,{onDraft,onSelect}){
  });
  canvas.addEventListener('pointerup',event=>{
   if(gesture&&pointers.size===1){
-   if(!gesture.moved){const p=pixel(event),id=nearestBody(renderer.state?.bodies||[],p.x,p.y,(x,y)=>renderer.toScreen(x,y),event.pointerType==='touch'?28:18,b=>bodyDiameter(b,canvas.clientHeight,renderer.zoom)*.31);
+   if(!gesture.moved){const p=pixel(event),id=nearestBody(renderer.state?.bodies||[],p.x,p.y,(x,y)=>renderer.toScreen(x,y),event.pointerType==='touch'?28:18,b=>bodyDiameter(b,canvas.clientHeight,renderer.zoom)*.31,b=>renderer.displayPositions.get(b.id)||b.pos);
     if(id!==null){renderer.selected=id;onSelect();if(lastTap?.id===id&&performance.now()-lastTap.time<360)renderer.focus(id);lastTap={id,time:performance.now()};}
     else if(renderer.inputMode==='place')updateDraft(event);
    }else if(renderer.inputMode!=='place'&&performance.now()-gesture.time<80){renderer.panVelocity=gesture.velocity;renderer.lastCameraTime=performance.now();}

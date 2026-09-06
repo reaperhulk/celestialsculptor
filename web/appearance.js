@@ -6,7 +6,7 @@ export function bodyDiameter(body,height,zoom){
  return Math.max(1,contact*height/(zoom*.62)*(1+98*(zoom/(zoom+.5))**2));
 }
 export function orbitPath(orbit,segments=192){
- const {eccentricity:e,periapsis:q,periapsis_angle:angle=0}=orbit;
+ const {eccentricity:e,periapsis:q,periapsis_angle:angle=0}=orbit||{};
  if(!Number.isFinite(e)||!Number.isFinite(q)||q<=0)return [];
  const end=e>=1?Math.acos(-1/e)-.025:Math.PI;
  const points=[];
@@ -16,9 +16,9 @@ export function orbitPath(orbit,segments=192){
  }
  return points;
 }
-export function strongestPerturber(body,bodies){
+export function strongestPerturber(body,bodies,softening=.0001){
  if(!body||body.id===0)return null;
- const force=source=>{const dx=source.pos.x-body.pos.x,dy=source.pos.y-body.pos.y,r2=dx*dx+dy*dy+.002**2;return source.mass*Math.sqrt(dx*dx+dy*dy)/r2**1.5;};
+ const force=source=>{const dx=source.pos.x-body.pos.x,dy=source.pos.y-body.pos.y,r2=dx*dx+dy*dy+softening**2;return source.mass*Math.sqrt(dx*dx+dy*dy)/r2**1.5;};
  const stellar=force(bodies[0]);let best=null;
  for(const other of bodies){if(other.id===0||other.id===body.id)continue;const pull=force(other);if(!best||pull>best.pull)best={body:other,pull,ratio:pull/Math.max(stellar,1e-20)};}
  return best;

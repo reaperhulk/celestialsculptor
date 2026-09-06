@@ -8,6 +8,6 @@ export class FrameMeter {
   const result={fps:(this.frames.length-1)*1000/elapsed,p95:intervals[Math.floor((intervals.length-1)*.95)],drawMs:costs[Math.floor((costs.length-1)*.95)],ticksPerSecond:Math.max(0,(tick-this.lastTick)*1000/(now-this.lastReport))};
   this.lastTick=tick;this.lastReport=now;return result;
  }
- reset(){this.frames=[];this.costs=[];this.lastReport=0;this.lastTick=0;}
+ reset(now=0,tick=0){this.frames=[];this.costs=[];this.lastReport=now;this.lastTick=tick;}
 }
 export function fpsFlag(search,persisted=false){const value=new URLSearchParams(search).get('fps');return value===null?persisted:value==='1';}

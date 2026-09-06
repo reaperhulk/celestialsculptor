@@ -7,3 +7,7 @@ test('drawing work scales with playback and display settings without advancing p
  assert.equal(frames({}),30);assert.equal(frames({reduceMotion:true}),15);assert.equal(frames({hidden:true}),0);
  const clock=new FrameClock();assert.ok(clock.due(0));assert.equal(clock.due(1,{hidden:true}),false);assert.ok(clock.due(2));
 });
+test('small browser frame jitter does not halve high-quality playback cadence',()=>{
+ const clock=new FrameClock();let count=0;for(let i=0;i<600;i++)if(clock.due(i*1000/60+(i%2?.2:-.2),{playing:true}))count++;assert.equal(count,600);
+ const highRefresh=new FrameClock();let rendered=0;for(let i=0;i<1200;i++)if(highRefresh.due(i*1000/120+(i%2?.1:-.1),{playing:true}))rendered++;assert.equal(rendered,600);
+});
