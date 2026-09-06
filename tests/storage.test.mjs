@@ -25,3 +25,9 @@ test('saving after recovery cannot replace the good backup with corrupt data',()
  const quota={getItem:s.getItem,setItem:(key,value)=>{if(key===BACKUP_KEY)throw Error('quota');s.setItem(key,value);}};
  assert.ok(saveExperiment(quota,next));assert.equal(s.getItem(SAVE_KEY),next);
 });
+test('an untrusted primary with valid JSON cannot replace a known recovery snapshot',()=>{
+ const s=memory();s.setItem(BACKUP_KEY,replay);
+ s.setItem(SAVE_KEY,JSON.stringify({version:1,config:{seed:-1,mission:99,star_mass:0},commands:[],end_tick:0}));
+ assert.ok(saveExperiment(s,replay));assert.equal(s.getItem(BACKUP_KEY),replay);
+ const next=replay.replace('"end_tick":0','"end_tick":8');assert.ok(saveExperiment(s,next));assert.equal(s.getItem(BACKUP_KEY),replay);
+});

@@ -1,6 +1,7 @@
 import {normalizeProfile} from './progression.js';
 export const SAVE_KEY='celestial-sculptor.experiment.v1';
 export const BACKUP_KEY=SAVE_KEY+'.backup';
+const writtenPrimaries=new WeakMap();
 export function deviceStorage(){try{return globalThis.localStorage;}catch{return null;}}
 export function parseReplay(text){
   if(typeof text!=='string'||text.length>512_000)throw new Error('Choose an experiment smaller than 512 KB.');
@@ -12,8 +13,8 @@ export function saveExperiment(storage,text){
   try{
     parseReplay(text);
     const previous=storage.getItem(SAVE_KEY);
-    if(previous&&previous!==text)try{parseReplay(previous);storage.setItem(BACKUP_KEY,previous);}catch{/* Preserve a valid backup when the primary is corrupt or quota is tight. */}
-    storage.setItem(SAVE_KEY,text);return true;
+    if(previous&&previous!==text&&writtenPrimaries.get(storage)===previous)try{parseReplay(previous);storage.setItem(BACKUP_KEY,previous);}catch{/* Preserve a valid backup when the primary is corrupt or quota is tight. */}
+    storage.setItem(SAVE_KEY,text);writtenPrimaries.set(storage,text);return true;
   }catch{return false;}
 }
 export function savedExperiments(storage){

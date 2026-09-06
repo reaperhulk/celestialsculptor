@@ -633,6 +633,12 @@ Review needs: Snapshot benchmarks showed avoidable allocation and copying from c
 Implemented: Use a typed borrowing snapshot serializer, retaining only the small derived orbit list instead of cloning every body and event into JSON values.
 Validation: Actual-WASM parity, lifecycle and full Node suites pass; native/WASM and snapshot benchmarks complete with the new serializer.
 
+### 87 — Prevent structurally valid corrupt saves from poisoning recovery history
+
+Review needs: A primary could pass shallow JSON checks while containing invalid physics configuration and still overwrite the good backup.
+Implemented: Rotate only a primary successfully written by this session, leaving the existing recovery snapshot intact when disk contents are untrusted.
+Validation: Storage regressions cover semantically invalid JSON, successful subsequent rotation and the earlier quota/corruption cases.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
