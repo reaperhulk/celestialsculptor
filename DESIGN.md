@@ -531,6 +531,12 @@ Review needs: A report of unexpected behavior lacked the exact commands and buil
 Implemented: Add an explicit help action exporting an import-compatible backup with revision, browser, viewport and display settings.
 Validation: Report tests prove reproduction metadata is retained and the same file still restores the experiment and discoveries.
 
+### 70 — Isolate browser-specific launch configuration after CI feedback
+
+Review needs: CI passed 56 cases but Firefox and WebKit inherited the global Chromium channel; undefined overrides did not clear Playwright defaults.
+Implemented: Move Chromium channel and GL options into Chromium projects only and add a configuration regression against cross-engine leakage.
+Validation: Configuration regression passes and Playwright discovers the complete matrix without launching a browser locally.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
