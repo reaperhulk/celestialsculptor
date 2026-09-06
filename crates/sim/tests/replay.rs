@@ -122,6 +122,22 @@ fn undo_rebuilds_history_without_the_last_placement() {
     assert!(empty.undo().is_err());
     assert_eq!(empty, before);
 }
+#[test]
+fn journal_records_setup_and_stays_bounded_and_replayable() {
+    let mut w = world(42);
+    for i in 0..30 {
+        w.apply(Command::Launch {
+            kind: Kind::Rocky,
+            radius: 1.0 + i as f64 * 0.1,
+            angle: 0.0,
+            speed: 1.0,
+        })
+        .unwrap();
+    }
+    assert_eq!(w.events.len(), 24);
+    assert_eq!(w.events.last().unwrap().kind, "placed");
+    assert_eq!(World::from_replay(w.replay()).unwrap().events, w.events);
+}
 
 proptest! {
     #![proptest_config(ProptestConfig::with_cases(64))]

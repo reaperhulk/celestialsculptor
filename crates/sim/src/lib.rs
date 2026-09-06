@@ -306,6 +306,11 @@ impl World {
                     let speed = 1.0 + (self.random() * 2.0 - 1.0) * disorder;
                     self.launch(Kind::Dust, r, angle, speed);
                 }
+                self.emit(
+                    "seed",
+                    0,
+                    format!("Seeded {count} fragments across a {spread:.2} AU disk"),
+                );
             }
             Command::Launch {
                 kind,
@@ -331,6 +336,15 @@ impl World {
                     return Err("Not enough matter or body capacity".into());
                 }
                 self.launch(kind, radius, angle, speed);
+                self.emit(
+                    "placed",
+                    self.next_id - 1,
+                    format!(
+                        "Placed world {} at {radius:.2} AU and {:.0}% orbital speed",
+                        self.next_id - 1,
+                        speed * 100.0
+                    ),
+                );
             }
             Command::SeedBelt { radius } => {
                 if !self.allowed(Kind::Dust) {
@@ -350,6 +364,11 @@ impl World {
                     let angle = (i as f64 + self.random() * 0.2) * TAU / 12.0;
                     self.launch(Kind::Dust, r, angle, 1.0);
                 }
+                self.emit(
+                    "seed",
+                    0,
+                    format!("Seeded a 12-fragment belt at {radius:.2} AU"),
+                );
             }
         }
         self.held_ticks = 0;

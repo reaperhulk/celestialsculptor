@@ -315,6 +315,12 @@ Review needs: A corrupted profile could display later discoveries without their 
 Implemented: Canonical contiguous completion prefixes, bounded profile reads, duplicate cleanup, and preservation of all valid early achievements.
 Validation: Progression, archive compatibility, and corrupt-profile regression tests pass.
 
+### 34 — Record the causes of each experiment in its journal
+
+Review needs: The journal still said the star was waiting after worlds were placed, obscuring the relationship between setup and outcome.
+Implemented: Authoritative placement and disk/belt seeding entries with distances and speeds, retained through replay and bounded to 24 events.
+Validation: Journal bounds and replay identity tests pass alongside native and WASM scenario suites.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
