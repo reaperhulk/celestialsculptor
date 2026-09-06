@@ -411,6 +411,12 @@ Review needs: A blank sandbox provided little guidance for discovering formation
 Implemented: Define four data-driven initial-condition recipes and test their promised outcomes directly in native Rust.
 Validation: Quiet garden, crowded nursery, distant giant and wanderer recipes exhibit their stated behavior after four simulated years and replay exactly.
 
+### 50 — Make sandbox starting points playable and editable
+
+Review needs: Verified recipe data needed a discoverable in-game entry point and safe replacement of an existing experiment.
+Implemented: Add a sandbox recipe picker that imports ordinary editable commands, preserves the chosen seed, confirms replacement, and autosaves.
+Validation: Build and DOM checks pass; a real-browser recipe selection regression joins the seven-viewport CI suite.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;

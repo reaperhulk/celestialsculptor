@@ -44,6 +44,7 @@ function setMissionUI(){
   if($('kind').selectedOptions[0].disabled)$('kind').value='rocky';
   $('seed-belt').hidden=mission!==null&&mission<4;
   $('disk-tools').hidden=mission!==null&&mission<4;
+  $('recipes').hidden=mission!==null;
   $('star-mass').disabled=mission!==null&&mission<2;
   $('next-mission').hidden=true;updateDraft();
 }
@@ -234,3 +235,17 @@ document.addEventListener('keydown',event=>{
 const frameClock=new FrameClock();
 function frame(time){if(frameClock.due(time,{playing:state?.playing,batterySaver:viewSettings.maxDpr===1,reduceMotion:viewSettings.reduceMotion,hidden:document.hidden}))renderer?.draw(time/1000);requestAnimationFrame(frame);}requestAnimationFrame(frame);
 updateDraft();
+
+let recipes=null;
+$('recipes').onclick=async()=>{
+ try{
+  if(!recipes){const response=await fetch(new URL('./recipes.json',import.meta.url));if(!response.ok)throw new Error('Starting points could not load. Try again.');recipes=await response.json();}
+  $('recipe-list').replaceChildren();
+  for(const recipe of recipes){const button=document.createElement('button');button.className='recipe-choice';const title=document.createElement('strong'),description=document.createElement('span');title.textContent=recipe.name;description.textContent=recipe.description;button.append(title,description);
+   button.onclick=()=>{$('recipes-dialog').close();confirmReset(async()=>{try{saveEpoch++;const replay=JSON.stringify({version:1,config:{...recipe.config,seed:parseSeed($('seed').value)},commands:recipe.commands.map(command=>({tick:0,command})),end_tick:0});await send('import',{replay});await autosave();toast(recipe.name+' is ready. Run it or make it your own.');}catch(error){toast(error.message);}});};
+   $('recipe-list').append(button);
+  }
+  $('recipes-dialog').showModal();
+ }catch(error){toast(error.message);}
+};
+$('close-recipes').onclick=()=>$('recipes-dialog').close();

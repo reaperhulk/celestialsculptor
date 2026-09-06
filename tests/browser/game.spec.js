@@ -42,3 +42,10 @@ test('an inspected world can be nudged and the edit undone',async({page})=>{
  await expect(page.locator('#inspector')).toContainText('e = 0.210');
  await page.locator('#undo').click();await expect(page.locator('#inspector')).toContainText('e = 0.000');
 });
+test('sandbox starting points create editable paused systems',async({page})=>{
+ await page.locator('#sandbox').click();
+ if(await page.locator('.mobile-tabs').isVisible())await page.locator('.mobile-tabs [data-panel="mission"]').click();
+ await page.locator('#recipes').click();await page.getByRole('button',{name:'A quiet garden'}).click();
+ await expect(page.locator('#planet-count')).toHaveText('3');await expect(page.locator('#play')).toHaveText('▶ Run');
+ await expect(page.locator('#mission-name')).toHaveText('Your universe');
+});
