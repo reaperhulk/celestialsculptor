@@ -465,6 +465,12 @@ Review needs: A successful HTTP response could still serve a stale worker, mixed
 Implemented: Verify the deployed revision, required asset set, file sizes, SHA-256 hashes and WASM content type with bounded parallel requests and CDN retries.
 Validation: Offline publication tests reject stale revisions, altered module bytes, missing workers and invalid WASM serving types.
 
+### 59 — Track simulation and snapshot costs in every successful CI build
+
+Review needs: Performance measurements were manual and did not expose the cost of preparing worker snapshots.
+Implemented: Benchmark serialization and parsing alongside native/WASM stepping, publish machine-readable results, and add a compact Actions summary.
+Validation: Eight-, 32- and 64-body benchmark cases produce finite timings and bounded snapshot sizes; performance remains informational rather than a flaky absolute gate.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;
