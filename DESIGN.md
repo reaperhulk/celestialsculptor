@@ -393,6 +393,12 @@ Review needs: Same-tick undo or import could connect an old path to a different 
 Implemented: Update trail history using timeline generations, prune removed bodies even while paused, and clear vanished selections.
 Validation: Trail regressions verify same-tick replacement, deletion, paused duplicates and the 192-point bound.
 
+### 47 — Remember display preferences and offer lower GPU resolution
+
+Review needs: Display choices disappeared on reload and high-density devices always rendered at double resolution.
+Implemented: Persist validated display settings and add a battery-saver resolution choice while respecting the initial system motion preference.
+Validation: Preference tests cover malformed values, motion overrides, unavailable storage and resolution round trips; static build checks pass.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;

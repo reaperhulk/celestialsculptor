@@ -7,10 +7,12 @@ import {shouldPresent} from './presentation.js';
 import {parseSeed,parseLaunchFields} from './conditions.js';
 import {RequestChannel} from './channel.js';
 import {EventCursor} from './events.js';
+import {readViewSettings,writeViewSettings} from './preferences.js';
 
 const $=id=>document.getElementById(id);
 let state=null, missions=[], mission=0, renderer, ready=false, toastTimer;
 const storage=deviceStorage();
+const viewSettings=readViewSettings(storage,matchMedia('(prefers-reduced-motion: reduce)').matches);
 const sound=new Soundscape();const eventCursor=new EventCursor();
 let profile=readProfile(storage),awardedThisRun=false,saveBusy=false,saveEpoch=0;
 
@@ -197,9 +199,12 @@ $('undo').onclick=()=>action('undo').then(()=>renderer?.trails.clear());
 $('time-speed').onchange=()=>action('speed',{value:Number($('time-speed').value)});
 $('view').onclick=()=>{if(renderer){renderer.tilt=renderer.tilt===1?.62:1;$('view').textContent=renderer.tilt===1?'Tilt view':'Top view';}};
 $('display').onclick=()=>$('display-dialog').showModal();$('close-display').onclick=()=>$('display-dialog').close();
-for(const [id,key] of [['show-grid','showGrid'],['show-trails','showTrails'],['show-preview','showPreview'],['reduce-motion','reduceMotion']])$(id).onchange=()=>{if(renderer)renderer[key]=$(id).checked;};
-$('reduce-motion').checked=matchMedia('(prefers-reduced-motion: reduce)').matches;
-if(renderer)renderer.reduceMotion=$('reduce-motion').checked;
+for(const [id,key] of [['show-grid','showGrid'],['show-trails','showTrails'],['show-preview','showPreview'],['reduce-motion','reduceMotion']]){
+ $(id).checked=viewSettings[key];if(renderer)renderer[key]=viewSettings[key];
+ $(id).onchange=()=>{viewSettings[key]=$(id).checked;if(renderer)renderer[key]=viewSettings[key];writeViewSettings(storage,viewSettings);};
+}
+$('render-quality').value=String(viewSettings.maxDpr);if(renderer)renderer.maxDpr=viewSettings.maxDpr;
+$('render-quality').onchange=()=>{viewSettings.maxDpr=Number($('render-quality').value);if(renderer)renderer.maxDpr=viewSettings.maxDpr;writeViewSettings(storage,viewSettings);};
 $('reset-view').onclick=()=>{if(renderer){renderer.zoom=3.5;renderer.tilt=.62;$('view').textContent='Top view';}};
 $('zoom-in').onclick=()=>{if(renderer)renderer.zoom=Math.max(1,renderer.zoom*.8);};$('zoom-out').onclick=()=>{if(renderer)renderer.zoom=Math.min(9,renderer.zoom/ .8);};
 for(const button of document.querySelectorAll('[data-panel]'))if(button.tagName==='BUTTON')button.onclick=()=>{document.body.dataset.panel=button.dataset.panel;for(const other of document.querySelectorAll('.mobile-tabs button'))other.classList.toggle('active',other===button);};

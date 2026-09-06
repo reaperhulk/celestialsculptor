@@ -87,7 +87,7 @@ const KINDS = {star:0,rocky:1,ice:2,giant:3,dust:4};
 
 export class Renderer {
   constructor(canvas, onError = () => {}) {
-    this.canvas=canvas; this.onError=onError; this.zoom=3.5; this.tilt=.62;
+    this.canvas=canvas; this.onError=onError; this.zoom=3.5; this.tilt=.62; this.maxDpr=2;
     this.lineStream=new VertexStream(64*192*12+241*12);this.pointStream=new VertexStream(65*8);
     this.trails=new Map(); this.selected=null; this.showGrid=true;
     this.showTrails=true; this.showPreview=true; this.reduceMotion=false; this.state=null; this.draft=null; this.lost=false;
@@ -144,7 +144,7 @@ export class Renderer {
   draw(time){
     if(this.reduceMotion)time=0;
     if(this.lost || !this.state)return;
-    const gl=this.gl,canvas=this.canvas,r=canvas.getBoundingClientRect();this.dpr=Math.min(devicePixelRatio||1,2);
+    const gl=this.gl,canvas=this.canvas,r=canvas.getBoundingClientRect();this.dpr=Math.min(devicePixelRatio||1,this.maxDpr);
     const width=Math.max(1,Math.round(r.width*this.dpr)),height=Math.max(1,Math.round(r.height*this.dpr));
     if(canvas.width!==width||canvas.height!==height){canvas.width=width;canvas.height=height;}
     gl.viewport(0,0,width,height);
