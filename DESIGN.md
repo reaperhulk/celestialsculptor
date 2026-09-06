@@ -675,6 +675,12 @@ Review needs: The CLI reproduced body state but required callers to reimplement 
 Implemented: Report per-body orbital elements, tick, energy, momentum, angular momentum, retained/escaped mass and work usage with replay output.
 Validation: Process-level CLI tests verify useful orbital classifications and conservation metadata from a real evolved replay.
 
+### 94 — Prevent held shortcuts from spending matter repeatedly
+
+Review needs: Key repeat could place many worlds or toggle playback repeatedly, and scene shortcuts lacked an end-to-end regression.
+Implemented: Ignore repeats for placement, playback and rewind while retaining continuous arrow adjustments; document the keyboard controls in help.
+Validation: Fresh build checks pass; a browser regression covers focused-field isolation, arrows, placement repeat suppression and playback shortcuts.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;

@@ -78,3 +78,10 @@ test('notifications stay inside the scene and clear the primary controls',async(
  const bounds=await page.evaluate(()=>({toast:document.querySelector('#toast').getBoundingClientRect().toJSON(),scene:document.querySelector('#universe').getBoundingClientRect().toJSON(),launch:document.querySelector('#launch').getBoundingClientRect().toJSON()}));
  expect(bounds.toast.bottom).toBeLessThanOrEqual(bounds.scene.bottom);expect(bounds.toast.width).toBeLessThanOrEqual(await page.evaluate(()=>innerWidth));
 });
+test('scene keyboard controls work without repeating placements or stealing field input',async({page})=>{
+ await page.locator('#radius').focus();await page.keyboard.press('Space');await expect(page.locator('#play')).toHaveText('▶ Run');
+ await page.locator('#universe').focus();await page.keyboard.press('ArrowUp');await expect(page.locator('#radius')).toHaveValue('1.05');
+ await page.keyboard.press('ArrowLeft');await expect(page.locator('#angle')).toHaveValue('5');await page.keyboard.press('l');await expect(page.locator('#planet-count')).toHaveText('1');
+ await page.locator('#universe').evaluate(canvas=>canvas.dispatchEvent(new KeyboardEvent('keydown',{key:'l',code:'KeyL',repeat:true,bubbles:true})));await expect(page.locator('#planet-count')).toHaveText('1');
+ await page.keyboard.press('Space');await expect(page.locator('#play')).toHaveText('Ⅱ Pause');await page.keyboard.press('Space');await expect(page.locator('#play')).toHaveText('▶ Run');
+});

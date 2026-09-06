@@ -251,6 +251,7 @@ if(renderer)installInput($('universe'),renderer,{
 });
 document.addEventListener('keydown',event=>{
   if(!ready||document.querySelector('dialog[open]')||/INPUT|SELECT|TEXTAREA|BUTTON/.test(event.target.tagName))return;
+  if(event.repeat&&(event.code==='Space'||['l','r'].includes(event.key.toLowerCase())))return;
   if(event.code==='Space'){event.preventDefault();$('play').click();}
   else if(event.key.toLowerCase()==='r')$('rewind').click();
   else if(event.key.toLowerCase()==='l')$('launch-form').requestSubmit();
