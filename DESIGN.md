@@ -255,6 +255,12 @@ Review needs: Canceling every prior main-branch run can interrupt Pages publicat
 Implemented: PR runs still cancel superseded work, while main-branch releases finish and only the newest pending main run is retained by Actions concurrency.
 Validation: Workflow YAML parses and dependency/permission gates are checked; existing simulation and browser jobs remain deployment prerequisites.
 
+### 24 — Cache render metadata and launch geometry
+
+Review needs: Every animation frame repeated uniform lookups, orbital searches, body sorting, and unchanged launch-path trigonometry.
+Implemented: Per-context uniform caches, per-snapshot orbit maps and drawing order, and launch geometry recomputed only when starting conditions change.
+Validation: Web build, module contracts, and geometry tests pass; the browser gate compiles and exercises the renderer.
+
 ## Next review targets
 
 Replay/import resource limits and deterministic generation; campaign solvability;

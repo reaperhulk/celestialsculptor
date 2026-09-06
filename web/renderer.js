@@ -105,7 +105,7 @@ export class Renderer {
     return p;
   }
   init(){
-    const gl=this.gl;
+    const gl=this.gl;this.locations=new Map();
     this.points=this.program(VERTEX,FRAGMENT);this.lines=this.program(LINE_VERTEX,LINE_FRAGMENT);this.background=this.program(BG_VERTEX,BG_FRAGMENT);
     this.pointBuffer=gl.createBuffer();this.lineBuffer=gl.createBuffer();
     this.emptyVAO=gl.createVertexArray();this.pointVAO=gl.createVertexArray();this.lineVAO=gl.createVertexArray();
@@ -115,6 +115,14 @@ export class Renderer {
     for(const [loc,size,offset] of [[0,2,0],[1,4,8]]){gl.enableVertexAttribArray(loc);gl.vertexAttribPointer(loc,size,gl.FLOAT,false,24,offset);}
     gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
   }
+  location(program,name){
+    let locations=this.locations.get(program);
+    if(!locations){locations=new Map();this.locations.set(program,locations);}
+    if(!locations.has(name))locations.set(name,this.gl.getUniformLocation(program,name));
+    return locations.get(name);
+  }
+  set draft(value){this._draft=value;this.previewPath=value?launchPath(value.radius,value.angle,value.speed):[];}
+  get draft(){return this._draft;}
   setState(state){
     if(state.tick<this.lastTick || (state.tick===0 && this.lastTick!==0))this.trails.clear();
     if(state.tick!==this.lastTick){
@@ -126,15 +134,15 @@ export class Renderer {
         if(trail.length>192)trail.shift();this.trails.set(b.id,trail);
       }
     }
-    this.state=state;this.lastTick=state.tick;
+    this.state=state;this.lastTick=state.tick;this.orbitById=new Map(state.orbits);this.sortedBodies=[...state.bodies].sort((a,b)=>a.pos.y-b.pos.y);
   }
   toWorld(x,y){const r=this.canvas.getBoundingClientRect();return unproject(x-r.left,y-r.top,r.width,r.height,this.zoom,this.tilt);}
   toScreen(x,y){const r=this.canvas.getBoundingClientRect();return project(x,y,r.width,r.height,this.zoom,this.tilt);}
   uniforms(program,time){
     const gl=this.gl;gl.useProgram(program);
-    gl.uniform2f(gl.getUniformLocation(program,'u_resolution'),this.canvas.width,this.canvas.height);
-    gl.uniform1f(gl.getUniformLocation(program,'u_zoom'),this.zoom);gl.uniform1f(gl.getUniformLocation(program,'u_tilt'),this.tilt);
-    gl.uniform1f(gl.getUniformLocation(program,'u_dpr'),this.dpr);gl.uniform1f(gl.getUniformLocation(program,'u_time'),time);
+    gl.uniform2f(this.location(program,'u_resolution'),this.canvas.width,this.canvas.height);
+    gl.uniform1f(this.location(program,'u_zoom'),this.zoom);gl.uniform1f(this.location(program,'u_tilt'),this.tilt);
+    gl.uniform1f(this.location(program,'u_dpr'),this.dpr);gl.uniform1f(this.location(program,'u_time'),time);
   }
   draw(time){
     if(this.reduceMotion)time=0;
@@ -145,9 +153,9 @@ export class Renderer {
     gl.viewport(0,0,width,height);
     this.uniforms(this.background,time);gl.bindVertexArray(this.emptyVAO);
     const star=this.state.bodies[0];
-    gl.uniform2f(gl.getUniformLocation(this.background,'u_star'),star.pos.x,star.pos.y);
-    gl.uniform2f(gl.getUniformLocation(this.background,'u_zone'),this.state.status.zone_inner,this.state.status.zone_outer);
-    gl.uniform1f(gl.getUniformLocation(this.background,'u_grid'),Number(this.showGrid));gl.drawArrays(gl.TRIANGLES,0,3);
+    gl.uniform2f(this.location(this.background,'u_star'),star.pos.x,star.pos.y);
+    gl.uniform2f(this.location(this.background,'u_zone'),this.state.status.zone_inner,this.state.status.zone_outer);
+    gl.uniform1f(this.location(this.background,'u_grid'),Number(this.showGrid));gl.drawArrays(gl.TRIANGLES,0,3);
     const lines=[];
     if(this.showTrails)for(const b of this.state.bodies){
       const trail=this.trails.get(b.id)||[],c=COLORS[b.kind];
@@ -156,7 +164,7 @@ export class Renderer {
       }
     }
     if(this.draft&&this.showPreview){
-      const path=launchPath(this.draft.radius,this.draft.angle,this.draft.speed);
+      const path=this.previewPath;
       for(let i=1;i<path.length;i++)if(i%4<2){
         for(const p of [path[i-1],path[i]])lines.push(p[0]+star.pos.x,p[1]+star.pos.y,.94,.76,.4,.5);
       }
@@ -164,8 +172,8 @@ export class Renderer {
     this.uniforms(this.lines,time);gl.bindVertexArray(this.lineVAO);gl.bindBuffer(gl.ARRAY_BUFFER,this.lineBuffer);
     gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(lines),gl.DYNAMIC_DRAW);gl.drawArrays(gl.LINES,0,lines.length/6);
     const points=[];
-    for(const b of [...this.state.bodies].sort((a,b)=>a.pos.y-b.pos.y)){
-      const o=this.state.orbits.find(([id])=>id===b.id)?.[1];
+    for(const b of this.sortedBodies){
+      const o=this.orbitById.get(b.id);
       const c=o?.habitable?[.35,.82,.62]:COLORS[b.kind];
       const size=b.kind==='star'?116:b.kind==='dust'?8:b.kind==='giant'?41:25+Math.min(8,Math.cbrt(b.mass/3e-6));
       points.push(b.pos.x,b.pos.y,size,...c,KINDS[b.kind],Number(this.selected===b.id));
