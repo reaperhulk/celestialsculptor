@@ -1864,3 +1864,23 @@ improves complete ticks by 1.46x at 1,024, 1.59x at 4,096, and 1.50x at 8,192;
 the last case is 55.99 to 37.42 ms/tick with the same four early collisions.
 Approximation error increases within the independent force/orbit gates; this is
 explicitly a versioned speed/accuracy tradeoff, not bitwise new/old trajectory parity.
+
+
+### 166 — Keep orbital integration resident on the GPU for qualification
+
+Review needs: force-only GPU round trips cannot establish the benefit of GPU
+integration. Repeated transfers hide the potential gain, and static forces say
+nothing about accumulated float32 orbital error.
+Implemented: an isolated four-substep KDK GPU prototype retains positions,
+velocities and accelerations in storage buffers, with dependent work separated
+by dispatch boundaries. Each bounded batch reads one complete state. Compare
+moving worlds against a Rust f64 oracle using the same direct/tree force selection.
+Measure one year of prograde and retrograde moon drift, energy and momentum, and
+require identical results across different batch boundaries. Add the report to
+on-device comparison and both software and Apple hardware GPU CI projects.
+Validation: the f64 oracle matches collision-free gameplay exactly at 5/64/512
+bodies, including arbitrary batching, while leaving the source replay unchanged.
+Malformed state, nonfinite values, invalid tick requests and f32 range failures
+are rejected. Actual shader execution and orbital accuracy are CI gates; this
+prototype does not provide gameplay collisions, migration, escapes, histories or
+cross-device replay and cannot be selected for live physics.

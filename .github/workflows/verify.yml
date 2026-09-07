@@ -93,7 +93,9 @@ jobs:
         if: always()
         with:
           name: gpu-compute-results
-          path: test-results/**/gpu-comparison.json
+          path: |
+            test-results/**/gpu-comparison.json
+            test-results/**/gpu-orbits.json
           retention-days: 14
       - run: npm run report
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

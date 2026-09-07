@@ -56,7 +56,31 @@ impl ForceProbe {
         p
     }
     pub fn run(&mut self, theta: f64, repeats: u32) -> f64 {
-        self.run_config(theta, 8, repeats)
+        // Keep benchmark-only leaf specializations out of the live/orbit build.
+        for _ in 0..repeats {
+            self.output.fill(crate::V2::default());
+            if theta > 0. {
+                self.tree
+                    .compute(&self.x, &self.y, &self.mass, 1e-8, theta, &mut self.output);
+            } else {
+                #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+                if theta == 0. {
+                    crate::gravity_simd::accelerations(
+                        &self.x,
+                        &self.y,
+                        &self.mass,
+                        1e-8,
+                        &mut self.output,
+                    );
+                } else {
+                    crate::gravity::direct(&self.x, &self.y, &self.mass, 1e-8, &mut self.output);
+                }
+                #[cfg(not(all(target_arch = "wasm32", target_feature = "simd128")))]
+                crate::gravity::direct(&self.x, &self.y, &self.mass, 1e-8, &mut self.output);
+            }
+            std::hint::black_box(&self.output);
+        }
+        self.output[1].x
     }
     pub fn run_config(&mut self, theta: f64, leaf_size: usize, repeats: u32) -> f64 {
         assert!([2, 4, 8, 16, 32].contains(&leaf_size));
@@ -101,6 +125,76 @@ impl ForceProbe {
 pub fn advance_exact(world: &mut World, ticks: u32) {
     for _ in 0..ticks {
         world.integrate_tick_with_solver(4, false);
+    }
+}
+
+/// Collisionless orbital qualification oracle. Same force law and four KDK
+/// substeps as gameplay, without collisions, migration, escape or observations.
+pub struct OrbitProbe {
+    field: ForceProbe,
+    velocity: Vec<crate::V2>,
+    theta: f64,
+    ready: bool,
+}
+impl OrbitProbe {
+    pub fn new(state: &[f64], exact: bool) -> Result<Self, &'static str> {
+        if !state.len().is_multiple_of(5)
+            || !(2..=8192).contains(&(state.len() / 5))
+            || state.iter().any(|x| !x.is_finite())
+            || state.chunks_exact(5).any(|p| p[4] <= 0.)
+        {
+            return Err("Use 2–8192 finite [x, y, vx, vy, positive mass] particles");
+        }
+        let n = state.len() / 5;
+        Ok(Self {
+            field: ForceProbe {
+                x: state.chunks_exact(5).map(|p| p[0]).collect(),
+                y: state.chunks_exact(5).map(|p| p[1]).collect(),
+                mass: state.chunks_exact(5).map(|p| p[4]).collect(),
+                output: vec![crate::V2::default(); n],
+                tree: crate::gravity_tree::Tree::default(),
+            },
+            velocity: state
+                .chunks_exact(5)
+                .map(|p| crate::V2::new(p[2], p[3]))
+                .collect(),
+            theta: if exact || n < 512 { 0. } else { 0.35 },
+            ready: false,
+        })
+    }
+    pub fn advance(&mut self, ticks: u32) {
+        if ticks == 0 {
+            return;
+        }
+        let h = crate::DT / 4.;
+        if !self.ready {
+            self.field.run(self.theta, 1);
+            self.ready = true;
+        }
+        for _ in 0..ticks * 4 {
+            for (i, v) in self.velocity.iter_mut().enumerate() {
+                *v = v.plus(self.field.output[i].scale(h / 2.));
+                self.field.x[i] += v.x * h;
+                self.field.y[i] += v.y * h;
+            }
+            self.field.run(self.theta, 1);
+            for (v, a) in self.velocity.iter_mut().zip(&self.field.output) {
+                *v = v.plus(a.scale(h / 2.));
+            }
+        }
+    }
+    pub fn state(&self) -> Vec<f64> {
+        (0..self.velocity.len())
+            .flat_map(|i| {
+                [
+                    self.field.x[i],
+                    self.field.y[i],
+                    self.velocity[i].x,
+                    self.velocity[i].y,
+                    self.field.mass[i],
+                ]
+            })
+            .collect()
     }
 }
 

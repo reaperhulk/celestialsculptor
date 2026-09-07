@@ -275,3 +275,21 @@ include long-run conservation, close encounters, moon/resonance behavior and
 portable replay behavior as well as real-device end-to-end speed.
 See the [WGSL numerical specification](https://www.w3.org/TR/WGSL/) and
 [WebGPU buffer mapping specification](https://www.w3.org/TR/webgpu/).
+
+
+## GPU-resident orbital qualification (166)
+
+The device comparison now also measures moving particles, with positions,
+velocities and accelerations retained on the GPU across all four KDK substeps.
+Only the final state is mapped back after eight complete ticks. The f64 CPU
+reference uses the production direct/tree selection. Alternating samples exclude
+pipeline compilation and include dispatch plus final readback. `gpu-orbits.json`
+is archived by software and Apple GPU CI alongside the existing force report.
+
+A separate one-year, 64-body prograde/retrograde moon fixture checks position and
+velocity error, moon phase, energy drift, momentum drift and exact batch invariance.
+The Rust oracle is checked against collision-free gameplay independently of any
+renderer. This is a **collisionless qualification prototype**, not a new live
+backend or a full-engine throughput claim. Collision detection, migration,
+escapes, observation history and deterministic cross-device replay remain required
+before a GPU backend can advance a playable system.

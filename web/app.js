@@ -466,7 +466,7 @@ $('launch-form').addEventListener('change',()=>setPlacement(true,true));
 let gpuBenchmarkReport=null;
 $('run-gpu-benchmark').onclick=async()=>{
  const button=$('run-gpu-benchmark');button.disabled=true;$('download-gpu-benchmark').disabled=true;
- try{await send('play',{value:false});const {runGpuBenchmark}=await import('./gpu-benchmark.js');gpuBenchmarkReport=await runGpuBenchmark({progress:text=>$('gpu-benchmark-status').textContent=text});$('gpu-benchmark-status').textContent=gpuBenchmarkReport.supported?'Comparison complete. Download the timings and force-error report. Your system remains paused.':gpuBenchmarkReport.reason;$('download-gpu-benchmark').disabled=false;}
+ try{await send('play',{value:false});const {runGpuBenchmark}=await import('./gpu-benchmark.js');gpuBenchmarkReport=await runGpuBenchmark({progress:text=>$('gpu-benchmark-status').textContent=text});if(gpuBenchmarkReport.supported){const {runGpuOrbitBenchmark}=await import('./gpu-orbit-benchmark.js');gpuBenchmarkReport.orbits=await runGpuOrbitBenchmark({progress:text=>$('gpu-benchmark-status').textContent=text});}$('gpu-benchmark-status').textContent=gpuBenchmarkReport.supported?'Comparison complete. Download the force, moving-orbit and moon-drift results.':gpuBenchmarkReport.reason;$('download-gpu-benchmark').disabled=false;}
  catch(error){$('gpu-benchmark-status').textContent=`Comparison could not finish: ${error.message}`;}
  finally{button.disabled=false;}
 };

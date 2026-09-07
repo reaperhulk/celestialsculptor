@@ -37,7 +37,7 @@ export class GpuGravity {
  constructor(device,pipeline,info){this.device=device;this.pipeline=pipeline;this.info={vendor:info?.vendor,architecture:info?.architecture,device:info?.device,description:info?.description};this.capacity=0;this.buffers=[];}
  ensure(count){
   if(count<=this.capacity)return;for(const b of this.buffers)b.destroy();this.capacity=2**Math.ceil(Math.log2(count));
-  const d=this.device;this.input=d.createBuffer({size:this.capacity*16,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST});this.output=d.createBuffer({size:this.capacity*8,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_SRC});this.readback=d.createBuffer({size:this.capacity*8,usage:GPUBufferUsage.COPY_DST|GPUBufferUsage.MAP_READ});this.params=d.createBuffer({size:16,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});this.buffers=[this.input,this.output,this.readback,this.params];this.packed=new Float32Array(this.capacity*4);
+  const d=this.device;this.input=d.createBuffer({size:this.capacity*16,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_DST|GPUBufferUsage.COPY_SRC});this.output=d.createBuffer({size:this.capacity*8,usage:GPUBufferUsage.STORAGE|GPUBufferUsage.COPY_SRC});this.readback=d.createBuffer({size:this.capacity*8,usage:GPUBufferUsage.COPY_DST|GPUBufferUsage.MAP_READ});this.params=d.createBuffer({size:16,usage:GPUBufferUsage.UNIFORM|GPUBufferUsage.COPY_DST});this.buffers=[this.input,this.output,this.readback,this.params];this.packed=new Float32Array(this.capacity*4);
   this.bindings=d.createBindGroup({layout:this.pipeline.getBindGroupLayout(0),entries:[{binding:0,resource:{buffer:this.input}},{binding:1,resource:{buffer:this.output}},{binding:2,resource:{buffer:this.params}}]});
  }
  async compute(particles){

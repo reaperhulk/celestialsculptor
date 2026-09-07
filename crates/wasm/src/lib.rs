@@ -35,6 +35,31 @@ pub fn gravity_backend() -> String {
     }
 }
 
+/// Isolated collisionless qualification; cannot mutate a gameplay world.
+#[wasm_bindgen]
+pub struct OrbitProbe {
+    inner: celestial_sim::benchmark::OrbitProbe,
+}
+#[wasm_bindgen]
+impl OrbitProbe {
+    #[wasm_bindgen(constructor)]
+    pub fn new(state: &[f64], exact: bool) -> Result<OrbitProbe, JsValue> {
+        Ok(Self {
+            inner: celestial_sim::benchmark::OrbitProbe::new(state, exact).map_err(js_error)?,
+        })
+    }
+    pub fn advance(&mut self, ticks: f64) -> Result<(), JsValue> {
+        if !ticks.is_finite() || ticks.fract() != 0. || !(0.0..=512.0).contains(&ticks) {
+            return Err(js_error("Use 0–512 whole orbital probe ticks"));
+        }
+        self.inner.advance(ticks as u32);
+        Ok(())
+    }
+    pub fn state(&self) -> Vec<f64> {
+        self.inner.state()
+    }
+}
+
 #[wasm_bindgen]
 pub struct Simulation {
     world: World,
