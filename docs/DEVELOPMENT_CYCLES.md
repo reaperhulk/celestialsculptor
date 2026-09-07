@@ -96,3 +96,15 @@ Expose resonance observation duration, reversal/eccentricity requirements and th
 supported prograde first-order scope. Add signed axial spin/period readings so
 opposite orbital motion and opposite rotation can be inspected independently.
 Keep diagnostic improvements separate from changes to the saved physics rules.
+
+Cycle 5 implemented in 126–127. Resonance evidence and signed rotation controls
+pass focused diagnostics/WASM checks. Review of progression reveals that earned
+mastery is persisted but disappears from the mission map, while comparative
+lessons cannot be opened as a playable starting experiment.
+
+## Cycle 6 — carry learning back into play
+
+Show persisted mastery in challenge selection and the collection count. Let a
+player try the currently studied lesson setup, preserving their existing run
+before replacing it. Verify persistence and setup reconstruction without granting
+unearned completion or applying the lesson's future edits.

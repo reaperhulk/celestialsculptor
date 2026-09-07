@@ -22,7 +22,7 @@ import {diskCommand,diskIssue} from './disk.js';
 import {readViewSettings,writeViewSettings} from './preferences.js';
 import {entry,readNotebook,writeNotebook,compare,summarize,preserveOriginal} from './notebook.js';
 import {moonRegion} from './moons.js';
-import {orbitReading} from './readings.js';
+import {orbitReading,spinReading,spinRate} from './readings.js';
 import {Observatory} from './observatory.js';
 import {ChallengeGuide} from './challenges.js';
 import {GeneratorControls} from './generation.js';
@@ -126,6 +126,7 @@ function inspect(){
     text.style.whiteSpace='pre-line';
   }
   p.append(text);
+  if(body&&body.id!==0){const rotation=document.createElement('p');rotation.textContent=spinReading(body,state.bodies.find(b=>b.id===(body.parent??0)));p.append(rotation);}
   if(body)$('inspect-body').value=String(body.id);
   if(body&&body.id!==0){const source=strongestPerturber(body,state.bodies,state.rules_version===1?.002:.0001),facts=document.createElement('p');facts.textContent=`Contact radius: ${body.radius.toFixed(4)} AU. Material: ${((body.material?.ice||0)/body.mass*100).toFixed(0)}% ice, ${((body.material?.gas||0)/body.mass*100).toFixed(0)}% gas.`;p.append(facts);if(source){const pull=document.createElement('p');pull.className='gravity-reading';pull.textContent=`Strongest neighbor: World ${source.body.id} · ${(source.ratio*100).toFixed(source.ratio<.01?2:1)}% of the star's pull. The blue outline is this world's current orbit; neighbors can bend it.`;p.append(pull);}}
 }
@@ -296,7 +297,8 @@ $('render-quality').onchange=()=>{viewSettings.maxDpr=Number($('render-quality')
 $('reset-view').onclick=()=>{if(renderer){renderer.follow=null;renderer.cameraTo(state?.bodies[0].pos||{x:0,y:0},3.5);renderer.tilt=.62;$('view').textContent='Top view';}};
 $('place-mode').onclick=()=>{if(!renderer)return;renderer.inputMode=renderer.inputMode==='place'?'navigate':'place';$('place-mode').setAttribute('aria-pressed',String(renderer.inputMode==='place'));$('place-mode').classList.toggle('active',renderer.inputMode==='place');$('scene-hint').textContent=renderer.inputMode==='place'?'Tap or drag to choose a launch position':'Drag to pan · Pinch to zoom · Double tap to follow';};
 $('moon-form').onsubmit=event=>{event.preventDefault();send('command',{command:{type:'launch_moon',parent:selectedBody,kind:'rocky',mass:Number($('moon-mass').value),distance:Number($('moon-distance').value),angle:Number($('moon-angle').value)*Math.PI/180,speed:Number($('moon-direction').value)*Number($('moon-speed').value)/100}}).then(()=>{renderer?.focus(selectedBody);toast('Moon placed. Every body contributes to its orbit.');}).catch(error=>toast(error.message));};
-$('spin-forward').onclick=()=>action('command',{command:{type:'spin',id:selectedBody,rate:1}});$('spin-reverse').onclick=()=>action('command',{command:{type:'spin',id:selectedBody,rate:-1}});
+for(const [id,direction] of [['spin-forward',1],['spin-reverse',-1]])$(id).onclick=()=>{try{action('command',{command:{type:'spin',id:selectedBody,rate:spinRate($('spin-rate').value,direction)}});}catch(error){toast(error.message);}};
+$('spin-stop').onclick=()=>action('command',{command:{type:'spin',id:selectedBody,rate:0}});
 $('fit-view').onclick=()=>renderer?.fit();
 $('follow-body').onclick=()=>renderer?.focus(selectedBody);
 $('show-orbit').onclick=()=>{if(renderer)renderer.selected=selectedBody;toast('Blue: current orbit. Amber: the strongest neighboring gravitational pull.');};

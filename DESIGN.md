@@ -1288,3 +1288,13 @@ prograde 2:1 / 3:2 / 4:3 scope. Detection is described as evidence, with the
 existing authoritative criteria and saved simulation results preserved.
 Validation: near-ratio cases cannot display capture evidence; missing duration,
 eccentricity and reversals are explained. Focused tests and build/contracts pass.
+
+### 127 — Independent axial rotation controls and readings
+
+Review needs: reversed orbital motion and reversed spin were easy to confuse,
+and the two spin buttons gave no numerical indication of the result.
+Implemented: the inspector shows axial direction, rotation period and its sense
+relative to the orbit. Players choose turns per year, spin either way or stop
+rotation using the existing conserved-spin command.
+Validation: clockwise orbital cases distinguish same/opposite axial sense; zero,
+invalid and boundary rates are covered. Reading tests and build/contracts pass.

@@ -10,3 +10,6 @@ test('retrograde previews travel along the same orbit in reverse',()=>{
  const a=launchPath(1,0,1),b=launchPath(1,0,-1);assert.equal(a.length,b.length);
  for(let i=0;i<a.length;i++){assert.equal(a[i][0],b[i][0]);assert.ok(Math.abs(a[i][1]+b[i][1])<1e-12);}
 });
+test('axial spin readings distinguish its direction from reversed orbital motion',async()=>{
+ const {spinReading,spinRate}=await import('../web/readings.js');const host={pos:{x:0,y:0},vel:{x:0,y:0}},body={mass:1,radius:1,pos:{x:1,y:0},vel:{x:0,y:-1},spin:.4*2*Math.PI};assert.match(spinReading(body,host),/opposite sense/);body.spin*=-1;assert.match(spinReading(body,host),/same sense/);body.spin=0;assert.equal(spinReading(body,host),'No axial rotation.');assert.equal(spinRate('2',-1),-4*Math.PI);for(const x of ['',-1,1001,Infinity])assert.throws(()=>spinRate(x,1));
+});
