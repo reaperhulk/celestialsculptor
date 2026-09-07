@@ -133,3 +133,14 @@ End recordings when their workload settings change, identify the actual scenario
 and build, and keep fixed-memory reports. Reuse unchanged encounter controls so
 live charts preserve focus and avoid unnecessary DOM allocation. Validate both
 measurement boundaries and browser control identity while time advances.
+
+Cycle 8 implemented in 132–133. Measurement-boundary and stable-encounter tests
+pass. Review of the CI-rendered desktop chart and phone lesson found three visual
+needs: three narrow inspector buttons wrap heavily, the creation ghost resembles
+an extra world while observing, and small chart axes lack a visible metric title.
+
+## Cycle 9 — clear observation presentation
+
+Make inspector actions readable, show the creation ghost only while placing or
+editing a launch, and improve chart labels plus empty-state accessibility. Retain
+real screenshot review and browser acceptance for the new presentation states.

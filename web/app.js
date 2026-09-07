@@ -334,7 +334,7 @@ document.addEventListener('keydown',event=>{
 const frameClock=new FrameClock(),frameMeter=new FrameMeter();
 let deviceRecording=null,deviceScenarioName='current',deviceGeneration=0,preparedGeneration=-1;
 function stopDeviceRecording(reason){if(deviceRecording&&!deviceRecording.done){deviceRecording.stop(reason);$('device-status').textContent=`Recording ended: ${reason}. Download its partial report or start a new recording.`;toast('Device recording ended. Its timing report is ready in View.');}}
-addEventListener('resize',()=>stopDeviceRecording('viewport changed')); 
+addEventListener('resize',()=>stopDeviceRecording('viewport changed'));
 $('show-fps').checked=viewSettings.showFps;$('fps-overlay').hidden=!viewSettings.showFps;
 $('show-fps').onchange=()=>{viewSettings.showFps=$('show-fps').checked;$('fps-overlay').hidden=!viewSettings.showFps;writeViewSettings(storage,viewSettings);frameMeter.reset(performance.now(),state?.tick||0);};
 function frame(time){

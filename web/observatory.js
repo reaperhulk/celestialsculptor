@@ -28,6 +28,7 @@ export function drawChart(svg,geometry,unit){
  svg.append(svgNode('text',{x:48,y:116,fill:'#b1c1d1','font-size':10},`${quantity(geometry.first/512)} yr`),svgNode('text',{x:330,y:116,'text-anchor':'end',fill:'#b1c1d1','font-size':10},`${quantity(geometry.last/512)} yr`));
  svg.setAttribute('aria-label',`${unit} over time, latest ${quantity(geometry.latest)}, range ${quantity(geometry.min)} to ${quantity(geometry.max)}`);
 }
+export function encounterSignature(state,events){return JSON.stringify([state.generation,events,events.map(e=>e.tick+(e.impact?1:0)>state.timeline_end)]);}
 export class Observatory {
  constructor({send,seek,getState,getSelected,selectEvent}){
   this.send=send;this.seek=seek;this.getState=getState;this.getSelected=getSelected;this.selectEvent=selectEvent;this.history={frames:[],events:[]};this.busy=false;this.previousBody=null;
@@ -57,7 +58,7 @@ export class Observatory {
  }
  events(){
   const state=this.getState(),events=this.history.events.filter(e=>!['placed','spin','nudge','seed','migration'].includes(e.kind)).slice(-40).reverse();
-  const signature=`${state.generation}:${state.timeline_end}:${events.map(e=>e.id).join(',')}`;if(signature===this.signature)return;this.signature=signature;
+  const signature=encounterSignature(state,events);if(signature===this.signature)return;this.signature=signature;
   const list=this.$('encounter-list');list.replaceChildren();
   if(!events.length){const p=document.createElement('li');p.textContent='Major encounters will appear here.';list.append(p);}
   for(const event of events){const li=document.createElement('li'),text=document.createElement('p');text.textContent=`${quantity(event.tick/512)} yr · ${event.text}`;li.append(text);

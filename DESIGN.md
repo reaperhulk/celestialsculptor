@@ -1355,3 +1355,13 @@ partial report. Preparing a stress scenario clears event auto-pausing. Navigatio
 and observation remain part of the intended test; paused time stays excluded.
 Validation: finished reports remain immutable under later frames. Added browser
 quality-change coverage; device/worker tests and production contracts pass.
+
+### 133 — Preserve encounter controls during live observation
+
+Review needs: advancing the timeline rebuilt unchanged encounter buttons each
+second, allocating DOM nodes and potentially losing keyboard focus mid-inspection.
+Implemented: the encounter list refreshes only when events, timeline generation
+or Before/After availability change. Event detail changes still invalidate it.
+Validation: signature regressions cover time progression, boundary availability
+and changed impact details. Added a browser DOM-identity check spanning the real
+refresh interval; observation tests and production contracts pass.

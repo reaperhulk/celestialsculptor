@@ -15,3 +15,6 @@ test('pair histories are independent of an unrelated body changing its host',()=
  const frames=[null,3,null].map((parent,i)=>({tick:i*64,bodies:[{id:8,parent}],resonances:[{inner:1,outer:2,ratio:2+i*.01,angle:.2+i*.01}]}));
  for(const metric of ['ratio','angle'])assert.equal(chartGeometry(series({frames},8,metric,'1:2'),metric).paths.length,1);
 });
+test('encounter controls remain stable as time advances but refresh when availability or details change',async()=>{
+ const {encounterSignature}=await import('../web/observatory.js');const state={generation:1,timeline_end:10},events=[{id:1,tick:5,text:'Impact',impact:{mass:1}}];assert.equal(encounterSignature(state,events),encounterSignature({...state,timeline_end:100},events));assert.notEqual(encounterSignature({...state,timeline_end:5},events),encounterSignature(state,events));assert.notEqual(encounterSignature(state,events),encounterSignature(state,[{...events[0],impact:{mass:2}}]));
+});
