@@ -26,3 +26,14 @@ test('GPU-resident integration qualifies moving orbits and moon drift',async({pa
  for(const phase of report.trajectory.moonPhaseErrorsRadians)expect(phase).toBeLessThan(.01);
  expect(Math.abs(report.trajectory.relativeEnergyDrift)).toBeLessThan(.0001);expect(report.trajectory.momentumResidual).toBeLessThan(.0001);
 });
+
+test('mixed precision keeps f64 state and includes transfer overhead',async({page},testInfo)=>{
+ const software=testInfo.project.name==='gpu-compute',metal=testInfo.project.name==='gpu-metal';test.skip(!software&&!(metal&&process.platform==='darwin'),'Dedicated GPU qualification projects');test.setTimeout(120000);
+ await page.goto('./');await expect(page.locator('#play')).toBeEnabled();const report=await page.evaluate(async fallback=>{const {runMixedBenchmark}=await import('./gpu-mixed-probe.js');return runMixedBenchmark({fallback});},software);
+ await writeFile(testInfo.outputPath('gpu-mixed.json'),JSON.stringify(report,null,2));if(!report.supported&&metal)test.skip(true,'No hardware adapter');expect(report.supported).toBe(true);expect(report.livePhysicsEnabled).toBe(false);for(const row of report.cases){expect(row.positionRms).toBeLessThan(.001);expect(row.gpuMs).toBeGreaterThan(0);}
+});
+
+test('GPU lifetime stops at the first long-run accuracy failure',async({page},testInfo)=>{
+ test.skip(testInfo.project.name!=='gpu-metal'||process.platform!=='darwin','Long-run candidate evidence uses the hardware adapter');test.setTimeout(600000);
+ await page.goto('./');await expect(page.locator('#play')).toBeEnabled();const report=await page.evaluate(async()=>{const {runGpuLifetime}=await import('./gpu-lifetime.js');return runGpuLifetime();});await writeFile(testInfo.outputPath('gpu-lifetime.json'),JSON.stringify(report,null,2));if(!report.supported)test.skip(true,'No hardware adapter');expect(report.livePhysicsEnabled).toBe(false);expect(report.completedYears).toBeGreaterThan(0);expect(['rejected','passed requested horizon']).toContain(report.status);
+});

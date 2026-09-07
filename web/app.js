@@ -4,6 +4,7 @@ import {Inspector} from './inspector.js';
 import {draftOutsideView,draftZoom} from './preview.js';
 import {PlayControl} from './play-control.js';
 import {resonanceText} from './resonance-reading.js';
+import {ExperimentLab,variations} from './experiment-lab.js';
 import {experimentDifferences} from './comparison.js';
 import {orbitalWatchSpeed} from './playback.js';
 import { Renderer } from './renderer.js';
@@ -410,11 +411,12 @@ function showNotebook(){
   };
   const save=document.createElement('button');save.textContent='Export';save.onclick=()=>download(item.replay,'celestial-'+(item.name.toLowerCase().replace(/[^a-z0-9]+/g,'-').slice(0,50)||'checkpoint')+'.json');
   const remove=document.createElement('button');remove.textContent='Remove';remove.onclick=()=>{try{const next=notebookEntries.filter(value=>value.id!==item.id);writeNotebook(storage,next);notebookEntries=next;showNotebook();}catch(error){$('notebook-status').textContent=error.message;}};
-  actions.append(open,save,remove);card.append(heading,description,checkLabel,actions);$('notebook-list').append(card);
+  const sweep=document.createElement('button');sweep.textContent='Vary one condition';sweep.onclick=()=>openSweep(item);actions.append(open,sweep,save,remove);card.append(heading,description,checkLabel,actions);$('notebook-list').append(card);
  }
  renderComparison();updateHistory();
 }
 let comparisonRequest=0,comparisonSelection='';
+const experimentLab=new ExperimentLab({container:$('comparison-wrap'),rerender:()=>renderComparison()});
 $('comparison-tick').onchange=()=>renderComparison();
 async function renderComparison(){
  const request=++comparisonRequest;
@@ -424,7 +426,8 @@ async function renderComparison(){
  const number=value=>value.toLocaleString(undefined,{maximumFractionDigits:2});
  $('comparison-age').textContent='Reconstructing both experiments at the same age…';
  const key=comparisonIds.join(':');const end=Math.min(parseReplay(a.replay).end_tick,parseReplay(b.replay).end_tick);$('comparison-tick').max=String(end);if(key!==comparisonSelection){comparisonSelection=key;$('comparison-tick').value=String(end);}
- try{const result=await send('compare',{replays:[a.replay,b.replay],tick:Number($('comparison-tick').value)});if(request!==comparisonRequest)return;
+ try{const result=await send('compare',{replays:[a.replay,b.replay],tick:Number($('comparison-tick').value),include_history:true,history_filters:experimentLab.filters()});if(request!==comparisonRequest)return;
+  experimentLab.update(result,[a.name,b.name]);
   const left=parseReplay(a.replay),right=parseReplay(b.replay),changed=left.commands.filter((c,i)=>JSON.stringify(c)!==JSON.stringify(right.commands[i])).length+Math.max(0,right.commands.length-left.commands.length);
   $('comparison-age').textContent=`Both at year ${(result.tick/512).toFixed(2)} · ${changed} differing recorded edits${JSON.stringify(left.config)!==JSON.stringify(right.config)?' · starting conditions differ':''}.`;
   const differences=experimentDifferences(left,right,result.tick);$('comparison-edits').replaceChildren(...(differences.length?differences:['No recorded conditions differ by this age.']).map(text=>{const li=document.createElement('li');li.textContent=text;return li;}));
@@ -433,12 +436,12 @@ async function renderComparison(){
 }
 $('notebook').onclick=async()=>{try{await send('play',{value:false});showNotebook();$('notebook-dialog').showModal();}catch(error){toast(error.message);}};
 $('close-notebook').onclick=()=>$('notebook-dialog').close();
-$('checkpoint-form').onsubmit=async event=>{event.preventDefault();$('save-checkpoint').disabled=true;try{await send('play',{value:false});const {replay}=await send('export');const next=[...notebookEntries,entry($('checkpoint-name').value,replay,state)];writeNotebook(storage,next);notebookEntries=next;showNotebook();$('notebook-status').textContent='Checkpoint saved. Open it later to branch without changing this original.';}catch(error){$('notebook-status').textContent=error.message;}finally{$('save-checkpoint').disabled=false;}};
+$('checkpoint-form').onsubmit=async event=>{event.preventDefault();$('save-checkpoint').disabled=true;try{await send('play',{value:false});await send('cache_checkpoint');const {replay}=await send('export');const next=[...notebookEntries,entry($('checkpoint-name').value,replay,state)];writeNotebook(storage,next);notebookEntries=next;await autosave();showNotebook();$('notebook-status').textContent='Checkpoint saved. Open it later to branch without changing this original.';}catch(error){$('notebook-status').textContent=error.message;}finally{$('save-checkpoint').disabled=false;}};
 $('history-tick').oninput=()=>{$('history-time').textContent=`Year ${(Number($('history-tick').value)/512).toFixed(2)} of ${((state?.timeline_end||0)/512).toFixed(2)}`;};
 async function reviewHistory(tick){$('history-tick').disabled=true;try{await send('seek',{tick});$('history-tick').value=String(state.tick);$('history-note').textContent='Reviewing the recorded run. Return to latest to continue it. Running or editing saves the original automatically before branching.';}catch(error){$('notebook-status').textContent=error.message;throw error;}finally{updateHistory();}}
 $('history-tick').onchange=()=>reviewHistory(Number($('history-tick').value)).catch(()=>{});
 $('history-latest').onclick=()=>reviewHistory(state.timeline_end).catch(()=>{});
-const observatory=new Observatory({send,seek:reviewHistory,getState:()=>state,getSelected:()=>selectedBody,selectEvent:event=>{selectedBody=event.body;if(renderer){renderer.focusEvent(event);renderer.encounterOverlay=event.impact||null;}inspect();}});
+const observatory=new Observatory({send,trackHistory:command=>action('command',{command}),seek:reviewHistory,getState:()=>state,getSelected:()=>selectedBody,selectEvent:event=>{selectedBody=event.body;if(renderer){renderer.focusEvent(event);renderer.encounterOverlay=event.impact||null;}inspect();}});
 const challengeGuide=new ChallengeGuide({send,getState:()=>state,trySetup:async replay=>{if(!canPlay(profile,replay.config.mission))throw new Error('Complete earlier challenges first.');const original=await send('original');notebookEntries=preserveOriginal(storage,notebookEntries,original.replay,original.snapshot);saveEpoch++;await send('import',{replay:JSON.stringify(replay)});renderer?.fit();document.querySelector('.mobile-tabs [data-panel="sculpt"]')?.click();await autosave();toast('Example setup ready at year zero. Your previous run is in the notebook. Change a condition and run.');}});
 const generatorControls=new GeneratorControls({storage,getState:()=>state,
  create:({seed,command,play})=>confirmReset(async()=>{if(await reset(null,{seed})){await send('command',{command});generatorControls.record(state.config,command,state.rules_version);renderer?.fit();if(command.style==='resonance'){await send('speed',{value:16});$('resonance-panel').open=true;}await autosave();if(play)await send('play',{value:true});toast('Your seeded universe is ready. Watch an encounter, then try changing one condition.');}}),
@@ -453,7 +456,7 @@ $('prepare-device').onclick=async()=>{try{
  $('device-status').textContent=`Scenario ready at ${state.speed}× speed. Your original is in the notebook. Start recording, then pan, zoom and open Observe while it runs.`;await autosave();
  }catch(error){$('device-status').textContent=error.message;}};
 $('record-device').onclick=async()=>{try{const response=await fetch(new URL('./build-info.json',import.meta.url));if(!response.ok)throw new Error('Build details could not load. Try recording again.');const build=await response.json();await send('play',{value:true});deviceGeneration=state.generation;
- const {replay}=await send('export');deviceRecording=new DeviceRecording({revision:build.revision,speed:state.speed,scenario:preparedGeneration===state.generation?deviceScenarioName:'current',replay:JSON.parse(replay),browser:navigator.userAgent,viewport:{width:innerWidth,height:innerHeight,pixelRatio:devicePixelRatio},quality:{...viewSettings},dpr:renderer?.dpr,created:new Date().toISOString()});
+ const {replay}=await send('export');deviceRecording=new DeviceRecording({revision:build.revision,wasmHash:build.assets?.['pkg/celestial_wasm_bg.wasm']?.sha256,dirty:build.dirty,physicsSubsteps:state.physics_substeps,physicalDevice:physicalDevice.checked,deviceModel:deviceModel.value.trim(),deviceClass:deviceClass.value,speed:state.speed,scenario:preparedGeneration===state.generation?deviceScenarioName:'current',replay:JSON.parse(replay),browser:navigator.userAgent,viewport:{width:innerWidth,height:innerHeight,pixelRatio:devicePixelRatio},quality:{...viewSettings},dpr:renderer?.dpr,created:new Date().toISOString()});
  $('device-status').textContent='Recording five minutes of visible running time. Pauses are excluded. Changing speed, quality or window size ends the report; download early for a partial report.';$('download-device').disabled=false;$('display-dialog').close();toast('Five-minute recording started. Navigate and open charts as you watch.');
  }catch(error){$('device-status').textContent=error.message;}};
 $('download-device').onclick=()=>{if(deviceRecording)download(JSON.stringify(deviceRecording.report(),null,2),'celestial-device-performance.json');};
@@ -467,8 +470,20 @@ $('launch-form').addEventListener('change',()=>setPlacement(true,true));
 let gpuBenchmarkReport=null;
 $('run-gpu-benchmark').onclick=async()=>{
  const button=$('run-gpu-benchmark');button.disabled=true;$('download-gpu-benchmark').disabled=true;
- try{await send('play',{value:false});const {runGpuBenchmark}=await import('./gpu-benchmark.js');gpuBenchmarkReport=await runGpuBenchmark({progress:text=>$('gpu-benchmark-status').textContent=text});if(gpuBenchmarkReport.supported){const {runGpuOrbitBenchmark}=await import('./gpu-orbit-benchmark.js');gpuBenchmarkReport.orbits=await runGpuOrbitBenchmark({progress:text=>$('gpu-benchmark-status').textContent=text});}$('gpu-benchmark-status').textContent=gpuBenchmarkReport.supported?'Comparison complete. Download the force, moving-orbit and moon-drift results.':gpuBenchmarkReport.reason;$('download-gpu-benchmark').disabled=false;}
+ try{await send('play',{value:false});const {runGpuBenchmark}=await import('./gpu-benchmark.js');gpuBenchmarkReport=await runGpuBenchmark({progress:text=>$('gpu-benchmark-status').textContent=text});if(gpuBenchmarkReport.supported){const {runGpuOrbitBenchmark}=await import('./gpu-orbit-benchmark.js');gpuBenchmarkReport.orbits=await runGpuOrbitBenchmark({progress:text=>$('gpu-benchmark-status').textContent=text});const {runMixedBenchmark}=await import('./gpu-mixed-probe.js');$('gpu-benchmark-status').textContent='Measuring mixed precision with f64 orbital state…';gpuBenchmarkReport.mixed=await runMixedBenchmark();const {runGpuLifetime}=await import('./gpu-lifetime.js');gpuBenchmarkReport.lifetime=await runGpuLifetime({progress:text=>$('gpu-benchmark-status').textContent=text});}$('gpu-benchmark-status').textContent=gpuBenchmarkReport.supported?(gpuBenchmarkReport.lifetime?.status==='rejected'?`GPU accuracy limit exceeded at year ${gpuBenchmarkReport.lifetime.completedYears}. Download the comparison results.`:'Comparison complete. Download the force, moving-orbit and moon-drift results.'):gpuBenchmarkReport.reason;$('download-gpu-benchmark').disabled=false;}
  catch(error){$('gpu-benchmark-status').textContent=`Comparison could not finish: ${error.message}`;}
  finally{button.disabled=false;}
 };
 $('download-gpu-benchmark').onclick=()=>{if(gpuBenchmarkReport)download(JSON.stringify(gpuBenchmarkReport,null,2),'celestial-gpu-comparison.json');};
+
+const sweepPanel=document.createElement('section');sweepPanel.className='experiment-lab';sweepPanel.hidden=true;
+const sweepTitle=document.createElement('h3'),sweepLabel=document.createElement('label'),sweepField=document.createElement('select'),sweepValuesLabel=document.createElement('label'),sweepValues=document.createElement('input'),sweepRun=document.createElement('button'),sweepCancel=document.createElement('button'),sweepStatus=document.createElement('p'),sweepResults=document.createElement('div');
+sweepTitle.textContent='Vary one condition';sweepLabel.textContent='Condition (last matching edit)';sweepField.id='sweep-condition';sweepLabel.htmlFor=sweepField.id;
+for(const field of ['seed','speed','radius','chaos','disorder','timescale'])sweepField.add(new Option(field,field));
+sweepValuesLabel.textContent='One to three values, separated by commas';sweepValues.id='sweep-values';sweepValuesLabel.htmlFor=sweepValues.id;sweepValues.value='41, 42, 43';sweepRun.textContent='Run variations';sweepRun.id='run-sweep';sweepCancel.textContent='Cancel variations';sweepCancel.onclick=()=>send('play',{value:false});sweepStatus.setAttribute('role','status');
+sweepPanel.append(sweepTitle,sweepLabel,sweepField,sweepValuesLabel,sweepValues,sweepRun,sweepCancel,sweepStatus,sweepResults);$('notebook-dialog').append(sweepPanel);let sweepSource;
+function openSweep(item){sweepSource=item;sweepPanel.hidden=false;sweepTitle.textContent='Vary one condition · '+item.name;sweepResults.replaceChildren();sweepStatus.textContent='Each variation starts from the same recorded experiment and runs to the same age. Saved originals stay in the notebook.';sweepPanel.scrollIntoView({block:'nearest'});}
+sweepRun.onclick=async()=>{sweepRun.disabled=true;sweepResults.replaceChildren();try{const variants=variations(parseReplay(sweepSource.replay),sweepField.value,sweepValues.value.split(',').map(v=>v.trim()===''?NaN:Number(v)));sweepStatus.textContent='Running the variations. Pause cancels without replacing your current system.';const result=await send('sweep',{replays:variants.map(v=>v.replay)});result.results.forEach((value,i)=>{const card=document.createElement('article'),text=document.createElement('p'),save=document.createElement('button');const summary=summarize(value.snapshot);text.textContent=`${variants[i].label} · year ${summary.years.toFixed(2)} · ${summary.planets} worlds · ${summary.moons} moons · ${summary.collisions} mergers`;save.textContent='Save '+variants[i].label;save.onclick=()=>{try{const next=[...notebookEntries,entry(sweepSource.name+' · '+variants[i].label,value.replay,value.snapshot)];writeNotebook(storage,next);notebookEntries=next;showNotebook();save.disabled=true;}catch(e){sweepStatus.textContent=e.message;}};card.append(text,save);sweepResults.append(card);});sweepStatus.textContent='Variations finished at equal age. Save two results to compare their orbits and histories.';}catch(error){sweepStatus.textContent=error.message;}finally{sweepRun.disabled=false;}};
+
+const deviceModelLabel=document.createElement('label'),deviceModel=document.createElement('input'),deviceClass=document.createElement('select'),physicalLabel=document.createElement('label'),physicalDevice=document.createElement('input');
+deviceModel.id='device-model';deviceModelLabel.htmlFor=deviceModel.id;deviceModelLabel.textContent='Device model and browser version';deviceModel.maxLength=120;deviceModel.placeholder='e.g. iPhone 15, Safari 18';deviceClass.setAttribute('aria-label','Device category');for(const value of ['desktop','iphone','ipad','android','other'])deviceClass.add(new Option(value,value));physicalDevice.type='checkbox';physicalLabel.append(physicalDevice,document.createTextNode('Recording on this physical device (no emulation)'));$('record-device').before(deviceModelLabel,deviceModel,deviceClass,physicalLabel);

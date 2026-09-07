@@ -1,0 +1,113 @@
+{
+  "supported": true,
+  "adapter": {
+    "vendor": "apple",
+    "architecture": "metal-3",
+    "device": "",
+    "description": ""
+  },
+  "browser": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/140.0.0.0 Safari/537.36",
+  "cases": [
+    {
+      "bodies": 65,
+      "ticks": 8,
+      "cpuMsPerTick": 0.008445945945945946,
+      "gpuMsPerTick": 0.30833332737286884,
+      "speedup": 0.027392257651513055,
+      "positionRms": 1.9147905265633194e-7,
+      "velocityRms": 2.2397146777055798e-7,
+      "samples": {
+        "cpu": [
+          0.008445945945945946,
+          0.008223684210526315,
+          0.008445945945945946
+        ],
+        "gpu": [
+          0.3125,
+          0.3000000019868215,
+          0.30833332737286884
+        ]
+      }
+    },
+    {
+      "bodies": 1024,
+      "ticks": 8,
+      "cpuMsPerTick": 0.9375,
+      "gpuMsPerTick": 0.45000000298023224,
+      "speedup": 2.083333319535962,
+      "positionRms": 1.634222523928212e-7,
+      "velocityRms": 2.643195408950482e-7,
+      "samples": {
+        "cpu": [
+          0.9375,
+          0.9249999821186066,
+          0.9375
+        ],
+        "gpu": [
+          0.45000000298023224,
+          0.6875,
+          0.44999998807907104
+        ]
+      }
+    },
+    {
+      "bodies": 4096,
+      "ticks": 8,
+      "cpuMsPerTick": 4.800000011920929,
+      "gpuMsPerTick": 1.5999999940395355,
+      "speedup": 3.0000000186264515,
+      "positionRms": 1.692900427370981e-7,
+      "velocityRms": 3.0962961325635487e-7,
+      "samples": {
+        "cpu": [
+          4.8125,
+          4.800000011920929,
+          4.7750000059604645
+        ],
+        "gpu": [
+          1.5625,
+          1.7249999940395355,
+          1.5999999940395355
+        ]
+      }
+    },
+    {
+      "bodies": 8192,
+      "ticks": 8,
+      "cpuMsPerTick": 10.287499994039536,
+      "gpuMsPerTick": 2.9249999821186066,
+      "speedup": 3.5170940365572916,
+      "positionRms": 1.624514845464935e-7,
+      "velocityRms": 5.965012852191647e-7,
+      "samples": {
+        "cpu": [
+          10.287499994039536,
+          10.224999994039536,
+          10.362499982118607
+        ],
+        "gpu": [
+          2.9249999821186066,
+          2.8624999821186066,
+          2.962499976158142
+        ]
+      }
+    }
+  ],
+  "trajectory": {
+    "bodies": 64,
+    "ticks": 512,
+    "substeps": 16,
+    "positionRms": 0.000010518953784244328,
+    "velocityRms": 0.00031872436560307195,
+    "moonPhaseErrorsRadians": [
+      0.008145320420370528,
+      0.0017064513680422613
+    ],
+    "relativeEnergyDrift": 0.0000017870191286781974,
+    "cpuRelativeEnergyDrift": 2.1632870692442125e-13,
+    "momentumResidual": 0.0000016276625232241361
+  },
+  "batchInvariant": true,
+  "livePhysicsEnabled": false,
+  "scope": "Collisionless moving-orbit qualification. Four KDK substeps per swarm tick and sixteen in the moon qualification; positions, velocities and acceleration stay on the GPU between steps. One state readback per batch. CPU uses production f64 SIMD/tree forces; GPU uses tiled direct f32. Collisions, migration, escapes, histories, rendering and cross-device replay are not implemented by this prototype."
+}

@@ -39,7 +39,8 @@ export class GpuOrbitProbe {
   }catch(error){gravity.dispose();throw error;}
  }
  constructor(gravity,layout,drift,kick){this.gravity=gravity;this.layout=layout;this.drift=drift;this.kick=kick;this.buffers=[];this.capacity=0;this.count=0;this.busy=false;this.disposed=false;this.ready=false;}
- reset(state){
+ reset(state,substeps=4){
+  if(![4,8,16,32,64].includes(substeps))throw new Error('Invalid orbital refinement');this.substeps=substeps;
   if(this.disposed||this.busy)throw new Error('Orbital probe is unavailable');
   const n=validateOrbitState(state),g=this.gravity,d=g.device;g.ensure(n);
   if(this.capacity<g.capacity){
@@ -49,8 +50,8 @@ export class GpuOrbitProbe {
    this.bindings=d.createBindGroup({layout:this.layout,entries:[{binding:0,resource:{buffer:g.input}},{binding:1,resource:{buffer:g.output}},{binding:2,resource:{buffer:this.velocity}},{binding:3,resource:{buffer:g.params}}]});
   }
   this.count=n;this.ready=false;this.masses=new Float64Array(n);
-  for(let i=0;i<n;i++){g.packed[i*4]=state[i*5];g.packed[i*4+1]=state[i*5+1];g.packed[i*4+2]=state[i*5+4];this.packedVelocity[i*2]=state[i*5+2];this.packedVelocity[i*2+1]=state[i*5+3];this.masses[i]=state[i*5+4];}
-  const params=new ArrayBuffer(16);new Uint32Array(params)[0]=n;new Float32Array(params).set([1e-8,39.47841760435743,1/2048],1);
+  for(let i=0;i<n;i++){g.packed[i*4]=state[i*5];g.packed[i*4+1]=state[i*5+1];g.packed[i*4+2]=state[i*5+4];this.packedVelocity[i*2]=state[i*5+2];this.packedVelocity[i*2+1]=state[i*5+3];this.masses[i]=Math.fround(state[i*5+4]);}
+  const params=new ArrayBuffer(16);new Uint32Array(params)[0]=n;new Float32Array(params).set([1e-8,39.47841760435743,1/(512*substeps)],1);
   d.queue.writeBuffer(g.input,0,g.packed,0,n*4);d.queue.writeBuffer(this.velocity,0,this.packedVelocity,0,n*2);d.queue.writeBuffer(g.params,0,params);
  }
  async advance(ticks){
@@ -60,7 +61,7 @@ export class GpuOrbitProbe {
    const g=this.gravity,d=g.device,n=this.count,encoder=d.createCommandEncoder(),pass=encoder.beginComputePass(),groups=Math.ceil(n/64);
    const force=()=>{pass.setPipeline(g.pipeline);pass.setBindGroup(0,g.bindings);pass.dispatchWorkgroups(groups);};
    if(!this.ready)force();
-   for(let i=0;i<ticks*4;i++){
+   for(let i=0;i<ticks*this.substeps;i++){
     pass.setPipeline(this.drift);pass.setBindGroup(0,this.bindings);pass.dispatchWorkgroups(groups);
     force();
     pass.setPipeline(this.kick);pass.setBindGroup(0,this.bindings);pass.dispatchWorkgroups(groups);

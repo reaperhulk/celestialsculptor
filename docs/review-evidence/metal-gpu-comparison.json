@@ -1,0 +1,217 @@
+{
+  "supported": true,
+  "adapter": {
+    "vendor": "apple",
+    "architecture": "metal-3",
+    "device": "",
+    "description": ""
+  },
+  "browser": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/140.0.0.0 Safari/537.36",
+  "cases": [
+    {
+      "bodies": 63,
+      "kind": "swarm",
+      "directMs": 0.0020666494445879618,
+      "treeMs": 0.002103602419142782,
+      "gpuRoundTripMs": 2.4000000953674316,
+      "speedupVsBestCpu": 0.0008611039010277893,
+      "rmsRelativeError": 2.778066587492329e-7,
+      "p99RelativeError": 5.593841896056188e-7,
+      "maxRelativeError": 7.852126908328805e-7,
+      "momentumResidual": 2.7366588071643784e-8,
+      "samples": {
+        "direct": [
+          0.00209259743656814,
+          0.002045512656609563,
+          0.0020666494445879618
+        ],
+        "tree": [
+          0.002147651006711409,
+          0.0021013921723141583,
+          0.002103602419142782
+        ],
+        "gpu": [
+          2.299999952316284,
+          2.5999999046325684,
+          2.4000000953674316
+        ]
+      }
+    },
+    {
+      "bodies": 65,
+      "kind": "swarm",
+      "directMs": 0.00218281036834925,
+      "treeMs": 0.0021875854525567405,
+      "gpuRoundTripMs": 2.5,
+      "speedupVsBestCpu": 0.0008731241473397,
+      "rmsRelativeError": 3.4584705510138333e-7,
+      "p99RelativeError": 4.861709173816482e-7,
+      "maxRelativeError": 4.889759535063894e-7,
+      "momentumResidual": 8.032047592440427e-8,
+      "samples": {
+        "direct": [
+          0.00218281036834925,
+          0.002128225591912743,
+          0.002219140083217753
+        ],
+        "tree": [
+          0.0021488047273704003,
+          0.0022916069894013177,
+          0.0021875854525567405
+        ],
+        "gpu": [
+          2.5,
+          2.5,
+          2.200000047683716
+        ]
+      }
+    },
+    {
+      "bodies": 257,
+      "kind": "swarm",
+      "directMs": 0.05128205128205128,
+      "treeMs": 0.05194805194805195,
+      "gpuRoundTripMs": 2.3999998569488525,
+      "speedupVsBestCpu": 0.021367522641124962,
+      "rmsRelativeError": 0.0000014467584840582818,
+      "p99RelativeError": 0.0000028871882141367224,
+      "maxRelativeError": 0.000004792109284990648,
+      "momentumResidual": 1.6021616455297317e-7,
+      "samples": {
+        "direct": [
+          0.05225806390085528,
+          0.05063291139240506,
+          0.05128205128205128
+        ],
+        "tree": [
+          0.05194805194805195,
+          0.05228758169934641,
+          0.05063291139240506
+        ],
+        "gpu": [
+          2.200000047683716,
+          2.3999998569488525,
+          2.6000001430511475
+        ]
+      }
+    },
+    {
+      "bodies": 1024,
+      "kind": "swarm",
+      "directMs": 0.6538461538461539,
+      "treeMs": 0.22499999735090467,
+      "gpuRoundTripMs": 2.5,
+      "speedupVsBestCpu": 0.08999999894036187,
+      "rmsRelativeError": 0.0000037575597864908495,
+      "p99RelativeError": 0.000014328315391927556,
+      "maxRelativeError": 0.000015458670657609966,
+      "momentumResidual": 3.9184522162914714e-8,
+      "samples": {
+        "direct": [
+          0.6384615347935603,
+          0.6538461538461539,
+          0.725000003973643
+        ],
+        "tree": [
+          0.22499999735090467,
+          0.22777777910232544,
+          0.21891891634142077
+        ],
+        "gpu": [
+          2.5,
+          2.5,
+          2.5
+        ]
+      }
+    },
+    {
+      "bodies": 4096,
+      "kind": "swarm",
+      "directMs": 11.299999952316284,
+      "treeMs": 1.1857142789023263,
+      "gpuRoundTripMs": 2.5,
+      "speedupVsBestCpu": 0.4742857115609305,
+      "rmsRelativeError": 0.000006086780796937278,
+      "p99RelativeError": 0.000027914562469584754,
+      "maxRelativeError": 0.00003257119629893455,
+      "momentumResidual": 2.443937504694711e-8,
+      "samples": {
+        "direct": [
+          11.200000047683716,
+          11.299999952316284,
+          11.299999952316284
+        ],
+        "tree": [
+          1.1857142789023263,
+          1.2000000136239188,
+          1.171428578240531
+        ],
+        "gpu": [
+          3.5999999046325684,
+          2.4000000953674316,
+          2.5
+        ]
+      }
+    },
+    {
+      "bodies": 8192,
+      "kind": "swarm",
+      "directMs": 39.700000047683716,
+      "treeMs": 2.475000023841858,
+      "gpuRoundTripMs": 4.799999952316284,
+      "speedupVsBestCpu": 0.515625010089328,
+      "rmsRelativeError": 0.000007315914478678602,
+      "p99RelativeError": 0.00003890505210776928,
+      "maxRelativeError": 0.00015840581606466262,
+      "momentumResidual": 1.6360932482914816e-8,
+      "samples": {
+        "direct": [
+          38.69999980926514,
+          41.19999980926514,
+          39.700000047683716
+        ],
+        "tree": [
+          2.400000035762787,
+          2.525000035762787,
+          2.475000023841858
+        ],
+        "gpu": [
+          4.799999952316284,
+          4.799999952316284,
+          4.8999998569488525
+        ]
+      }
+    },
+    {
+      "bodies": 64,
+      "kind": "moons",
+      "directMs": 0.0021545919741448962,
+      "treeMs": 0.002155753166262463,
+      "gpuRoundTripMs": 2.299999952316284,
+      "speedupVsBestCpu": 0.0009367791386147854,
+      "rmsRelativeError": 0.0000013494605735586311,
+      "p99RelativeError": 0.000001360527141193889,
+      "maxRelativeError": 0.0000023383777279795366,
+      "momentumResidual": 2.2946452799591146e-7,
+      "samples": {
+        "direct": [
+          0.0021545919741448962,
+          0.002158079309414621,
+          0.0021069265209375824
+        ],
+        "tree": [
+          0.002155753166262463,
+          0.002097535395909806,
+          0.002185195301830101
+        ],
+        "gpu": [
+          2.299999952316284,
+          2.4000000953674316,
+          2.200000047683716
+        ]
+      }
+    }
+  ],
+  "livePhysicsEnabled": false,
+  "scope": "Force-kernel candidate including GPU transfer/readback. GPU f32 precision and cross-device replay have not been qualified for live integration; the production solver remains f64 WASM."
+}

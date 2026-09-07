@@ -2,8 +2,8 @@ import {PLAYBACK_SPEEDS,BASE_TICKS_PER_SECOND} from './playback.js';
 import {historyView} from './history-view.js';
 // Worker-owned controller. Its protocol is tested with real WASM without graphics.
 export class Runtime {
-  constructor(Simulation, send, {now=()=>performance.now(), workBudgetMs=6}={}) {
-    this.now=now;this.workBudgetMs=workBudgetMs;
+  constructor(Simulation, send, {now=()=>performance.now(), workBudgetMs=6, checkpoints=null, provenance=null}={}) {
+    this.now=now;this.workBudgetMs=workBudgetMs;this.checkpoints=checkpoints;this.provenance=provenance;
     this.Simulation = Simulation;
     this.send = send;
     this.sim = null;
@@ -18,15 +18,17 @@ export class Runtime {
     if (!this.sim) return;
     const packed=(this.sim.body_count?.()||0)>256,frame=packed?this.sim.body_frame():null;
     const snapshot = JSON.parse(packed?this.sim.compact_snapshot(this.selectedBody):this.sim.snapshot());
-    this.send({...(packed?{frame,frame_version:1}:{}), type: 'state', id, ...snapshot, busy:this.operation?.type||null, timeline_end:this.timelineSource?this.timelineEnd:snapshot.tick, reviewing:Boolean(this.timelineSource), playing: this.playing, speed: this.speed, event_policy:this.eventPolicy, generation: this.generation },frame?[frame.buffer]:[]);
+    this.send({...(packed?{frame,frame_version:1}:{}), type: 'state', id, ...snapshot, provenance:this.provenance, checkpoint_status:this.checkpoints?.status||'replay', busy:this.operation?.type||null, timeline_end:this.timelineSource?this.timelineEnd:snapshot.tick, reviewing:Boolean(this.timelineSource), playing: this.playing, speed: this.speed, event_policy:this.eventPolicy, generation: this.generation },frame?[frame.buffer]:[]);
   }
   // Production message entrypoint. Replays yield between small WASM slices so
   // Pause, reset and status requests never sit behind years of reconstruction.
   receive(message) {
+    if(message?.type==='cache_checkpoint'){return (async()=>{await this.checkpoints?.pending;const saved=this.sim?await this.checkpoints?.capture(this.sim,{force:true}):false;this.send({type:'checkpoint_saved',id:message.id,saved:Boolean(saved)});})();}
     if(message.type==='inspect'){if(Number.isInteger(message.body)&&message.body>=0)this.selectedBody=message.body;this.state(message.id);return;}
     const type=message?.type;
+    if(type==='compare'&&this.operation?.type==='compare')this.operation=null;
     if(['reset','import','seek','undo','rewind'].includes(type)||type==='play')this.operation=null;
-    if(['import','seek','undo','rewind','compare','original'].includes(type)){
+    if(['import','seek','undo','rewind','compare','sweep','original'].includes(type)){
       if(this.operation){this.send({type:'error',id:message.id,message:'An experiment is already being reconstructed.'});return;}
       return this.rebuild(message);
     }
@@ -39,6 +41,8 @@ export class Runtime {
     const data=JSON.parse(input),temp=new this.Simulation(JSON.stringify(data.config));
     try {
       temp.begin_import(input);
+      const cached=await this.checkpoints?.nearest(data);
+      if(cached){try{temp.begin_checkpoint_import(cached.text,input);this.send({type:'progress',id:operation.id,operation:operation.type,tick:cached.tick,end_tick:data.end_tick,from_checkpoint:true});}catch{/* A stale or invalid cache always falls back to command reconstruction. */}}
       let slice=performance.now(),reported=-Infinity;
       for(;;){
         if(this.operation!==operation)throw new Error('Reconstruction cancelled. Your current experiment is unchanged.');
@@ -53,15 +57,21 @@ export class Runtime {
     const {type,id}=message;
     if(!this.sim){this.send({type:'error',id,message:'The simulation is still loading.'});return;}
     if(type==='original'&&!this.timelineSource){this.send({type:'original',id,replay:this.sim.export_replay(),snapshot:JSON.parse(this.sim.snapshot())});return;}
+    this.checkpoints?.capture(this.sim,{force:true});
     const operation={type,id};this.operation=operation;this.playing=false;this.debt=0;this.state();
     let next;
     try{
+      if(type==='sweep'){
+        if(!Array.isArray(message.replays)||message.replays.length<1||message.replays.length>3||message.replays.some(r=>typeof r!=='string'||r.length>512000||JSON.parse(r).config.mission!==null))throw new Error('Choose up to three sandbox variations');
+        const results=[];for(const replay of message.replays){next=await this.reconstruct(replay,operation);results.push({replay:next.export_replay(),snapshot:JSON.parse(next.snapshot())});this.checkpoints?.capture(next,{force:true});next.free();next=null;}
+        this.send({type:'sweep',id,results});return;
+      }
       if(type==='compare'){
         if(!Array.isArray(message.replays)||message.replays.length!==2||message.replays.some(r=>typeof r!=='string'||r.length>512000))throw new Error('Choose two valid experiments');
         const replays=message.replays.map(r=>JSON.parse(r)),end=Math.min(...replays.map(r=>r.end_tick)),tick=message.tick??end;
         if(!Number.isInteger(tick)||tick<0||tick>end)throw new Error('Choose an age inside both recorded experiments');
         const states=[],histories=[];
-        for(const replay of replays){next=await this.reconstruct({...replay,end_tick:tick,commands:replay.commands.filter(c=>c.tick<=tick)},operation);states.push(JSON.parse(next.snapshot()));if(message.include_history)histories.push(JSON.parse(next.observations()));next.free();next=null;}
+        for(const replay of replays){next=await this.reconstruct({...replay,end_tick:tick,commands:replay.commands.filter(c=>c.tick<=tick)},operation);states.push(JSON.parse(next.snapshot()));if(message.include_history){const filter=message.history_filters?.[states.length-1];histories.push(JSON.parse(filter?next.observation_view(filter.body,filter.inner,filter.outer):next.observations()));}this.checkpoints?.capture(next,{force:true});next.free();next=null;}
         this.send({type:'comparison',id,tick,states,...(message.include_history?{histories}:{})});return;
       }
       let source,history,end;
@@ -134,6 +144,7 @@ export class Runtime {
         }
       }
       if(['reset','import','rewind','undo','seek'].includes(type))this.generation++;
+      this.checkpoints?.capture(this.sim);
       this.state(id);
     } catch (error) { this.send({ type: 'error', id, message: String(error?.message || error) }); }
   }
@@ -155,6 +166,7 @@ export class Runtime {
         if(large&&this.now()-start>=this.workBudgetMs)break;
       }
       this.debt=Math.min(128,this.debt+remaining);
+      this.checkpoints?.capture(this.sim);
       const current = this.sim.flags();
       if ((current & 2) || (!(previous & 1) && (current & 1))) this.playing = false;
     }

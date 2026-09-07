@@ -1,0 +1,26 @@
+{
+  "schema": 1,
+  "revision": "fa3d11976938dbeeb9f8def3d69a3e6eb526b876",
+  "wasmHash": "7f21db77892b4f578d2d2d51094ef70528ea3ddd2d445978884af764fb8874f7",
+  "targets": {
+    "activeSeconds": 300,
+    "fps": 55,
+    "p95FrameMs": 20,
+    "pace": 0.9
+  },
+  "results": [],
+  "required": [
+    {
+      "deviceClass": "desktop",
+      "status": "pending physical evidence"
+    },
+    {
+      "deviceClass": "iphone",
+      "status": "pending physical evidence"
+    },
+    {
+      "deviceClass": "ipad",
+      "status": "pending physical evidence"
+    }
+  ]
+}

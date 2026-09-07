@@ -1,5 +1,5 @@
 {
-  "maxWasmBytes": 512000,
-  "maxTotalBytes": 1000000,
+  "maxWasmBytes": 740000,
+  "maxTotalBytes": 1100000,
   "maxJavaScriptBytes": 256000
 }

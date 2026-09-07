@@ -15,3 +15,16 @@ scaling-comparison-results.json
 scaling.cpuprofile
 tree-tuning-results.json
 tree-rules-comparison.json
+
+/numerical-raw.json
+/numerical-qualification.json
+/tree-raw.json
+/tree-qualification.json
+/device-qualification.json
+/swarm-comparison.json
+/test-results-gpu/
+/.qualification-env/
+
+/test-results-lifetime/
+/test-results-final/
+/test-results-gpu-final/

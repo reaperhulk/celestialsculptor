@@ -65,3 +65,33 @@ fn impact_history_keeps_completed_details_and_survives_event_rollover() {
     assert!(w.history.events.windows(2).all(|e| e[0].id + 1 == e[1].id));
     assert_eq!(w, World::from_replay(w.replay()).unwrap());
 }
+
+#[test]
+fn pinned_detail_survives_large_population_decimation_without_resetting_physics() {
+    let mut w = celestial_sim::World::new(celestial_sim::Config {
+        mission: None,
+        ..Default::default()
+    })
+    .unwrap();
+    w.apply(celestial_sim::Command::SeedSwarm {
+        count: 1023,
+        disorder: 0.,
+    })
+    .unwrap();
+    let body = w.bodies[900].clone();
+    w.apply(celestial_sim::Command::TrackHistory {
+        id: 900,
+        enabled: true,
+    })
+    .unwrap();
+    assert_eq!(w.bodies[900], body);
+    w.advance(512);
+    assert!(w.history.priority_ids.contains(&900));
+    assert!(w
+        .history
+        .recent
+        .iter()
+        .all(|f| f.bodies.iter().any(|b| b.id == 900)));
+    assert!(w.history.valid_bounds());
+    assert_eq!(w, celestial_sim::World::from_replay(w.replay()).unwrap());
+}

@@ -116,6 +116,25 @@ impl ForceProbe {
         }
         self.output[1].x
     }
+    pub fn run_error_controlled(&mut self, theta: f64, tolerance: f64, repeats: u32) {
+        if self.output.iter().all(|a| a.norm2() == 0.) {
+            self.run(-1., 1);
+        }
+        for _ in 0..repeats {
+            let reference: Vec<_> = self.output.iter().map(|a| a.norm()).collect();
+            self.output.fill(crate::V2::default());
+            self.tree.compute_error_controlled(
+                &self.x,
+                &self.y,
+                &self.mass,
+                1e-8,
+                theta,
+                tolerance,
+                &reference,
+                &mut self.output,
+            );
+        }
+    }
     pub fn statistics(&self) -> serde_json::Value {
         serde_json::json!({"direct_pairs":self.tree.direct_pairs,"cell_pairs":self.tree.cell_pairs})
     }
@@ -124,7 +143,7 @@ impl ForceProbe {
 /// Whole-engine reference for convergence tests, never selected by UI cadence.
 pub fn advance_exact(world: &mut World, ticks: u32) {
     for _ in 0..ticks {
-        world.integrate_tick_with_solver(4, false);
+        world.integrate_tick_with_solver(world.minimum_substeps, false);
     }
 }
 
@@ -135,6 +154,7 @@ pub struct OrbitProbe {
     velocity: Vec<crate::V2>,
     theta: f64,
     ready: bool,
+    active_bodies: Option<usize>,
 }
 impl OrbitProbe {
     pub fn new(state: &[f64], exact: bool) -> Result<Self, &'static str> {
@@ -160,24 +180,54 @@ impl OrbitProbe {
                 .collect(),
             theta: if exact || n < 512 { 0. } else { 0.35 },
             ready: false,
+            active_bodies: None,
         })
     }
+    /// Experimental fixed interaction graph: all pairs involving an active body
+    /// remain mutual, while passive/passive gravity is omitted. Different physics.
+    pub fn set_active_bodies(&mut self, count: usize) {
+        assert!((1..=self.velocity.len()).contains(&count));
+        self.active_bodies = Some(count);
+        self.ready = false;
+    }
+    fn update_probe_forces(&mut self) {
+        if let Some(active) = self.active_bodies {
+            let p = &mut self.field;
+            p.output.fill(crate::V2::default());
+            for i in 0..active {
+                for j in i + 1..p.x.len() {
+                    let d = crate::V2::new(p.x[j] - p.x[i], p.y[j] - p.y[i]);
+                    let r2 = d.norm2() + 1e-8;
+                    let f = d.scale(crate::G / (r2 * r2.sqrt()));
+                    p.output[i] = p.output[i].plus(f.scale(p.mass[j]));
+                    p.output[j] = p.output[j].minus(f.scale(p.mass[i]));
+                }
+            }
+        } else {
+            self.field.run(self.theta, 1);
+        }
+    }
     pub fn advance(&mut self, ticks: u32) {
+        self.advance_refined(ticks, 4);
+    }
+    /// Qualification only: refine a fixed physical interval, independent of rendering.
+    pub fn advance_refined(&mut self, ticks: u32, substeps: u32) {
+        assert!([4, 8, 16, 32, 64].contains(&substeps));
         if ticks == 0 {
             return;
         }
-        let h = crate::DT / 4.;
+        let h = crate::DT / f64::from(substeps);
         if !self.ready {
-            self.field.run(self.theta, 1);
+            self.update_probe_forces();
             self.ready = true;
         }
-        for _ in 0..ticks * 4 {
+        for _ in 0..ticks * substeps {
             for (i, v) in self.velocity.iter_mut().enumerate() {
                 *v = v.plus(self.field.output[i].scale(h / 2.));
                 self.field.x[i] += v.x * h;
                 self.field.y[i] += v.y * h;
             }
-            self.field.run(self.theta, 1);
+            self.update_probe_forces();
             for (v, a) in self.velocity.iter_mut().zip(&self.field.output) {
                 *v = v.plus(a.scale(h / 2.));
             }

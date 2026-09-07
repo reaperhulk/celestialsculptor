@@ -1,0 +1,35 @@
+{
+  "supported": true,
+  "adapter": {
+    "vendor": "google",
+    "architecture": "swiftshader",
+    "device": "",
+    "description": ""
+  },
+  "cases": [
+    {
+      "bodies": 64,
+      "ticks": 8,
+      "cpuMs": 0.39999985694885254,
+      "gpuMs": 108.60000014305115,
+      "speedup": 0.003683239930220634,
+      "positionRms": 6.44852281779092e-16,
+      "velocityRms": 7.528071290742532e-14,
+      "relativeEnergyDrift": 1.5327038526728607e-14,
+      "momentumResidual": 2.0384782247599586e-15
+    },
+    {
+      "bodies": 1024,
+      "ticks": 8,
+      "cpuMs": 9,
+      "gpuMs": 139.5,
+      "speedup": 0.06451612903225806,
+      "positionRms": 1.0561697262608825e-11,
+      "velocityRms": 1.4270438643905038e-9,
+      "relativeEnergyDrift": 3.976691099630056e-14,
+      "momentumResidual": 9.73139478303716e-16
+    }
+  ],
+  "livePhysicsEnabled": false,
+  "scope": "Mixed-precision experiment: f64 state, stellar force and smooth short-range force; f32 distant force. Includes every force transfer, spatial neighbor search and integration step. Collisionless only. Short-run measurements do not qualify 600-year stability."
+}

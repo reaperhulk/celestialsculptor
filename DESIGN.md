@@ -1949,3 +1949,51 @@ The forty-year swarm gate also passes. A resonance-capture recipe now specifies
 its physical initial conditions explicitly instead of depending on the removed
 generator. WASM falls from 474,114 to approximately 448,000 bytes. Historical
 save preservation is intentionally no longer a gate.
+
+
+### 169 — Qualify long-lived systems and make experiments restorable
+
+Review needs: prioritize long-run orbital reliability, restartable experiments,
+detailed observations, controlled comparisons, device evidence and scaling
+research that remains stable over time.
+Implemented: add required 600-year release qualification with a longer isolated
+orbit, fixed-step refinement and independent DOP853 checks of orbital elements,
+phase and apsidal drift. Add a persistent collisionless tree/direct gate. Fix
+unrestricted inward disk migration with a smooth inner edge and symmetric torque
+splitting; use sticky fixed refinement for authored moons and disk migration.
+Add validated sandbox restart state, exact-build/checksummed bounded IndexedDB
+caching and command fallback. Keep campaign scoring authoritative. Add pinned and
+priority histories, a recent window, independent population summaries and sampled
+flyby records. Add same-age body overlays, common-scale charts, retained lineage
+and up to three one-condition variants. Named saves now flush the active portable
+autosave, fixing an immediate-reload race. Add physical-device report aggregation
+with exact build/quality/pace gates and explicit pending hardware evidence.
+Validation: native and WASM tests cover restart continuation, malformed state,
+command-only campaigns, observation purity, history bounds, flyby exclusions,
+comparison supersession and device provenance. Browser journeys verify reload,
+corrupt-cache fallback, worker failure/recovery, variation saving and comparisons
+on desktop, phone and tablet. The full browser suite passed 285 tests, with
+53 project-specific skips. Independent numerical checks exposed and corrected
+moon-phase and migration failures; raw reports and limits are retained in
+review-evidence and required by the deployment job.
+
+### 170 — Measure force accuracy and reject unstable GPU speedups
+
+Review needs: optimize large populations without trading away long-lived orbital
+reliability; examine literature, SIMD, error-controlled trees, GPU precision and
+explicit changed-physics alternatives.
+Implemented: extend tree tuning with RMS/p99/worst force errors and a symmetric
+error-estimator candidate; retain the existing production tree and SIMD leaves.
+Add a mixed GPU prototype with f64 state and close/stellar forces, and a GPU
+lifetime test that stops at the first accuracy failure. Correct GPU mass and
+initial-energy quantization accounting. Add a native semi-active interaction
+experiment with its own Hamiltonian-energy measurements. Document FMM, P3T,
+GPLUM, WHFast, secular-error analysis, TRACE and GENGA with primary sources.
+Validation: hardware Metal and software WebGPU execute the force, resident-orbit
+and mixed-precision probes. Resident f32 integration is faster for large bodies
+but is rejected at year fifteen by the moon-axis limit while energy still passes.
+Mixed precision loses to transfer overhead. Error-estimator trees are more accurate
+but slower. Semi-active experiments are fast with small sampled model-energy
+error at 600 years, but omit debris self-gravity and remain disabled in the game.
+Paired whole-swarm comparisons preserve exact body states and balances with
+approximately unchanged large-N throughput. Scalar/SIMD parity remains a gate.

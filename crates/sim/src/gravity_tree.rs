@@ -39,6 +39,7 @@ struct Node {
     q: Tensor,
     a: V2,
     tide: Tensor,
+    min_acceleration: f64,
 }
 impl Node {
     fn leaf(self) -> bool {
@@ -53,6 +54,8 @@ pub(crate) struct Tree {
     local: Vec<V2>,
     order: Vec<usize>,
     nodes: Vec<Node>,
+    tolerance: f64,
+    reference: Vec<f64>,
     pub direct_pairs: usize,
     pub cell_pairs: usize,
 }
@@ -71,7 +74,7 @@ impl Tree {
         theta: f64,
         a: &mut [V2],
     ) {
-        self.compute_impl::<8>(x, y, mass, soft2, theta, a);
+        self.compute_impl::<8, false>(x, y, mass, soft2, theta, a);
     }
     #[allow(clippy::too_many_arguments)]
     pub fn compute_with_leaf_size(
@@ -85,15 +88,34 @@ impl Tree {
         leaf_size: usize,
     ) {
         match leaf_size {
-            2 => self.compute_impl::<2>(x, y, mass, soft2, theta, a),
-            4 => self.compute_impl::<4>(x, y, mass, soft2, theta, a),
-            8 => self.compute_impl::<8>(x, y, mass, soft2, theta, a),
-            16 => self.compute_impl::<16>(x, y, mass, soft2, theta, a),
-            32 => self.compute_impl::<32>(x, y, mass, soft2, theta, a),
+            2 => self.compute_impl::<2, false>(x, y, mass, soft2, theta, a),
+            4 => self.compute_impl::<4, false>(x, y, mass, soft2, theta, a),
+            8 => self.compute_impl::<8, false>(x, y, mass, soft2, theta, a),
+            16 => self.compute_impl::<16, false>(x, y, mass, soft2, theta, a),
+            32 => self.compute_impl::<32, false>(x, y, mass, soft2, theta, a),
             _ => panic!("unsupported leaf size"),
         }
     }
-    fn compute_impl<const LEAF_SIZE: usize>(
+    /// Experimental mutual acceptance using a conservative geometric force-error
+    /// estimate and a previous acceleration scale. Not a rigorous FMM bound.
+    #[allow(clippy::too_many_arguments)]
+    pub fn compute_error_controlled(
+        &mut self,
+        x: &[f64],
+        y: &[f64],
+        mass: &[f64],
+        soft2: f64,
+        theta: f64,
+        tolerance: f64,
+        reference: &[f64],
+        a: &mut [V2],
+    ) {
+        self.tolerance = tolerance;
+        self.reference.clear();
+        self.reference.extend_from_slice(reference);
+        self.compute_impl::<8, true>(x, y, mass, soft2, theta, a);
+    }
+    fn compute_impl<const LEAF_SIZE: usize, const CONTROLLED: bool>(
         &mut self,
         x: &[f64],
         y: &[f64],
@@ -115,7 +137,7 @@ impl Tree {
         if self.order.is_empty() {
             return;
         }
-        self.build::<LEAF_SIZE>(0, self.order.len(), x, y, mass);
+        self.build::<LEAF_SIZE, CONTROLLED>(0, self.order.len(), x, y, mass);
         self.x.clear();
         self.y.clear();
         self.mass.clear();
@@ -126,7 +148,7 @@ impl Tree {
         }
         self.local.resize(self.order.len(), V2::default());
         self.local.fill(V2::default());
-        self.interact(0, 0, soft2, theta * theta);
+        self.interact::<CONTROLLED>(0, 0, soft2, theta * theta);
         self.propagate(
             0,
             V2::default(),
@@ -137,7 +159,7 @@ impl Tree {
             a,
         );
     }
-    fn build<const LEAF_SIZE: usize>(
+    fn build<const LEAF_SIZE: usize, const CONTROLLED: bool>(
         &mut self,
         start: usize,
         end: usize,
@@ -150,6 +172,7 @@ impl Tree {
             end,
             left: usize::MAX,
             right: usize::MAX,
+            min_acceleration: f64::INFINITY,
             ..Node::default()
         };
         let origin = V2::new(x[self.order[start]], y[self.order[start]]);
@@ -157,6 +180,9 @@ impl Tree {
         let mut hi = origin;
         for &i in &self.order[start..end] {
             n.mass += mass[i];
+            if CONTROLLED {
+                n.min_acceleration = n.min_acceleration.min(self.reference[i]);
+            }
             n.center = n
                 .center
                 .plus(V2::new(x[i] - origin.x, y[i] - origin.y).scale(mass[i]));
@@ -182,15 +208,15 @@ impl Tree {
             self.order[start..end].select_nth_unstable_by(middle - start, |&i, &j| {
                 axis[i].total_cmp(&axis[j]).then(i.cmp(&j))
             });
-            let left = self.build::<LEAF_SIZE>(start, middle, x, y, mass);
-            let right = self.build::<LEAF_SIZE>(middle, end, x, y, mass);
+            let left = self.build::<LEAF_SIZE, CONTROLLED>(start, middle, x, y, mass);
+            let right = self.build::<LEAF_SIZE, CONTROLLED>(middle, end, x, y, mass);
             self.nodes[at].left = left;
             self.nodes[at].right = right;
         }
         at
     }
     #[allow(clippy::too_many_arguments)]
-    fn interact(&mut self, ai: usize, bi: usize, soft2: f64, theta2: f64) {
+    fn interact<const CONTROLLED: bool>(&mut self, ai: usize, bi: usize, soft2: f64, theta2: f64) {
         let a = self.nodes[ai];
         let b = self.nodes[bi];
         if ai == bi {
@@ -199,15 +225,25 @@ impl Tree {
                     self.leaf_row(p, p + 1, a.end, soft2);
                 }
             } else {
-                self.interact(a.left, a.left, soft2, theta2);
-                self.interact(a.left, a.right, soft2, theta2);
-                self.interact(a.right, a.right, soft2, theta2);
+                self.interact::<CONTROLLED>(a.left, a.left, soft2, theta2);
+                self.interact::<CONTROLLED>(a.left, a.right, soft2, theta2);
+                self.interact::<CONTROLLED>(a.right, a.right, soft2, theta2);
             }
             return;
         }
         let d = b.center.minus(a.center);
         let d2 = d.norm2();
-        if (a.radius + b.radius).powi(2) < theta2 * d2 {
+        let extent = a.radius + b.radius;
+        let estimated_error = if CONTROLLED {
+            G * a.mass.max(b.mass) * extent.powi(2) / (d2.sqrt() - extent).max(1e-15).powi(4)
+        } else {
+            0.
+        };
+        if extent.powi(2) < theta2 * d2
+            && (!CONTROLLED
+                || estimated_error
+                    <= self.tolerance * a.min_acceleration.min(b.min_acceleration).max(1e-20))
+        {
             let r2 = d2 + soft2;
             let inv = 1. / r2;
             let inv3 = inv * inv.sqrt();
@@ -236,11 +272,11 @@ impl Tree {
                 self.leaf_row(p, b.start, b.end, soft2);
             }
         } else if !a.leaf() && (b.leaf() || a.radius >= b.radius) {
-            self.interact(a.left, bi, soft2, theta2);
-            self.interact(a.right, bi, soft2, theta2);
+            self.interact::<CONTROLLED>(a.left, bi, soft2, theta2);
+            self.interact::<CONTROLLED>(a.right, bi, soft2, theta2);
         } else {
-            self.interact(ai, b.left, soft2, theta2);
-            self.interact(ai, b.right, soft2, theta2);
+            self.interact::<CONTROLLED>(ai, b.left, soft2, theta2);
+            self.interact::<CONTROLLED>(ai, b.right, soft2, theta2);
         }
     }
     fn leaf_row(&mut self, i: usize, start: usize, end: usize, soft2: f64) {

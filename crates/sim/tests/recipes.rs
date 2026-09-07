@@ -9,6 +9,7 @@ fn sandbox_recipes_exhibit_their_advertised_outcomes() {
         assert_eq!(config.mission, None);
         let mut w = World::from_replay(Replay {
             version: recipe["version"].as_u64().unwrap() as u32,
+            physics: checkpoint::physics_id(),
             config,
             commands: vec![],
             end_tick: 0,

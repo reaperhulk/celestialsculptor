@@ -16,13 +16,14 @@ No claim of geological, atmospheric, or biological simulation.
 
 `celestial-sim` has no browser, renderer, wall clock, or OS randomness. Every action
 goes through `World::apply`, including those used by the UI and scenario tests.
-World time advances by 1/512 year per tick using four fixed leapfrog substeps.
+World time advances by 1/512 year per tick using four fixed leapfrog substeps, sixteen after moon creation, or thirty-two
+after applying disk migration. These choices are independent of frame rate.
 The star responds to gravity. Current collisions conserve mass, material, linear momentum and angular momentum
 (unresolved spin stores angular momentum outside the resolved trajectories).
 Escape and disk-transfer ledgers support conservation checks between player edits.
 See [the collision model](docs/COLLISIONS.md) for its calibrated regimes and limits.
 
-Seed + current configuration + tick-stamped commands reproduce a run.
+Seed + current physics identifier + configuration + tick-stamped commands reproduce a run.
 Only the current replay format is supported; the game has one physics implementation. Exact
 replays are guaranteed within the same executable/toolchain; native/WASM parity
 uses numerical tolerances, not a promise of bit-identical chaotic trajectories.
@@ -56,7 +57,8 @@ frame rates must be measured on those devices; CI browser timings are not a subs
 
 The WASM engine uses double-precision SIMD (Safari 16.4+ or current Chrome,
 Edge and Firefox). See the [scaling plan](docs/SCALING.md) for measured improvements,
-the scalar comparison command, and the roadmap beyond the current 64-body limit.
+the scalar comparison command, and the roadmap beyond 8,192 sandbox bodies
+(campaigns retain their 64-body cap).
 
 For sustained hardware measurements, use **View → Device performance test**.
 It preserves your experiment, prepares a stress scenario and records five active
@@ -67,8 +69,16 @@ review an earlier time, fork a saved run and compare outcomes. Running or editin
 from a reviewed time automatically saves the original before starting a branch.
 Use Observe for orbital histories and before/after encounters. Compare two saved
 runs at any shared recorded age, including their changed conditions and impact
-outcomes. Challenge hints and comparative lessons lead directly to playable setups;
+outcomes. Individual body comparisons include orbit overlays, common-scale histories
+and retained ancestry evidence. **Vary one condition** runs up to three seeded
+variants at the same age. Named checkpoints also maintain a bounded restart cache
+for faster local restoration; command exports remain portable. Challenge hints and comparative lessons lead directly to playable setups;
 optional Economy and Restraint medals reward deliberate solutions.
+
+See [long-run qualification](docs/LONG_RUN_QUALIFICATION.md) for accuracy budgets,
+600-year release gates, detailed history limits and checkpoint provenance.
+The [algorithm literature and experiments](docs/ALGORITHM_RESEARCH.md) explain
+which performance candidates remain experimental.
 
 ## Build and verify
 

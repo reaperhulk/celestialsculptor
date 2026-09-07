@@ -1,10 +1,11 @@
 import {readFile,writeFile,appendFile} from 'node:fs/promises';
 import init,{missions} from '../dist/pkg/celestial_wasm.js';
 import {verifyToolchainContracts} from './contracts.mjs';
+import {aggregateDevices} from '../web/device-qualification.js';
 import {verifyAssetBudget} from './budget.mjs';
 await init({module_or_path:await readFile('dist/pkg/celestial_wasm_bg.wasm')});
 const build=JSON.parse(await readFile('dist/build-info.json','utf8'));
-const report={revision:build.revision,dirty:build.dirty,toolchain:await verifyToolchainContracts(),saveVersion:build.saveVersion,assetCount:Object.keys(build.assets).length,payload:verifyAssetBudget(build.assets,JSON.parse(await readFile('performance-budget.json','utf8'))),missions:JSON.parse(missions()).map(mission=>mission.name),recipes:JSON.parse(await readFile('dist/recipes.json','utf8')).map(recipe=>recipe.id)};
+const report={physicalDevices:aggregateDevices([],build.revision,build.assets['pkg/celestial_wasm_bg.wasm']?.sha256),numericalQualification:'Required separate 600-year CI job; see long-run-numerical-evidence artifact',revision:build.revision,dirty:build.dirty,toolchain:await verifyToolchainContracts(),saveVersion:build.saveVersion,assetCount:Object.keys(build.assets).length,payload:verifyAssetBudget(build.assets,JSON.parse(await readFile('performance-budget.json','utf8'))),missions:JSON.parse(missions()).map(mission=>mission.name),recipes:JSON.parse(await readFile('dist/recipes.json','utf8')).map(recipe=>recipe.id)};
 await writeFile('release-report.json',JSON.stringify(report,null,2)+'\n');
 const summary=`## ${report.dirty?'Local build with uncommitted changes':'Release inventory'}\n\nRevision: \`${report.revision}\`\n\n${report.missions.length} challenges, ${report.recipes.length} sandbox starting points, ${report.assetCount} verified assets.\n\n| Payload | Uncompressed bytes |\n|---|---:|\n| Complete game | ${report.payload.total} |\n| WebAssembly | ${report.payload.wasm} |\n| JavaScript | ${report.payload.javascript} |\n\nThe deploy job publishes the tested artifact and checks its public hashes.\n`;
 if(process.env.GITHUB_STEP_SUMMARY)await appendFile(process.env.GITHUB_STEP_SUMMARY,summary);else console.log(summary);

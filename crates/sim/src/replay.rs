@@ -9,8 +9,17 @@ pub struct Reconstruction {
 }
 
 impl Reconstruction {
+    pub fn from_checkpoint(replay: Replay, checkpoint: &str) -> Result<Self, String> {
+        let world = World::from_checkpoint(checkpoint, &replay)?;
+        let mut result = Self::new(replay)?;
+        result.next = world.commands.len();
+        result.world = world;
+        Ok(result)
+    }
+
     pub fn new(replay: Replay) -> Result<Self, String> {
         if replay.version != SAVE_VERSION
+            || replay.physics != crate::checkpoint::PHYSICS_ID
             || replay.end_tick > MAX_TICKS
             || replay.commands.len() > 2048
         {

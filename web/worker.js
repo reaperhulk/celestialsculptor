@@ -1,10 +1,14 @@
 import init, { Simulation, missions } from './pkg/celestial_wasm.js';
 import { Runtime } from './runtime.js';
+import {CheckpointCache,IndexedCheckpointStore} from './checkpoints.js';
 import {workDelay} from './work-schedule.js';
 
 try {
   await init();
-  const runtime = new Runtime(Simulation, (message,transfer=[]) => self.postMessage(message,transfer));
+  let provenance=null;
+  try{const build=await (await fetch('./build-info.json')).json();const wasm=build.assets['pkg/celestial_wasm_bg.wasm']?.sha256;if(wasm)provenance=JSON.stringify({revision:build.revision,wasm});}catch{/* Portable replays remain available without build metadata. */}
+  const checkpoints=provenance&&globalThis.indexedDB?new CheckpointCache({provenance,store:new IndexedCheckpointStore()}):null;
+  const runtime = new Runtime(Simulation, (message,transfer=[]) => self.postMessage(message,transfer),{checkpoints,provenance});
   self.onmessage = event => runtime.receive(event.data);
   let previous = performance.now(), lastState = previous;
   const turns=new MessageChannel();

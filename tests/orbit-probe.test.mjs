@@ -31,3 +31,7 @@ test('orbit diagnostics expose drift and preserve mass weighting',()=>{
  const state=new Float64Array([0,0,0,0,1,1,0,0,6,3e-6]);assert.deepEqual(orbitError(state,state),{positionRms:0,velocityRms:0});
  const changed=state.with(7,1);assert.ok(orbitError(state,changed).velocityRms>0);assert.equal(orbitBalances(changed).px,3e-6);assert.ok(orbitBalances(changed).energy>orbitBalances(state).energy);
 });
+
+test('long-run orbital diagnostics distinguish orbit size and phase',async()=>{
+ const {elements}=await import('../web/gpu-lifetime.js');const state=new Float64Array([0,0,0,0,1,1,0,0,Math.sqrt(39.47841760435743*(1+3e-6)),3e-6]);const e=elements(state,1);assert.ok(Math.abs(e.axis-1)<1e-12);assert.ok(e.eccentricity<1e-12);assert.equal(e.phase,0);
+});

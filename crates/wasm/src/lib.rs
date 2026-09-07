@@ -4,6 +4,7 @@ use serde::Serialize;
 #[derive(Serialize)]
 struct Snapshot<'a> {
     rules_version: u32,
+    physics_substeps: u32,
     burns_available: bool,
     observation_stamp: (u64, usize, u32),
     assessment: celestial_sim::assessment::Assessment,
@@ -53,6 +54,13 @@ impl OrbitProbe {
             return Err(js_error("Use 0–512 whole orbital probe ticks"));
         }
         self.inner.advance(ticks as u32);
+        Ok(())
+    }
+    pub fn advance_refined(&mut self, ticks: u32, substeps: u32) -> Result<(), JsValue> {
+        if ticks > 512 || ![4, 8, 16, 32, 64].contains(&substeps) {
+            return Err(js_error("Invalid orbital refinement"));
+        }
+        self.inner.advance_refined(ticks, substeps);
         Ok(())
     }
     pub fn state(&self) -> Vec<f64> {
@@ -189,6 +197,24 @@ impl Simulation {
     pub fn export_replay(&self) -> String {
         serde_json::to_string(&self.world.replay()).expect("finite replay")
     }
+    pub fn checkpoint(&self) -> Result<String, JsValue> {
+        self.world.checkpoint().map_err(js_error)
+    }
+    pub fn begin_checkpoint_import(
+        &mut self,
+        checkpoint: &str,
+        replay: &str,
+    ) -> Result<(), JsValue> {
+        if replay.len() > 512_000 {
+            return Err(js_error("Experiment file is too large"));
+        }
+        let replay: Replay = serde_json::from_str(replay).map_err(js_error)?;
+        self.reconstruction = Some(
+            celestial_sim::replay::Reconstruction::from_checkpoint(replay, checkpoint)
+                .map_err(js_error)?,
+        );
+        Ok(())
+    }
     pub fn import_replay(&mut self, input: &str) -> Result<(), JsValue> {
         if input.len() > 512_000 {
             return Err(js_error("Experiment file is too large"));
@@ -301,6 +327,23 @@ impl GravityProbe {
             .flat_map(|i| [self.inner.x[i], self.inner.y[i], self.inner.mass[i]])
             .collect()
     }
+    pub fn run_error_controlled(
+        &mut self,
+        theta: f64,
+        tolerance: f64,
+        repeats: u32,
+    ) -> Result<(), JsValue> {
+        if !theta.is_finite()
+            || !(0.1..=0.7).contains(&theta)
+            || !tolerance.is_finite()
+            || !(1e-6..=0.01).contains(&tolerance)
+            || !(1..=128).contains(&repeats)
+        {
+            return Err(JsValue::from_str("Invalid force-error experiment"));
+        }
+        self.inner.run_error_controlled(theta, tolerance, repeats);
+        Ok(())
+    }
     pub fn statistics(&self) -> String {
         self.inner.statistics().to_string()
     }
@@ -320,9 +363,10 @@ impl Simulation {
         serde_json::to_string(&Snapshot {
             assessment,
             rules_version: celestial_sim::SAVE_VERSION,
+            physics_substeps: self.world.minimum_substeps,
             burns_available: self.world.burns_available(),
             observation_stamp: (
-                self.world.history.frames.last().map_or(0, |f| f.tick),
+                self.world.history.recent.last().map_or(0, |f| f.tick),
                 self.world.commands.len(),
                 self.world.history.events.last().map_or(0, |e| e.id),
             ),

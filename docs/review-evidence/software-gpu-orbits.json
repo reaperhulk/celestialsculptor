@@ -1,0 +1,71 @@
+{
+  "supported": true,
+  "adapter": {
+    "vendor": "google",
+    "architecture": "swiftshader",
+    "device": "",
+    "description": ""
+  },
+  "browser": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/140.0.0.0 Safari/537.36",
+  "cases": [
+    {
+      "bodies": 65,
+      "ticks": 8,
+      "cpuMsPerTick": 0.008445945945945946,
+      "gpuMsPerTick": 1.3499999940395355,
+      "speedup": 0.006256256283878622,
+      "positionRms": 1.9147905265633194e-7,
+      "velocityRms": 2.239207649938193e-7,
+      "samples": {
+        "cpu": [
+          0.008445945945945946,
+          0.008561643835616438,
+          0.008445945945945946
+        ],
+        "gpu": [
+          1.3624999821186066,
+          0.2958333392937978,
+          1.3499999940395355
+        ]
+      }
+    },
+    {
+      "bodies": 1024,
+      "ticks": 8,
+      "cpuMsPerTick": 0.9500000178813934,
+      "gpuMsPerTick": 2.324999988079071,
+      "speedup": 0.4086021603235745,
+      "positionRms": 1.634247321390977e-7,
+      "velocityRms": 2.644626507414213e-7,
+      "samples": {
+        "cpu": [
+          0.949999988079071,
+          0.9625000059604645,
+          0.9500000178813934
+        ],
+        "gpu": [
+          2.324999988079071,
+          2.875,
+          2.324999988079071
+        ]
+      }
+    }
+  ],
+  "trajectory": {
+    "bodies": 64,
+    "ticks": 512,
+    "substeps": 16,
+    "positionRms": 0.000007211949001031597,
+    "velocityRms": 0.00019282422962089388,
+    "moonPhaseErrorsRadians": [
+      0.004868206014760124,
+      0.0016293217061080778
+    ],
+    "relativeEnergyDrift": 0.0000014515333375915436,
+    "cpuRelativeEnergyDrift": 2.1632870692442125e-13,
+    "momentumResidual": 0.0000014353493431799985
+  },
+  "batchInvariant": true,
+  "livePhysicsEnabled": false,
+  "scope": "Collisionless moving-orbit qualification. Four KDK substeps per swarm tick and sixteen in the moon qualification; positions, velocities and acceleration stay on the GPU between steps. One state readback per batch. CPU uses production f64 SIMD/tree forces; GPU uses tiled direct f32. Collisions, migration, escapes, histories, rendering and cross-device replay are not implemented by this prototype."
+}

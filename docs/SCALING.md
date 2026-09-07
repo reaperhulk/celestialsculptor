@@ -7,7 +7,8 @@ particle swarm** in the generator; begin with 1,024. All particles both feel and
 source gravity. Missions retain the 64-body cap and exact solver. Only the current replay
 format is accepted; there are no historical physics implementations. Current systems use exact f64 SIMD below 512 bodies and a symmetric mutual
 tree with second-order cell forces and tides above that, at opening 0.35.  The star
-and nearby leaves remain direct. Four integration substeps are unchanged.
+and nearby leaves remain direct. Ordinary systems retain four integration substeps; authored moons and disk
+migration select finer fixed resolution to meet the long-run orbital gates.
 
 The first whole-engine host sweep sustained 269 ticks/s at 1,024 quiet bodies and
 108 at 2,048; 1x requests 102.4 ticks/s. Larger systems slow simulated time. Worker
@@ -16,6 +17,10 @@ trails and menus have memory/work limits. Physical iPhone/iPad FPS is not establ
 by these host measurements. Impact-ledger updates now touch only affected bodies;
 large display frames use packed transferable f64 arrays with pooled decoding.
 The optional GPU comparison measures real compute without changing live physics.
+
+See the [new algorithm research](ALGORITHM_RESEARCH.md),
+[600-year qualification](LONG_RUN_QUALIFICATION.md), and
+[measured review evidence](review-evidence/README.md) for the current work.
 
 ## Hill-climb results through iteration 163
 

@@ -21,7 +21,10 @@
     "bench:scaling": "node scripts/scaling-benchmark.mjs",
     "compare:scaling": "node scripts/compare-scaling.mjs",
     "profile:scaling": "node scripts/profile-scaling.mjs",
-    "bench:tuning": "node scripts/tune-gravity.mjs"
+    "bench:tuning": "node scripts/tune-gravity.mjs",
+    "qualify:numerics": "node scripts/qualify-numerics.mjs",
+    "qualify:devices": "node scripts/qualify-devices.mjs",
+    "compare:swarm": "node scripts/compare-swarm.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.55.0"

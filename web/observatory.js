@@ -1,17 +1,18 @@
 import {quantity} from './readings.js';
 const NS='http://www.w3.org/2000/svg';
 export function series(history,id,metric,pair=''){
- return history.frames.map(frame=>{
+ if(metric.startsWith('population_'))return (history.population||[]).map(p=>({tick:p.tick,parent:'system',value:metric==='population_count'?p.count:metric==='population_mass'?p.mass/3.003e-6:p.mean_eccentricity}));
+ return history.frames.filter(f=>['angle','ratio'].includes(metric)||f.body_sample!==false).map(frame=>{
   const body=frame.bodies.find(b=>b.id===Number(id));
   const resonance=frame.resonances.find(r=>`${r.inner}:${r.outer}`===pair);
   const value=metric==='angle'?(resonance?.angle??NaN)*180/Math.PI:metric==='ratio'?resonance?.ratio:metric==='mass'?body?.mass/3.003e-6:body?.[metric];
   return {tick:frame.tick,value:Number.isFinite(value)?value:null,parent:['angle','ratio'].includes(metric)?pair:body?.parent};
  });
 }
-export function chartGeometry(samples,metric){
+export function chartGeometry(samples,metric,domain=null){
  const values=samples.filter(p=>p.value!==null);if(values.length<2)return null;
- const first=samples[0].tick,last=samples.at(-1).tick;if(last===first)return null;
- let min=Math.min(...values.map(p=>p.value)),max=Math.max(...values.map(p=>p.value));
+ const first=domain?.first??samples[0].tick,last=domain?.last??samples.at(-1).tick;if(last===first)return null;
+ let min=domain?.min??Math.min(...values.map(p=>p.value)),max=domain?.max??Math.max(...values.map(p=>p.value));
  if(max-min<1e-8){const padding=Math.max(.01,Math.abs(max)*.01);min-=padding;max+=padding;}
  const paths=[];let current=[],previous=null;
  for(const p of samples){
@@ -32,10 +33,12 @@ export function drawChart(svg,geometry,unit){
 }
 export function encounterSignature(state,events){return JSON.stringify([state.generation,events,events.map(e=>e.tick+(e.impact?1:0)>state.timeline_end)]);}
 export class Observatory {
- constructor({send,seek,getState,getSelected,selectEvent}){
-  this.send=send;this.seek=seek;this.getState=getState;this.getSelected=getSelected;this.selectEvent=selectEvent;this.history={frames:[],events:[]};this.busy=false;this.previousBody=null;
+ constructor({send,seek,getState,getSelected,selectEvent,trackHistory}){
+  this.send=send;this.seek=seek;this.getState=getState;this.getSelected=getSelected;this.selectEvent=selectEvent;this.trackHistory=trackHistory;this.history={frames:[],events:[]};this.busy=false;this.previousBody=null;
   this.$=id=>document.getElementById(id);
   for(const id of ['history-body','history-metric','history-pair'])this.$(id).onchange=()=>{this.stamp=null;this.refresh(this.previousBody);};
+  const pin=this.$('keep-history');
+  pin.onclick=async()=>{try{const id=Number(this.$('history-body').value);await this.trackHistory({type:'track_history',id,enabled:!this.history.pinned_ids?.includes(id)});this.stamp=null;await this.refresh();}catch(e){this.$('history-caption').textContent=e.message;}};
   this.$('analysis-tools').ontoggle=()=>{if(this.$('analysis-tools').open)this.refresh();};
   this.$('encounter-policy').onchange=()=>this.send('event_policy',{value:this.$('encounter-policy').value}).catch(e=>this.$('history-caption').textContent=e.message);
   setInterval(()=>{if(this.$('analysis-tools').open&&!document.hidden)this.refresh();},1000);
@@ -52,20 +55,23 @@ export class Observatory {
   }catch(error){this.$('history-caption').textContent=error.message;}finally{this.busy=false;}
  }
  draw(){
-  const metric=this.$('history-metric').value,isPair=['angle','ratio'].includes(metric);this.$('history-pair').hidden=!isPair;this.$('history-body').hidden=isPair;
+  this.$('keep-history').textContent=this.history.pinned_ids?.includes(Number(this.$('history-body').value))?'Release detailed history':'Keep detailed history';
+  const metric=this.$('history-metric').value,isPair=['angle','ratio'].includes(metric),population=metric.startsWith('population_');this.$('history-pair').hidden=!isPair;this.$('history-body').hidden=isPair||population;this.$('keep-history').hidden=isPair||population;
   const points=series(this.history,this.$('history-body').value,metric,this.$('history-pair').value),geometry=chartGeometry(points,metric);
-  const unit={mass:'Earth masses',axis:'Orbital size · AU',eccentricity:'Eccentricity',period:'Period · years',angle:'Resonant angle · degrees',ratio:'Period ratio'}[metric];
+  const unit={population_count:'Worlds',population_mass:'Retained Earth masses',population_eccentricity:'Mass-weighted eccentricity',mass:'Earth masses',axis:'Orbital size · AU',eccentricity:'Eccentricity',period:'Period · years',angle:'Resonant angle · degrees',ratio:'Period ratio'}[metric];
   drawChart(this.$('history-chart'),geometry,unit);
-  this.$('history-caption').textContent=geometry?`${unit} · latest ${quantity(geometry.latest)}. ${isPair?'A near ratio is a candidate; bounded, reversing angles provide evidence of resonance.':'Gaps mark missing bodies or a change of orbital host.'}`:'Run the system to collect observations. Resonance graphs need a neighboring candidate pair.';
+  this.$('history-caption').textContent=geometry?`${unit} · latest ${quantity(geometry.latest)}. ${population?'Whole-population summaries have their own bounded sampling schedule.':isPair?'A near ratio is a candidate; bounded, reversing angles provide evidence of resonance.':`Gaps mark missing observations or a change of host. ${this.history.detail?'Detailed recent history is retained for this world.':'This world uses coarse system samples.'}`}`:'Run the system to collect observations. Resonance graphs need a neighboring candidate pair.';
  }
  events(){
   const state=this.getState(),events=this.history.events.filter(e=>!['placed','spin','nudge','seed','migration'].includes(e.kind)).slice(-40).reverse();
+  for(const e of this.history.encounters||[])events.push({kind:'flyby',tick:e.end_tick,body:e.bodies[0],text:`Worlds ${e.bodies.join(' & ')} passed at a sampled minimum of ${quantity(e.distance)} AU.`,flyby:e});events.sort((a,b)=>b.tick-a.tick);
   const signature=encounterSignature(state,events);if(signature===this.signature)return;this.signature=signature;
   const list=this.$('encounter-list');list.replaceChildren();
   if(!events.length){const p=document.createElement('li');p.textContent='Major encounters will appear here.';list.append(p);}
   for(const event of events){const li=document.createElement('li'),text=document.createElement('p');text.textContent=`${quantity(event.tick/512)} yr · ${event.text}`;li.append(text);
+   if(event.flyby){const detail=document.createElement('p');detail.className='impact-detail';detail.textContent=event.flyby.before.map((before,i)=>`World ${event.flyby.bodies[i]}: a ${quantity(before[0])} → ${quantity(event.flyby.after[i][0])} AU; e ${quantity(before[1])} → ${quantity(event.flyby.after[i][1])}`).join(' · ');li.append(detail);}
    if(event.impact){const detail=document.createElement('p'),hit=event.impact;detail.className='impact-detail';detail.textContent=`${hit.outcome||'merge'} · ${quantity(hit.mass/3.003e-6)} Earth masses retained · radius ${quantity(hit.radius_before)} → ${quantity(hit.radius_after)} AU · e ${quantity(hit.eccentricity_before)} → ${quantity(hit.eccentricity_after)}`;li.append(detail);}
-   for(const [label,tick] of [['Before',Math.max(0,event.tick-(event.impact?0:1))],['After',event.tick+(event.impact?1:0)]]){
+   for(const [label,tick] of [['Before',event.flyby?.start_tick??Math.max(0,event.tick-(event.impact?0:1))],['After',event.tick+(event.impact?1:0)]]){
     const button=document.createElement('button');button.textContent=label;button.disabled=tick>state.timeline_end;button.onclick=async()=>{try{await this.seek(tick);this.selectEvent(event);this.$('history-caption').textContent=event.impact?'Impact orbits: gold before, blue after. Run or edit here to branch; the original is saved automatically.':'Reviewing this encounter. Run or edit to branch; the original is saved automatically.';}catch(e){this.$('history-caption').textContent=e.message;}};li.append(button);
    }
    list.append(li);

@@ -1,0 +1,143 @@
+{
+  "schema": 1,
+  "physics": "newton-soft1e-4-mutual035-kdk4-moon16-disk32-edge025-v1",
+  "reference": "SciPy 1.16.2 DOP853, same softened force law; tolerance refinement 1e-13 \u2192 3e-14",
+  "budgets": {
+    "relative_energy": 2e-05,
+    "angular_residual": 1e-09,
+    "momentum_residual": 1e-09,
+    "axis_relative": 0.002,
+    "eccentricity": 0.002,
+    "phase_radians": 0.2,
+    "apsis_radians": 0.1,
+    "oracle_relative_state": 2e-05,
+    "convergence_ratio": 3.0
+  },
+  "collisionless": [
+    {
+      "name": "eccentric",
+      "years": 4096,
+      "inner_periods": 5317.176077486098,
+      "relative_energy": 3.828451325654524e-06,
+      "angular_residual": 8.206055192999662e-18,
+      "momentum_residual": 8.823716594775838e-18,
+      "convergence_ratio": 4.996872647611163,
+      "final_refinement": {
+        "axis_relative": 1.4791920169282544e-07,
+        "eccentricity": 3.7521063084300366e-07,
+        "phase_radians": 0.13779512355607326,
+        "apsis_radians": 0.13991742048754485
+      },
+      "apsis_error_slope_radians_per_year": [
+        -3.6450654973210276e-05
+      ],
+      "reference_years": 600,
+      "reference_tolerance_error": 2.43653348999702e-07,
+      "reference_errors": {
+        "axis_relative": 3.723888218805256e-06,
+        "eccentricity": 9.446238785987271e-06,
+        "phase_radians": 0.021560353801884702,
+        "apsis_radians": 0.021872738555417826
+      }
+    },
+    {
+      "name": "moons",
+      "years": 600,
+      "inner_periods": 115.52517497642378,
+      "relative_energy": 9.66504241697482e-13,
+      "angular_residual": 5.35682609381638e-15,
+      "momentum_residual": 1.1341258032025506e-15,
+      "convergence_ratio": 5.000839551143035,
+      "final_refinement": {
+        "axis_relative": 0.0002248483123421305,
+        "eccentricity": 0.00033172302840232294,
+        "phase_radians": 0.01445057206864997,
+        "apsis_radians": 0.01217107116502969
+      },
+      "apsis_error_slope_radians_per_year": [
+        -0.00011660960969401947,
+        1.531472641738374e-05,
+        -5.522958515049104e-06
+      ],
+      "reference_years": 600,
+      "reference_tolerance_error": 3.347404643886184e-06,
+      "reference_errors": {
+        "axis_relative": 0.00024002106937148673,
+        "eccentricity": 0.0003539899427081033,
+        "phase_radians": 0.015426409436185562,
+        "apsis_radians": 0.015198244544836204
+      }
+    },
+    {
+      "name": "resonance",
+      "years": 600,
+      "inner_periods": 645.8660637506281,
+      "relative_energy": 6.832898929165675e-07,
+      "angular_residual": 4.4200754167889045e-15,
+      "momentum_residual": 8.760010037348587e-16,
+      "convergence_ratio": 4.998812207481205,
+      "final_refinement": {
+        "axis_relative": 1.6007005316548767e-05,
+        "eccentricity": 7.417779665233604e-05,
+        "phase_radians": 0.008183091620453997,
+        "apsis_radians": 0.003356384521345235
+      },
+      "apsis_error_slope_radians_per_year": [
+        -3.2712373656487447e-06,
+        -3.5690241821370757e-06
+      ],
+      "reference_years": 600,
+      "reference_tolerance_error": 3.2800495511072693e-09,
+      "reference_errors": {
+        "axis_relative": 2.2116107210758175e-05,
+        "eccentricity": 9.33249551583696e-05,
+        "phase_radians": 0.00926774569335298,
+        "apsis_radians": 0.00466200953367521
+      }
+    }
+  ],
+  "worlds": [
+    {
+      "name": "moons",
+      "years": 600,
+      "max_relative_energy_balance": 9.66504241697482e-13,
+      "max_mass_residual": 0.0,
+      "max_momentum_residual": 1.1341258032025506e-15,
+      "max_angular_residual": 5.35682609381638e-15,
+      "final_bodies": 4,
+      "tree_years_observed": 0
+    },
+    {
+      "name": "resonance",
+      "years": 600,
+      "max_relative_energy_balance": 6.832898929165675e-07,
+      "max_mass_residual": 0.0,
+      "max_momentum_residual": 8.760010037348587e-16,
+      "max_angular_residual": 4.4200754167889045e-15,
+      "final_bodies": 3,
+      "tree_years_observed": 0
+    },
+    {
+      "name": "disk-and-escape",
+      "years": 600,
+      "max_relative_energy_balance": 6.379288655031086e-06,
+      "max_mass_residual": 0.0,
+      "max_momentum_residual": 2.4303663304153586e-17,
+      "max_angular_residual": 5.149960319306146e-18,
+      "final_bodies": 2,
+      "tree_years_observed": 0
+    },
+    {
+      "name": "massive-swarm-1024",
+      "years": 600,
+      "max_relative_energy_balance": 6.543803558731113e-06,
+      "max_mass_residual": 4.440892098500626e-15,
+      "max_momentum_residual": 1.1919756646375939e-18,
+      "max_angular_residual": 5.7462715141731735e-18,
+      "final_bodies": 453,
+      "tree_years_observed": 475
+    }
+  ],
+  "passed": true,
+  "failures": []
+}

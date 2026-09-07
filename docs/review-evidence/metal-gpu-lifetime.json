@@ -1,0 +1,50 @@
+{
+  "supported": true,
+  "adapter": {
+    "vendor": "apple",
+    "architecture": "metal-3",
+    "device": "",
+    "description": ""
+  },
+  "requestedYears": 600,
+  "completedYears": 15,
+  "status": "rejected",
+  "failure": [
+    "axis"
+  ],
+  "budgets": {
+    "energy": 0.00002,
+    "axis": 0.002,
+    "eccentricity": 0.002,
+    "phase": 0.2,
+    "apsis": 0.1
+  },
+  "samples": [
+    {
+      "year": 5,
+      "energy": 0.000012943792368866151,
+      "axis": 0.0009578555761876976,
+      "eccentricity": 0.001042333388163244,
+      "phase": 0.019144649822193882,
+      "apsis": 0.009879612490896195
+    },
+    {
+      "year": 10,
+      "energy": 0.000008313210228896911,
+      "axis": 0.0012639828794245057,
+      "eccentricity": 0.0003893608994712319,
+      "phase": 0.05609530997008739,
+      "apsis": 0.02790150526507462
+    },
+    {
+      "year": 15,
+      "energy": 0.000010181650349231694,
+      "axis": 0.0029888858418512516,
+      "eccentricity": 0.001412821197911352,
+      "phase": 0.05921190558536704,
+      "apsis": 0.06383039244312583
+    }
+  ],
+  "livePhysicsEnabled": false,
+  "scope": "Four-body prograde/retrograde moon system; fixed 16 KDK substeps, same quantized initial conditions and masses in the f64 direct-force reference. Stop on the first sampled accuracy failure. Passing this fixture alone would not qualify the complete GPU game."
+}

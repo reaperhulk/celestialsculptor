@@ -4,8 +4,10 @@ use std::f64::consts::TAU;
 pub mod assessment;
 pub mod balances;
 pub mod benchmark;
+pub mod checkpoint;
 pub mod collisions;
 mod contact_search;
+mod encounters;
 pub mod generation;
 pub mod generator;
 mod gravity;
@@ -180,6 +182,10 @@ impl Default for Config {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Command {
+    TrackHistory {
+        id: u32,
+        enabled: bool,
+    },
     SeedSwarm {
         count: u32,
         disorder: f64,
@@ -241,6 +247,8 @@ pub struct RecordedCommand {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Replay {
     pub version: u32,
+    #[serde(default = "checkpoint::physics_id")]
+    pub physics: String,
     pub config: Config,
     pub commands: Vec<RecordedCommand>,
     pub end_tick: u64,
@@ -299,6 +307,8 @@ pub struct World {
     pub config: Config,
     pub bodies: Vec<Body>,
     pub tick: u64,
+    /// Sticky fixed resolution after an authored satellite is introduced.
+    pub minimum_substeps: u32,
     pub spent: f64,
     pub work_units: u64,
     pub collisions: u32,
@@ -434,6 +444,7 @@ impl World {
             forces: gravity::Forces::default(),
             contact_search: contact_search::ContactSearch::default(),
             history: history::History::default(),
+            minimum_substeps: 4,
             resonances: vec![],
             disk_momentum: V2::default(),
             disk_angular_momentum: 0.0,
@@ -516,6 +527,19 @@ impl World {
             return Err("This experiment has reached its 2048-action limit".into());
         }
         match command.clone() {
+            Command::TrackHistory { id, enabled } => {
+                if id == 0 || !self.bodies.iter().any(|b| b.id == id) {
+                    return Err("Choose an existing world to keep its detailed history".into());
+                }
+                if enabled && !self.history.pinned_ids.contains(&id) {
+                    if self.history.pinned_ids.len() >= 8 {
+                        return Err("Keep detailed history for up to eight chosen worlds".into());
+                    }
+                    self.history.pinned_ids.push(id);
+                } else if !enabled {
+                    self.history.pinned_ids.retain(|value| *value != id);
+                }
+            }
             Command::SeedSwarm { count, disorder } => {
                 if self.config.mission.is_some()
                     || !(4..MAX_BODIES as u32).contains(&count)
@@ -584,6 +608,9 @@ impl World {
                 } else {
                     1.0 / timescale
                 };
+                if timescale > 0. {
+                    self.minimum_substeps = 32;
+                }
                 self.emit("migration",id,if timescale==0.0{"Disk migration stopped".into()}else{format!("Disk torque: World {id} migrates inward on a {timescale:.0}-year timescale")});
             }
 
@@ -638,6 +665,7 @@ impl World {
                 moon.vel = host.vel.plus(V2::new(-d.y, d.x).scale(v));
                 moon.parent = Some(parent);
                 moon.origin_parent = Some(parent);
+                self.minimum_substeps = self.minimum_substeps.max(16);
                 self.emit(
                     "placed",
                     self.next_id - 1,
@@ -836,11 +864,11 @@ impl World {
                 );
             }
         }
-        if !matches!(command, Command::Spin { .. }) {
+        if !matches!(command, Command::Spin { .. } | Command::TrackHistory { .. }) {
             self.held_ticks = 0;
             self.resonances.clear();
         }
-        {
+        if !matches!(command, Command::TrackHistory { .. }) {
             self.refresh_satellites();
         }
         self.commands.push(RecordedCommand {
@@ -977,9 +1005,39 @@ impl World {
         self.forces
             .update(&self.bodies, self.softening().powi(2), tree_allowed);
     }
-    /// Each tick always runs four kick-drift-kick substeps. Speed never changes dt.
+    /// Symmetric dissipative splitting. Record each actual exchange with the disk.
+    fn apply_disk_torque(&mut self, h: f64) {
+        let star = self.bodies[0].clone();
+        for body in self.bodies.iter_mut().skip(1) {
+            if body.migration_rate == 0.0 {
+                continue;
+            }
+            let before = body.vel;
+            let r = body.pos.minus(star.pos);
+            // A finite inner disk edge prevents dissipative migration from forcing
+            // unresolved stellar-skimming orbits. Gravity remains unchanged.
+            let taper = ((r.norm() - 0.25) / 0.10).clamp(0., 1.);
+            let migration_rate = body.migration_rate * taper * taper * (3. - 2. * taper);
+            if migration_rate == 0. {
+                continue;
+            }
+            let radial = r.scale(1.0 / r.norm());
+            let v = before.minus(star.vel);
+            let projected = v.x * radial.x + v.y * radial.y;
+            body.vel = star
+                .vel
+                .plus(v.scale(libm::exp(-h * migration_rate / 2.0)))
+                .minus(radial.scale(projected * (1.0 - libm::exp(-h * migration_rate * 10.0))));
+            self.disk_energy += 0.5 * body.mass * (before.norm2() - body.vel.norm2());
+            let exchange = before.minus(body.vel).scale(body.mass);
+            self.disk_momentum = self.disk_momentum.plus(exchange);
+            self.disk_angular_momentum += body.pos.cross(exchange);
+        }
+    }
+    /// Fixed KDK resolution: four substeps, sixteen after a moon is authored, thirty-two after disk migration.
+    /// Display speed never changes the timestep.
     pub fn step(&mut self) {
-        self.integrate_tick(4);
+        self.integrate_tick(self.minimum_substeps);
     }
     fn integrate_tick(&mut self, substeps: u32) {
         self.integrate_tick_with_solver(substeps, true);
@@ -993,6 +1051,7 @@ impl World {
         self.merge_contacts(0.0);
         self.update_forces(tree_allowed);
         for _ in 0..substeps {
+            self.apply_disk_torque(h / 2.);
             for (i, b) in self.bodies.iter_mut().enumerate() {
                 b.vel = b.vel.plus(self.forces.output[i].scale(h / 2.0));
                 b.pos = b.pos.plus(b.vel.scale(h));
@@ -1006,28 +1065,7 @@ impl World {
             for (i, b) in self.bodies.iter_mut().enumerate() {
                 b.vel = b.vel.plus(self.forces.output[i].scale(h / 2.0));
             }
-            let star = self.bodies[0].clone();
-            for body in self.bodies.iter_mut().skip(1) {
-                if body.migration_rate == 0.0 {
-                    continue;
-                }
-                let before = body.vel;
-                let r = body.pos.minus(star.pos);
-                let radial = r.scale(1.0 / r.norm());
-                let v = before.minus(star.vel);
-                let projected = v.x * radial.x + v.y * radial.y;
-                body.vel = star
-                    .vel
-                    .plus(v.scale(libm::exp(-h * body.migration_rate / 2.0)))
-                    .minus(
-                        radial
-                            .scale(projected * (1.0 - libm::exp(-h * body.migration_rate * 10.0))),
-                    );
-                self.disk_energy += 0.5 * body.mass * (before.norm2() - body.vel.norm2());
-                let exchange = before.minus(body.vel).scale(body.mass);
-                self.disk_momentum = self.disk_momentum.plus(exchange);
-                self.disk_angular_momentum += body.pos.cross(exchange);
-            }
+            self.apply_disk_torque(h / 2.);
         }
         self.tick += 1;
         if self.tick.is_multiple_of(8) {
@@ -1475,6 +1513,7 @@ impl World {
     pub fn replay(&self) -> Replay {
         Replay {
             version: SAVE_VERSION,
+            physics: checkpoint::physics_id(),
             config: self.config.clone(),
             commands: self.commands.clone(),
             end_tick: self.tick,

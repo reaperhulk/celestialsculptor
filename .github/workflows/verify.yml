@@ -94,12 +94,17 @@ jobs:
           path: |
             test-results/**/gpu-comparison.json
             test-results/**/gpu-orbits.json
+            test-results/**/gpu-mixed.json
+            test-results/**/gpu-lifetime.json
           retention-days: 14
+      - run: npm run qualify:devices -- dist/build-info.json
       - run: npm run report
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: release-report
-          path: release-report.json
+          path: |
+            release-report.json
+            device-qualification.json
           retention-days: 30
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
@@ -171,9 +176,34 @@ jobs:
             test-results-gpu
             playwright-report
           retention-days: 14
+  numerical-qualification:
+    name: 600-year and independent numerical qualification
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: dtolnay/rust-toolchain@49fda20b3f489226feadfba7767be1db54e2cee1 # 1.90.0
+        with:
+          toolchain: 1.90.0
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+      - run: python3 -m venv .qualification-env
+      - run: .qualification-env/bin/pip install -r scripts/qualification-requirements.txt
+      - run: node scripts/qualify-numerics.mjs
+        env:
+          QUALIFICATION_PYTHON: .qualification-env/bin/python
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: long-run-numerical-evidence
+          path: |
+            numerical-raw.json
+            numerical-qualification.json
+            tree-raw.json
+            tree-qualification.json
+          retention-days: 30
   deploy:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-    needs: [simulation, web, arm64]
+    needs: [simulation, web, arm64, numerical-qualification]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

@@ -23,12 +23,12 @@ fn main(@builtin(global_invocation_id) gid:vec3u,@builtin(local_invocation_index
  if(index<params.count){forces[index]=acceleration;}
 }`;
 export class GpuGravity {
- static async create({fallback=false}={}){
+ static async create({fallback=false,shaderCode=GRAVITY_SHADER}={}){
   const adapter=await globalThis.navigator?.gpu?.requestAdapter({forceFallbackAdapter:fallback,powerPreference:'high-performance'});
   if(!adapter)return null;
   const device=await adapter.requestDevice();
   try{
-   const shader=device.createShaderModule({code:GRAVITY_SHADER});
+   const shader=device.createShaderModule({code:shaderCode});
    const diagnostics=await shader.getCompilationInfo();const errors=diagnostics.messages.filter(m=>m.type==='error');if(errors.length)throw new Error(errors.map(m=>m.message).join('\n'));
    const pipeline=await device.createComputePipelineAsync({layout:'auto',compute:{module:shader,entryPoint:'main'}});
    return new GpuGravity(device,pipeline,adapter.info);

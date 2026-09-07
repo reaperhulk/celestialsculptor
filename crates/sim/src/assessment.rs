@@ -23,7 +23,12 @@ impl World {
         let edits = self
             .commands
             .iter()
-            .filter(|c| !matches!(c.command, Command::Spin { .. }))
+            .filter(|c| {
+                !matches!(
+                    c.command,
+                    Command::Spin { .. } | Command::TrackHistory { .. }
+                )
+            })
             .count();
         result.phase = if status.completed {
             "complete"

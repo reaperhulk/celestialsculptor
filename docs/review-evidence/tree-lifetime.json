@@ -1,0 +1,123 @@
+{
+  "schema": 1,
+  "physics": "newton-soft1e-4-mutual035-kdk4-moon16-disk32-edge025-v1",
+  "bodies": 512,
+  "debrisEarthMasses": 0.016,
+  "scope": "Constant 512-body collisionless cold disk; full 600-year tree lifetime, independently summed direct-force comparison at the same timestep. Low debris mass isolates force accumulation from hard encounters.",
+  "rows": [
+    {
+      "exact": false,
+      "years": 600,
+      "maxRelativeEnergy": 8.182824688297958e-12,
+      "maxAngularResidual": 4.129285617864714e-21,
+      "maxMomentumResidual": 1.3063065353438843e-21
+    },
+    {
+      "exact": true,
+      "years": 600,
+      "maxRelativeEnergy": 1.5527843973211959e-12,
+      "maxAngularResidual": 8.258571235729428e-21,
+      "maxMomentumResidual": 1.1896627526585432e-21
+    }
+  ],
+  "trajectory": [
+    {
+      "year": 25,
+      "rmsPositionAu": 1.4216575591284798e-8
+    },
+    {
+      "year": 50,
+      "rmsPositionAu": 0.000008369521169734899
+    },
+    {
+      "year": 75,
+      "rmsPositionAu": 0.000021064948691483895
+    },
+    {
+      "year": 100,
+      "rmsPositionAu": 0.000032222562209176516
+    },
+    {
+      "year": 125,
+      "rmsPositionAu": 0.00004578459832057707
+    },
+    {
+      "year": 150,
+      "rmsPositionAu": 0.00005662264090811766
+    },
+    {
+      "year": 175,
+      "rmsPositionAu": 0.00006986606819355616
+    },
+    {
+      "year": 200,
+      "rmsPositionAu": 0.0000815668606023909
+    },
+    {
+      "year": 225,
+      "rmsPositionAu": 0.00009355667142946781
+    },
+    {
+      "year": 250,
+      "rmsPositionAu": 0.0001065588469926019
+    },
+    {
+      "year": 275,
+      "rmsPositionAu": 0.00011750801533070947
+    },
+    {
+      "year": 300,
+      "rmsPositionAu": 0.0001311574985697584
+    },
+    {
+      "year": 325,
+      "rmsPositionAu": 0.0001422809168418903
+    },
+    {
+      "year": 350,
+      "rmsPositionAu": 0.00015532069304439967
+    },
+    {
+      "year": 375,
+      "rmsPositionAu": 0.000168098642157912
+    },
+    {
+      "year": 400,
+      "rmsPositionAu": 0.00017961299380923624
+    },
+    {
+      "year": 425,
+      "rmsPositionAu": 0.0001934922092586683
+    },
+    {
+      "year": 450,
+      "rmsPositionAu": 0.00020488364994652964
+    },
+    {
+      "year": 475,
+      "rmsPositionAu": 0.00021850791481019363
+    },
+    {
+      "year": 500,
+      "rmsPositionAu": 0.00023128905577616347
+    },
+    {
+      "year": 525,
+      "rmsPositionAu": 0.0002441633003910875
+    },
+    {
+      "year": 550,
+      "rmsPositionAu": 0.00025840087746263146
+    },
+    {
+      "year": 575,
+      "rmsPositionAu": 0.00027070464010542356
+    },
+    {
+      "year": 600,
+      "rmsPositionAu": 0.00027998524253129253
+    }
+  ],
+  "passed": true,
+  "failures": []
+}

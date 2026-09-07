@@ -36,3 +36,25 @@ Automated gates cover native/WASM parity, conservation, seeded outcomes, bounded
 histories and transport, payload limits, seven Chromium viewports and Firefox /
 WebKit recipe execution. Actions retains timing reports and representative UI
 screenshots; wall-clock runner speed remains informational.
+
+## Aggregate evidence for one tested build
+
+Enter the physical device model/browser, choose its category, and explicitly
+mark that the recording uses physical hardware rather than emulation. Reports
+include the clean/dirty build flag, exact WASM hash and fixed physics resolution.
+
+```sh
+npm run qualify:devices -- dist/build-info.json path/to/report.json
+```
+
+The aggregator requires a matching clean revision and WASM hash, an identified
+physical device, a standard reproducible workload, five active minutes, High
+quality (DPR cap 2 and decorative motion enabled), at least 55 FPS, p95 frame
+spacing at most 20 ms, and at least 90% of requested simulation pace. Passing
+applies only to that workload/device/build. Partial, mismatched, emulated and
+slower reports remain useful evidence with explicit reasons for not qualifying.
+
+The required desktop, iPhone and iPad matrix starts as **pending physical
+evidence**. Browser-engine execution and responsive viewport tests do not turn
+those rows into hardware support claims. No physical iPhone/iPad five-minute
+recording was available during this implementation review.
