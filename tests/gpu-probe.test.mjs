@@ -1,0 +1,8 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {readFile} from 'node:fs/promises';
+import init,{Simulation} from '../dist/pkg/celestial_wasm.js';import {forceError} from '../web/gpu-benchmark.js';import {GpuGravity} from '../web/gpu-gravity.js';
+await init({module_or_path:await readFile('dist/pkg/celestial_wasm_bg.wasm')});
+test('force probes leave complete simulation and replay state unchanged',()=>{
+ const s=new Simulation(JSON.stringify({seed:42,mission:null,star_mass:1}));try{s.command(JSON.stringify({type:'seed_swarm',count:1023,disorder:0}));s.advance(1);const before=s.snapshot(),replay=s.export_replay();for(const exact of [false,true]){const f=s.force_snapshot(exact);assert.equal(f.length,2048);assert.ok(f.every(Number.isFinite));s.benchmark_gravity(exact,2);}assert.equal(s.snapshot(),before);assert.equal(s.export_replay(),replay);for(const n of [0,.5,17,NaN,Infinity])assert.throws(()=>s.benchmark_gravity(false,n));}finally{s.free();}
+});
+test('GPU error metrics expose both accuracy and action/reaction imbalance',()=>{const particles=new Float64Array([0,0,1,1,0,2]),reference=new Float64Array([2,0,-1,0]);assert.equal(forceError(reference,reference,particles).rmsRelativeError,0);assert.equal(forceError(reference,reference,particles).momentumResidual,0);const wrong=new Float32Array([2,0,-.9,0]);assert.ok(forceError(reference,wrong,particles).rmsRelativeError>0);assert.ok(forceError(reference,wrong,particles).momentumResidual>0);});
+test('an unavailable GPU leaves the optional compute path inactive',async()=>{if(!globalThis.navigator?.gpu)assert.equal(await GpuGravity.create(),null);});

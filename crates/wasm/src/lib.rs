@@ -110,6 +110,23 @@ impl Simulation {
             })
             .collect()
     }
+    pub fn force_snapshot(&mut self, exact: bool) -> Vec<f64> {
+        self.world
+            .sample_forces(exact)
+            .iter()
+            .flat_map(|a| [a.x, a.y])
+            .collect()
+    }
+    pub fn benchmark_gravity(&mut self, exact: bool, repeats: f64) -> Result<f64, JsValue> {
+        if !repeats.is_finite() || repeats.fract() != 0. || !(1.0..=16.0).contains(&repeats) {
+            return Err(js_error("Use 1–16 force samples"));
+        }
+        let mut checksum = 0.;
+        for _ in 0..repeats as u32 {
+            checksum += std::hint::black_box(self.world.sample_forces(exact))[0].x;
+        }
+        Ok(checksum)
+    }
     pub fn body_count(&self) -> u32 {
         self.world.bodies.len() as u32
     }

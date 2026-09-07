@@ -178,3 +178,22 @@ x64 host. Reproduce a before/after comparison by preserving the older `dist/pkg`
 directory and running `node scripts/compare-physics.mjs /absolute/reference/pkg`
 after building the candidate. The report includes raw warmed alternating samples
 and checks 380 exact state/history/ledger/replay checkpoints.
+
+## GPU compute experiment
+
+View settings now offer **CPU and GPU compute comparison**. It runs dedicated
+swarm and moon workloads and downloads adapter details, warmed CPU/direct/tree
+and GPU upload/dispatch/readback timings, force errors, and momentum residuals.
+The shader uses 64-lane tiles in shared workgroup memory. Buffers are reused.
+It does not change the current world's physics. Shader correctness runs against
+an independent double-precision WASM oracle in CI; software adapters and unavailable
+hosted Metal devices are identified explicitly.
+
+WGSL's standard arithmetic is f32 (with optional f16), so this candidate is not a
+replacement for the tested f64 orbital solver without further qualification.
+A fast shader alone does not establish a faster integrator: transferring each
+force field back across four substeps can dominate. The next GPU decision must
+include long-run conservation, close encounters, moon/resonance behavior and
+portable replay behavior as well as real-device end-to-end speed.
+See the [WGSL numerical specification](https://www.w3.org/TR/WGSL/) and
+[WebGPU buffer mapping specification](https://www.w3.org/TR/webgpu/).

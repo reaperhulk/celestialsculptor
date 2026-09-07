@@ -1077,6 +1077,12 @@ impl World {
         });
         self.next_event += 1;
     }
+    /// Explicit force probe for headless/GPU comparisons; physical state is unchanged.
+    pub fn sample_forces(&mut self, exact: bool) -> &[V2] {
+        self.forces.x.clear(); // Benchmark actual calculation, including staging/build.
+        self.update_forces(!exact);
+        &self.forces.output
+    }
     fn update_forces(&mut self, tree_allowed: bool) {
         self.forces.update(
             &self.bodies,

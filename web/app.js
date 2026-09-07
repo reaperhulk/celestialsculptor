@@ -462,3 +462,12 @@ $('watch-orbit').onclick=async()=>{try{const orbit=(state.moon_orbits.find(([id]
 // Editing a launch starts an explicit placement session; disclosure focus is irrelevant.
 $('launch-form').addEventListener('input',()=>setPlacement(true,true));
 $('launch-form').addEventListener('change',()=>setPlacement(true,true));
+
+let gpuBenchmarkReport=null;
+$('run-gpu-benchmark').onclick=async()=>{
+ const button=$('run-gpu-benchmark');button.disabled=true;$('download-gpu-benchmark').disabled=true;
+ try{await send('play',{value:false});const {runGpuBenchmark}=await import('./gpu-benchmark.js');gpuBenchmarkReport=await runGpuBenchmark({progress:text=>$('gpu-benchmark-status').textContent=text});$('gpu-benchmark-status').textContent=gpuBenchmarkReport.supported?'Comparison complete. Download the timings and force-error report. Your system remains paused.':gpuBenchmarkReport.reason;$('download-gpu-benchmark').disabled=false;}
+ catch(error){$('gpu-benchmark-status').textContent=`Comparison could not finish: ${error.message}`;}
+ finally{button.disabled=false;}
+};
+$('download-gpu-benchmark').onclick=()=>{if(gpuBenchmarkReport)download(JSON.stringify(gpuBenchmarkReport,null,2),'celestial-gpu-comparison.json');};

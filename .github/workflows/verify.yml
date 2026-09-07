@@ -85,6 +85,12 @@ jobs:
           retention-days: 14
       - run: npx playwright install --with-deps chromium firefox webkit
       - run: npm run test:browser
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: gpu-compute-results
+          path: test-results/**/gpu-comparison.json
+          retention-days: 14
       - run: npm run report
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -103,6 +109,7 @@ jobs:
           name: browser-failures
           path: |
             test-results
+            test-results-gpu
             playwright-report
       - uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
         with:
@@ -141,7 +148,9 @@ jobs:
         run: npm run bench:simd
       - run: npm run bench:gravity
       - run: npm run bench:scaling
-      - run: npx playwright install webkit
+      - run: npx playwright install webkit chromium
+      - name: Probe hardware WebGPU when the ARM64 runner exposes an adapter
+        run: npx playwright test --project=gpu-metal --output=test-results-gpu
       - name: Execute recipes in ARM64 WebKit
         run: npx playwright test --project=webkit-engine
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -153,6 +162,7 @@ jobs:
             gravity-benchmark-results.json
             scaling-benchmark-results.json
             test-results
+            test-results-gpu
             playwright-report
           retention-days: 14
   deploy:

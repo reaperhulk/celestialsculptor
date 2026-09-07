@@ -1775,3 +1775,21 @@ Validation: scheduler tests cover accumulated debt, expensive turns and idle/pau
 sleeping. The pinned binding generator supports name-section removal; the build
 and existing asset integrity checks validate both outputs. Runtime budget tests
 remain in place. This changes neither dt nor physical arithmetic.
+
+### 162 — Measure a real tiled WebGPU compute candidate
+
+Review needs: GPU acceleration must be evaluated with transfer latency and an
+independent force oracle, not assumed faster from shader throughput alone.
+Implemented: a tiled 64-thread WGSL kernel uses shared workgroup source blocks,
+reusable storage/readback buffers, and complete upload/dispatch/map timing. A device
+comparison in View settings benchmarks isolated swarms and a retrograde moon family
+against exact and tree WASM forces. The live world is paused and unchanged. Required
+software-WebGPU coverage checks partial tiles and numerical error; ARM64 additionally
+probes Metal when the hosted runner exposes an adapter. Reports identify the adapter.
+The f32 candidate remains outside live integration pending precision, long-trajectory
+and cross-device replay qualification; production physics stays f64 and rendering
+continues to use instanced WebGL2.
+Validation: headless tests prove force probes do not edit physical/replay state,
+verify imbalance/error metrics and exercise unavailable-GPU handling. Shader execution
+and independent error gates run in Actions. GPU timings include readback and are
+informational; software-adapter results are not physical GPU or phone measurements.
