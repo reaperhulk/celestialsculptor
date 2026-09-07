@@ -71,3 +71,15 @@ no convenient way to return to a readable local orbital timescale.
 Keep follow on taps, release it only when navigation actually begins, and provide
 a selected-orbit watching speed with a slower playback option. Verify pointer
 state transitions and real worker timing; preserve the fixed physics timestep.
+
+Cycle 3 implemented in 122–123. Pointer transitions and playback timescale tests
+pass with the real worker suite. Review of the experiment workflow now shows
+that saved comparisons omit grazing/disruption counts and always compare only
+at the shorter endpoint, obscuring when two branches begin to differ.
+
+## Cycle 4 — useful branch comparisons
+
+Include new impact outcomes while migrating existing notebook summaries safely.
+Allow an explicit shared comparison age and explain differing starting/edit
+conditions in readable terms. Test nonmutating equal-age reconstruction and
+existing notebook compatibility.

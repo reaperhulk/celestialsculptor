@@ -1244,3 +1244,14 @@ Implemented: taps retain tracking. A real drag or pinch takes camera control,
 using the current tracked center when the gesture crosses the movement threshold.
 Validation: tap/follow, moving-camera drag and pinch-to-pan regression tests pass;
 production syntax, asset and DOM contracts pass.
+
+### 123 — Watch an orbit at a readable pace
+
+Review needs: fast system playback makes small satellite orbits difficult to
+inspect, and returning from warp requires several unrelated controls.
+Implemented: a shared speed catalogue adds 1/16× playback. Watch this orbit
+chooses the fastest supported speed giving about eight seconds per orbit when
+possible, follows the selected body and runs. Moon periods use their host frame.
+Validation: orbital timescale boundaries and supported-speed selection pass with
+real worker regression tests; production contracts verify the new controls.
+Physics timestep and replay format are unchanged.

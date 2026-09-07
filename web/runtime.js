@@ -1,3 +1,4 @@
+import {PLAYBACK_SPEEDS} from './playback.js';
 import {historyView} from './history-view.js';
 // Worker-owned controller. Its protocol is tested with real WASM without graphics.
 export class Runtime {
@@ -29,7 +30,7 @@ export class Runtime {
           case 'command': this.sim.command(JSON.stringify(message.command)); this.timelineSource=null;this.timelineHistory=null;break;
           case 'play': if(typeof message.value!=='boolean')throw new Error('Playback requires true or false');this.playing = message.value; this.debt = 0;if(message.value)this.timelineSource=null;this.timelineHistory=null;break;
           case 'speed':
-            if (![0.25, 1, 4, 16].includes(message.value)) throw new Error('Invalid playback speed');
+            if (!PLAYBACK_SPEEDS.includes(message.value)) throw new Error('Invalid playback speed');
             this.speed = message.value; break;
           case 'seek': {
             const history=this.timelineSource?this.timelineHistory:JSON.parse(this.sim.observations());
