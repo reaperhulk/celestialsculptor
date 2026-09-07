@@ -119,6 +119,19 @@ The release now requires a SIMD-capable browser: Safari 16.4+, or current Chrome
 Edge and Firefox. Scalar WASM remains available through the differential build
 for testing; it is not a second downloaded runtime.
 
+On ARM64, the browser's WASM compiler lowers vector arithmetic to NEON / Advanced
+SIMD. The Rust browser target remains `wasm32`; it must not select
+`core::arch::aarch64` based on the player's device. Those intrinsics would belong
+to a separate native ARM application. The existing f64x2 kernel expresses the
+portable operations that the ARM64 engine can lower to its vector instructions.
+
+Actions requires an Apple Silicon macOS job before deployment. It asserts native
+ARM64 Node execution, runs native and WASM physics checks, compares scalar/SIMD
+results and throughput, and executes every recipe in ARM64 WebKit. Reports include
+the actual CPU/architecture. This exercises the ARM browser compilation path;
+desktop M1 measurements do not establish phone battery, thermal or frame behavior.
+The physical iPhone/iPad protocol remains the performance acceptance criterion.
+
 Consider multiple workers/shared-memory WASM only after profiling the tree and
 transport path. Shared WASM memory requires cross-origin isolation, which must be
 verified against the deployed host and response headers. Threads also need

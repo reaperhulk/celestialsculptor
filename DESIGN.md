@@ -1601,3 +1601,18 @@ comparisons locally and measured 1.24x/1.26x throughput. It checks exact snapsho
 ledgers, histories and replays across campaign/seeded fixtures, recipes, forty-year
 resonant moons, legacy rules and vector tails. Existing native, WASM and browser
 physics gates also exercise the production artifact; timings remain informational.
+
+### 151 — Gate ARM64 SIMD and make first-frame selection reliable
+
+Review needs: phone-focused optimization needs ARM64 execution evidence; the
+browser release also exposed selection before a new body's sizing frame and
+viewport-dependent wheel timing in the close-giant regression.
+Implemented: a required Apple Silicon job runs native/WASM rules, scalar/SIMD
+differential benchmarks and WebKit recipe execution, with an architecture assertion
+and separate artifacts. The design explains WASM-to-NEON lowering. Picking retains
+its minimum hit area before sizing data exists. Browser input checks wait for the
+placed body and each zoom response instead of assuming three queued gestures.
+Validation: a headless regression selects new bodies with absent/non-finite sizing
+data; existing geometry and input checks remain. ARM64 and full browser validation
+run in Actions before Pages publication. Desktop ARM timings remain distinct from
+the required sustained iPhone/iPad performance measurements.

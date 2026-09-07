@@ -8,9 +8,15 @@ test('close giants have separated rendered surfaces and remain selectable',async
   WebGL2RenderingContext.prototype.drawArraysInstanced=function(...args){window.__planetVertices=Array.from(vertices);return draw.apply(this,args);};
  });
  await page.goto('./?fps=1');await expect(page.locator('#play')).toBeEnabled();await expect(page.locator('#planet-count')).toHaveText('2');
+ await expect.poll(()=>page.evaluate(()=>window.__celestialPerformance?.camera?.zoom||0)).toBeGreaterThan(0);
  const r=await page.locator('#universe').boundingBox(),center={x:3.5*Math.cos(2.2),y:3.5*Math.sin(2.2)},x=r.x+r.width/2,y=r.y+r.height/2;
  await page.mouse.move(x,y);await page.mouse.down();await page.mouse.move(x-center.x*r.height/7,y+center.y*.62*r.height/7,{steps:5});await page.waitForTimeout(100);await page.mouse.up();await page.mouse.move(x,y);
- for(let i=0;i<3;i++)await page.mouse.wheel(0,-150);
+ for(let i=0;i<8;i++){
+  const before=await page.evaluate(()=>window.__celestialPerformance.camera.zoom);
+  if(before<1.5)break;
+  await page.mouse.wheel(0,-150);
+  await expect.poll(()=>page.evaluate(()=>window.__celestialPerformance.camera.zoom)).toBeLessThan(before*.9);
+ }
  await expect.poll(()=>page.evaluate(()=>window.__celestialPerformance?.camera?.zoom||10)).toBeLessThan(1.5);
  const geometry=await page.evaluate(()=>{const vertices=window.__planetVertices,giants=[];for(let i=0;i<vertices.length;i+=16)if(vertices[i+6]===3)giants.push({x:vertices[i],y:vertices[i+1],radius:vertices[i+2]*.31});const canvas=document.querySelector('#universe').getBoundingClientRect(),camera=window.__celestialPerformance.camera;return {giants,canvas:{x:canvas.x,y:canvas.y,width:canvas.width,height:canvas.height},camera};});
  expect(geometry.giants).toHaveLength(2);const [a,b]=geometry.giants,c=geometry.canvas,cam=geometry.camera,distance=Math.hypot(a.x-b.x,(a.y-b.y)*.62)*c.height/(2*cam.zoom);expect(a.radius+b.radius).toBeLessThan(distance);

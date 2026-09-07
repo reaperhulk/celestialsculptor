@@ -12,6 +12,7 @@ test('worlds render with closed launch details and placement survives focus chan
 
 test('tapping a planet reveals mass and axial rotation without scrolling or opening a disclosure',async({page},testInfo)=>{
  await page.goto('./?fps=1');await expect(page.locator('#play')).toBeEnabled();await page.locator('#launch').click();
+ await expect(page.locator('#planet-count')).toHaveText('1');
  if(await page.locator('.mobile-tabs').isVisible())await page.locator('.mobile-tabs [data-panel="mission"]').click();
  await expect.poll(()=>page.evaluate(()=>window.__celestialPerformance?.camera?.zoom||0)).toBeGreaterThan(0);
  const camera=await page.evaluate(()=>window.__celestialPerformance.camera),r=await page.locator('#universe').boundingBox();

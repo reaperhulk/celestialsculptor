@@ -12,6 +12,10 @@ test('picking chooses closest world and does not select empty space',()=>{
  assert.equal(nearestBody(bodies,9,9,(x,y)=>[x,y]),2);
  assert.equal(nearestBody(bodies,100,100,(x,y)=>[x,y]),null);
 });
+test('new bodies remain pickable before the first sizing frame',()=>{
+ const bodies=[{id:0,pos:{x:0,y:0}},{id:1,pos:{x:100,y:0}}];
+ for(const missing of [undefined,NaN])assert.equal(nearestBody(bodies,102,0,(x,y)=>[x,y],18,b=>b.id===0?20:missing),1);
+});
 
 test('wheel zoom normalizes pixel line and page units with bounded jumps',async()=>{
  const {wheelZoom}=await import('../web/input.js');

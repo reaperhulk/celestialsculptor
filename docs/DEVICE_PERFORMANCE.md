@@ -22,6 +22,12 @@ navigation and continued simulation progress. Compare the same replay/device
 before and after changes. CI software-rendered browser FPS cannot establish this
 hardware result. The existing 30 FPS paused / 60 FPS active policy is intentional.
 
+WASM SIMD128 uses the browser's ARM64 NEON compilation path on Apple devices.
+Actions separately runs native/WASM differential checks and recipe execution in
+WebKit on Apple Silicon. Compare the new SIMD build against an earlier scalar
+build on the same iPhone/iPad and replay. An ARM64 desktop result is not a phone
+throughput, frame-rate or thermal measurement.
+
 Automated gates cover native/WASM parity, conservation, seeded outcomes, bounded
 histories and transport, payload limits, seven Chromium viewports and Firefox /
 WebKit recipe execution. Actions retains timing reports and representative UI

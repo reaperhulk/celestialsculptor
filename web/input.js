@@ -11,7 +11,7 @@ export function launchFromPoint(x,y,star={x:0,y:0}){
 }
 export function nearestBody(bodies,x,y,toScreen,threshold=24,size=()=>0,position=body=>body.pos){
  let best=null,distance=Infinity;
- for(const body of bodies){const p=position(body),[sx,sy]=toScreen(p.x,p.y),d=Math.hypot(x-sx,y-sy),radius=Math.max(threshold,size(body));if(d<radius&&d<distance){distance=d;best=body.id;}}
+ for(const body of bodies){const p=position(body),[sx,sy]=toScreen(p.x,p.y),d=Math.hypot(x-sx,y-sy),drawn=size(body),radius=Math.max(threshold,Number.isFinite(drawn)?drawn:0);if(d<radius&&d<distance){distance=d;best=body.id;}}
  return best;
 }
 export function installInput(canvas,renderer,{onDraft,onSelect}){
