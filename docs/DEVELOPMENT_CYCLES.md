@@ -11,7 +11,7 @@ Status: in progress.
 - [x] Host-relative moon controls, accurate readings, membership, resonance and touch fixes.
 - [x] Encounter timeline, bounded histories, automatic branch preservation and equal-age comparisons.
 - [x] Garden, gravity-assist and resonance challenge decisions, hints and mastery.
-- [ ] Varied generators with measured outcome and timing expectations.
+- [x] Varied generators with measured outcome and timing expectations.
 - [ ] Bounded collision outcomes with headless conservation and convergence checks.
 - [ ] Sustained device scenarios and native/WASM/browser release gates.
 
@@ -40,3 +40,7 @@ acceptance and screenshot review remain gates before cycle completion.
 Iteration 114 adds challenge-specific recovery/evidence, optional mastery and
 three comparative lessons from actual winning and near-miss replays. Current
 version fixtures include multiple solutions for garden, assist and resonance.
+
+Iteration 115 completes the new generator population and boundary checks with
+120 native/WASM parity cases. Releases 113/114 passed full browser and Pages
+verification. Collision diversity and sustained device scenarios remain in cycle 1.

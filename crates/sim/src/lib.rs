@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::f64::consts::TAU;
 pub mod assessment;
 pub mod benchmark;
+pub mod generation;
 pub mod generator;
 pub mod history;
 pub mod resonance;
@@ -187,6 +188,11 @@ impl Default for Config {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Command {
+    GenerateSystem {
+        style: generator::SystemStyle,
+        count: u32,
+        chaos: f64,
+    },
     Generate {
         style: generator::SystemStyle,
         count: u32,
@@ -525,15 +531,32 @@ impl World {
                 style,
                 count,
                 chaos,
+            }
+            | Command::GenerateSystem {
+                style,
+                count,
+                chaos,
             } => {
+                let modern = matches!(command, Command::GenerateSystem { .. });
                 if self.rules_version < 3
+                    || modern && self.rules_version < 4
                     || self.config.mission.is_some()
                     || self.bodies.len() != 1
                     || self.tick != 0
                 {
                     return Err("Generate a random system from an empty sandbox".into());
                 }
-                let commands = generator::commands(self.config.seed, style, count, chaos)?;
+                let commands = if modern {
+                    generation::commands(
+                        self.config.seed,
+                        style,
+                        count,
+                        chaos,
+                        self.config.star_mass,
+                    )?
+                } else {
+                    generator::commands(self.config.seed, style, count, chaos)?
+                };
                 let mut generated = self.clone();
                 let previous = generated.commands.len();
                 for command in commands {

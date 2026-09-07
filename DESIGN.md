@@ -1140,3 +1140,21 @@ active challenge. Mastery persists through discoveries and portable backups.
 Validation: clippy, both native assessment tests against actual campaign outcomes,
 production build, web contracts and 155 Node/WASM checks pass; focused progression
 and backup checks also pass after integration. Added a browser example-study flow.
+
+
+### 115 — Varied seeded systems with population outcome gates
+
+Review needs: improve formation/event timing, vary resonance geometry, retain
+same-seed experiments and validate more than finite numbers.
+Implemented: a new replayable GenerateSystem command keeps older Generate macros
+unchanged; compact nurseries, correlated flyby timing, star-aware moon regions
+and variable resonance masses/radii/torques. Style-specific controls expose useful
+parameters, remember settings and offer same-seed restart and named saves. Native
+sweeps cover all five styles, tuning/regression/fresh validation seeds and star /
+count / disorder boundaries; failures retain reproducible reports in Actions.
+Validation: 120 native scenarios pass mass, finite-state and history bounds;
+all three core seed sets form nursery worlds, preserve calm systems and moons,
+and produce chaos escapes. Resonance librates in 12 of 16 core cases after 120
+years. The same 120 replays match WASM identities, parents, masses and trajectories
+within 1e-8. Both generator tests, clippy, build/contracts and 157 Node/WASM checks
+pass. Observatory and lesson browser releases 113 and 114 are deployed successfully.

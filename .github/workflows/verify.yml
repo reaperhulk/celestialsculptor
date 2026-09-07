@@ -28,6 +28,7 @@ jobs:
       - name: Sweep seeded gameplay outcomes
         run: cargo run --release --locked -p celestial-sim --bin sculptor -- sweep > sweep-results.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
         with:
           name: simulation-results
           path: |

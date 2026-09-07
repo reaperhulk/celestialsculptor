@@ -21,6 +21,7 @@ import {moonRegion} from './moons.js';
 import {orbitReading} from './readings.js';
 import {Observatory} from './observatory.js';
 import {ChallengeGuide} from './challenges.js';
+import {GeneratorControls} from './generation.js';
 
 const $=id=>document.getElementById(id);
 let state=null, missions=[], mission=0, renderer, selectedBody=null, ready=false, toastTimer;
@@ -170,6 +171,7 @@ function renderState(next){
   $('goal-state').textContent=goalMessage(s,mission,next.bodies.length,next);
   if([4,6,8].includes(mission)&&!s.exhausted&&next.assessment)$('goal-state').textContent=next.assessment.message;
   challengeGuide.update(next);
+  generatorControls.update();
   $('goal-label').textContent=m?(m.hold_years?'Maintain conditions':'Make a discovery'):'Open exploration';$('goal-progress').hidden=mission===null;
   $('outcome-totals').textContent=`${s.collisions} mergers · ${s.ejections} escapes · ${s.absorbed} stellar impacts`;
   $('play').textContent=next.playing?'Ⅱ Pause':'▶ Run';$('play').disabled=!ready||s.exhausted;
@@ -365,10 +367,6 @@ function updateResonanceReadings(readings){
 }
 $('start-migration').onclick=()=>action('command',{command:{type:'migration',id:selectedBody,timescale:Number($('migration-time').value)}});
 $('stop-migration').onclick=()=>action('command',{command:{type:'migration',id:selectedBody,timescale:0}});
-$('generate').onclick=()=>{$('generate-seed').value=$('seed').value;$('generate-dialog').showModal();};
-$('close-generate').onclick=()=>$('generate-dialog').close();
-$('shuffle-seed').onclick=()=>{$('generate-seed').value=String(crypto.getRandomValues(new Uint32Array(1))[0]);};
-$('generate-form').onsubmit=event=>{event.preventDefault();const seed=parseSeed($('generate-seed').value),command={type:'generate',style:$('generate-style').value,count:Number($('generate-count').value),chaos:Number($('generate-chaos').value)/100},play=$('generate-play').checked;$('generate-dialog').close();confirmReset(async()=>{if(await reset(null,{seed})){await send('command',{command});renderer?.fit();if(command.style==='resonance'){await send('speed',{value:16});$('resonance-panel').open=true;}await autosave();if(play)await send('play',{value:true});toast('Your seeded universe is ready. Pan, zoom, follow a world, or intervene.');}});};
 
 let notebookEntries=readNotebook(storage),comparisonIds=[];
 function updateHistory(){
@@ -419,3 +417,8 @@ $('history-tick').onchange=()=>reviewHistory(Number($('history-tick').value)).ca
 $('history-latest').onclick=()=>reviewHistory(state.timeline_end).catch(()=>{});
 const observatory=new Observatory({send,seek:reviewHistory,getState:()=>state,getSelected:()=>selectedBody,selectEvent:event=>{selectedBody=event.body;if(renderer){renderer.focusEvent(event);renderer.encounterOverlay=event.impact||null;}inspect();}});
 const challengeGuide=new ChallengeGuide({send,getState:()=>state});
+const generatorControls=new GeneratorControls({storage,getState:()=>state,
+ create:({seed,command,play})=>confirmReset(async()=>{if(await reset(null,{seed})){await send('command',{command});generatorControls.record(state.config,command,state.rules_version);renderer?.fit();if(command.style==='resonance'){await send('speed',{value:16});$('resonance-panel').open=true;}await autosave();if(play)await send('play',{value:true});toast('Your seeded universe is ready. Watch an encounter, then try changing one condition.');}}),
+ repeat:({config,command,version})=>confirmReset(async()=>{saveEpoch++;await send('import',{replay:JSON.stringify({version,config,commands:[{tick:0,command}],end_tick:0})});renderer?.fit();await autosave();await send('play',{value:true});toast('The same seed and conditions are running again.');}),
+ save:()=>{$('checkpoint-name').value=`Seed ${state.config.seed} · year ${state.status.years.toFixed(2)}`;$('notebook').click();}
+});

@@ -20,7 +20,7 @@ fn run() -> Result<(), String> {
                 serde_json::to_string(&output).map_err(|e| e.to_string())?
             );
         }
-        "sweep" => println!("{}",celestial_sim::sweep::run()?),
+        "sweep" => {let report=celestial_sim::sweep::run()?;println!("{report}");if report["passed"]!=true {return Err("Seeded outcome checks failed; the JSON report includes every replay".into());}},
         "bench" => {
             let mut results = vec![];
             for bodies in [8, 32, 64] {
