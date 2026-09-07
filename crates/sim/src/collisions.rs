@@ -320,6 +320,32 @@ mod tests {
 mod convergence {
     use crate::*;
     #[test]
+    fn glancing_outcomes_agree_under_timestep_refinement() {
+        for substeps in [4, 8, 16] {
+            let mut w = World::new(Config {
+                mission: None,
+                ..Config::default()
+            })
+            .unwrap();
+            for (radius, angle, speed) in [(1., 0., 1.), (1.0032, std::f64::consts::PI, -1.)] {
+                w.apply(Command::LaunchMass {
+                    kind: Kind::Rocky,
+                    mass: 1.,
+                    radius,
+                    angle,
+                    speed,
+                })
+                .unwrap();
+            }
+            for _ in 0..256 {
+                w.integrate_tick(substeps);
+            }
+            assert_eq!(w.grazes, 1);
+            assert_eq!(w.disruptions, 0);
+            assert_eq!(w.bodies.len(), 3);
+        }
+    }
+    #[test]
     fn tighter_steps_converge_on_a_close_moon_orbit() {
         let mut initial = World::new(Config {
             mission: None,

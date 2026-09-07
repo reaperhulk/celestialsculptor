@@ -3,7 +3,7 @@ use celestial_sim::*;
 fn sandbox_recipes_exhibit_their_advertised_outcomes() {
     let recipes: Vec<serde_json::Value> =
         serde_json::from_str(include_str!("../../../web/recipes.json")).unwrap();
-    assert_eq!(recipes.len(), 10);
+    assert_eq!(recipes.len(), 11);
     for recipe in recipes {
         let config: Config = serde_json::from_value(recipe["config"].clone()).unwrap();
         assert_eq!(config.mission, None);
@@ -41,7 +41,8 @@ fn sandbox_recipes_exhibit_their_advertised_outcomes() {
             }
             "wanderer" => assert_eq!(w.ejections, 1),
             "gravity-assist" => assert_eq!(w.assisted_ejections, 1),
-            "opposing-worlds" => assert!(w.collisions > 0 && w.absorbed > 0),
+            "opposing-worlds" => assert!(w.disruptions > 0 && w.absorbed > 0),
+            "glancing-worlds" => assert!(w.grazes > 0),
             "moon-family" => assert!(w.status().moons >= 2),
             "resonant-moons" => {
                 assert_eq!(w.status().moons, 2);

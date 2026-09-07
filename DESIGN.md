@@ -1176,3 +1176,15 @@ material/mass/momentum/angular conservation, fast crossings and near misses.
 Four/eight/sixteen-substep moon integration converges with bounded position error.
 Full native suite, the 120-case native/WASM population matrix, production build,
 web contracts and all Node checks pass; browser acceptance remains an Actions gate.
+
+### 117 — Discoverable impact experiments and refinement checks
+
+Review needs: new collisions must be reachable through starting points; examples
+must use current physics; a regime must not depend on a lucky integration step.
+Implemented: all eleven starting points and comparative lessons now use version 5.
+Added a glancing encounter with two surviving rocky worlds and revised the
+head-on example to explain fragmentation and falling remnants. Recipe validation
+reconstructs the recipe's declared version instead of silently using the default.
+Validation: every recipe produces its advertised result and replays exactly;
+grazing survival agrees at four, eight and sixteen substeps. Native collision
+checks, focused WASM/challenge tests, production build and web contracts pass.
