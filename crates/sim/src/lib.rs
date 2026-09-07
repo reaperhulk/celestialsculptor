@@ -22,9 +22,10 @@ pub mod sweep;
 pub const G: f64 = 39.478_417_604_357_43; // AU, solar masses, years
 pub const EARTH: f64 = 3.003e-6;
 pub const DT: f64 = 1.0 / 512.0;
-pub const MAX_BODIES: usize = 64;
+pub const MAX_BODIES: usize = 8192;
+pub const LEGACY_MAX_BODIES: usize = 64;
 pub const SOFTENING: f64 = 0.002;
-pub const SAVE_VERSION: u32 = 5;
+pub const SAVE_VERSION: u32 = 6;
 pub const MAX_TICKS: u64 = 512 * 600;
 pub const LEGACY_WORK_LIMIT: u64 = 20_000_000;
 
@@ -196,6 +197,10 @@ impl Default for Config {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Command {
+    SeedSwarm {
+        count: u32,
+        disorder: f64,
+    },
     GenerateSystem {
         style: generator::SystemStyle,
         count: u32,
@@ -523,6 +528,13 @@ impl World {
         self.rng = x;
         x as f64 / u32::MAX as f64
     }
+    pub fn max_bodies(&self) -> usize {
+        if self.rules_version >= 6 && self.config.mission.is_none() {
+            MAX_BODIES
+        } else {
+            LEGACY_MAX_BODIES
+        }
+    }
     pub fn budget(&self) -> f64 {
         self.mission().map_or(10_000.0, |m| m.budget)
     }
@@ -563,6 +575,34 @@ impl World {
             return Err("This experiment has reached its 2048-action limit".into());
         }
         match command.clone() {
+            Command::SeedSwarm { count, disorder } => {
+                if self.rules_version < 6
+                    || self.config.mission.is_some()
+                    || !(4..MAX_BODIES as u32).contains(&count)
+                    || self.bodies.len() + count as usize > self.max_bodies()
+                    || !disorder.is_finite()
+                    || !(0.0..=1.0).contains(&disorder)
+                    || self.spent + 16.0 > self.budget() + 1e-8
+                {
+                    return Err("Choose 4–8191 swarm particles in a new sandbox, with disorder from 0 to 100%".into());
+                }
+                // Fixed total mass as resolution increases; every particle both feels
+                // and sources gravity, with volume-derived physical contact radii.
+                for i in 0..count {
+                    let radius = 0.8 + 4.4 * self.random().sqrt();
+                    let angle =
+                        (i as f64 * 2.399_963_229_728_653 + self.random() * 0.1).rem_euclid(TAU);
+                    let speed = 1.0 + (self.random() - 0.5) * disorder * 0.3;
+                    self.launch_mass(
+                        Kind::Dust,
+                        16.0 * EARTH / f64::from(count),
+                        radius,
+                        angle,
+                        speed,
+                    );
+                }
+            }
+
             Command::Generate {
                 style,
                 count,
@@ -574,6 +614,9 @@ impl World {
                 chaos,
             } => {
                 let modern = matches!(command, Command::GenerateSystem { .. });
+                if style == generator::SystemStyle::Swarm && self.rules_version < 6 {
+                    return Err("Swarm generation requires current simulation rules".into());
+                }
                 if self.rules_version < 3
                     || modern && self.rules_version < 4
                     || self.config.mission.is_some()
@@ -657,7 +700,9 @@ impl World {
                 {
                     return Err(format!("Choose a moon below 10% of its planet's mass, at {min:.4}–{max:.4} AU, and 20–140% orbital speed"));
                 }
-                if self.bodies.len() >= MAX_BODIES || self.spent + mass > self.budget() + 1e-8 {
+                if self.bodies.len() >= self.max_bodies()
+                    || self.spent + mass > self.budget() + 1e-8
+                {
                     return Err("Not enough matter or body capacity for a moon".into());
                 }
                 let d = self.direction(angle);
@@ -817,7 +862,7 @@ impl World {
                 {
                     return Err("Choose 4–40 debris bodies, width 0.05–2 AU, disorder 0–60%, within 0.25–6 AU".into());
                 }
-                if self.bodies.len() + count as usize > MAX_BODIES
+                if self.bodies.len() + count as usize > self.max_bodies()
                     || self.spent + count as f64 * 0.25 > self.budget() + 1e-8
                 {
                     return Err("Not enough matter or body capacity for this disk".into());
@@ -858,7 +903,7 @@ impl World {
                 }
                 if !radius.is_finite()
                     || !(0.5..=5.5).contains(&radius)
-                    || self.bodies.len() + 12 > MAX_BODIES
+                    || self.bodies.len() + 12 > self.max_bodies()
                     || self.spent + 3.0 > self.budget() + 1e-8
                 {
                     return Err(
@@ -925,7 +970,7 @@ impl World {
                 return Err("Leave room for fragments to meet through orbital motion; overlapping placements do not count as formation".into());
             }
         }
-        if self.bodies.len() >= MAX_BODIES || self.spent + cost > self.budget() + 1e-8 {
+        if self.bodies.len() >= self.max_bodies() || self.spent + cost > self.budget() + 1e-8 {
             return Err("Not enough matter or body capacity".into());
         }
         Ok(())
@@ -1032,21 +1077,28 @@ impl World {
         });
         self.next_event += 1;
     }
-    fn update_forces(&mut self) {
-        self.forces.update(&self.bodies, self.softening().powi(2));
+    fn update_forces(&mut self, tree_allowed: bool) {
+        self.forces.update(
+            &self.bodies,
+            self.softening().powi(2),
+            tree_allowed && self.rules_version >= 6,
+        );
     }
     /// Each tick always runs four kick-drift-kick substeps. Speed never changes dt.
     pub fn step(&mut self) {
         self.integrate_tick(4);
     }
     fn integrate_tick(&mut self, substeps: u32) {
+        self.integrate_tick_with_solver(substeps, true);
+    }
+    fn integrate_tick_with_solver(&mut self, substeps: u32, tree_allowed: bool) {
         if self.exhausted() {
             return;
         }
         self.work_units += self.tick_work();
         let h = DT / f64::from(substeps);
         self.merge_contacts(0.0);
-        self.update_forces();
+        self.update_forces(tree_allowed);
         for _ in 0..substeps {
             for (i, b) in self.bodies.iter_mut().enumerate() {
                 b.vel = b.vel.plus(self.forces.output[i].scale(h / 2.0));
@@ -1057,7 +1109,7 @@ impl World {
                 }
             }
             self.merge_contacts(h);
-            self.update_forces();
+            self.update_forces(tree_allowed);
             for (i, b) in self.bodies.iter_mut().enumerate() {
                 b.vel = b.vel.plus(self.forces.output[i].scale(h / 2.0));
             }
@@ -1375,7 +1427,7 @@ impl World {
             ejections: self.ejections,
             assisted_ejections: self.assisted_ejections,
             absorbed: self.absorbed,
-            available_slots: MAX_BODIES - self.bodies.len(),
+            available_slots: self.max_bodies().saturating_sub(self.bodies.len()),
             actions_remaining: 2048 - self.commands.len(),
             tools: [Kind::Rocky, Kind::Ice, Kind::Giant, Kind::Dust].map(|kind| ToolAvailability {
                 kind,

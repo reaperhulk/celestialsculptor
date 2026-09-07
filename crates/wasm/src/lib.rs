@@ -101,6 +101,9 @@ impl Simulation {
         })
         .expect("finite snapshot")
     }
+    pub fn body_count(&self) -> u32 {
+        self.world.bodies.len() as u32
+    }
     pub fn flags(&self) -> u8 {
         u8::from(self.world.completed) | (u8::from(self.world.exhausted()) << 1)
     }

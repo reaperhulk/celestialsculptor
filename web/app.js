@@ -104,10 +104,11 @@ let moonHost=null;
 let inspectorIds='';
 const bodyInspector=new Inspector($('inspector'));
 function inspect(){
-  const ids=state?.bodies.map(b=>b.id).join(',')||'';
+  const listed=(state?.bodies||[]).slice(0,256),chosen=state?.bodies.find(b=>b.id===selectedBody);if(chosen&&!listed.some(b=>b.id===chosen.id))listed.push(chosen);
+  const ids=listed.map(b=>b.id).join(',');
   if(ids!==inspectorIds){
     inspectorIds=ids;$('inspect-body').replaceChildren();
-    for(const b of state?.bodies||[]){const option=document.createElement('option');option.value=String(b.id);option.textContent=b.id===0?'The star':`World ${b.id} · ${b.kind}`;$('inspect-body').append(option);}
+    for(const b of listed){const option=document.createElement('option');option.value=String(b.id);option.textContent=b.id===0?'The star':`World ${b.id} · ${b.kind}`;$('inspect-body').append(option);}
   }
   const body=state?.bodies.find(b=>b.id===selectedBody);
   $('migration-tools').hidden=mission!==null||!body||body.id===0||body.parent!==null||state?.rules_version<3;
@@ -159,7 +160,7 @@ function renderState(next){
     if(!writeProfile(storage,profile))toast('Discovery earned. Device storage is unavailable, so progress will last for this session.');
     else toast(`Discovery: ${m.unlock}`);
   }
-  $('playback-note').textContent=next.busy?'Rebuilding experiment…':`${s.moons} bound moon${s.moons===1?'':'s'} · ${s.formed} worlds formed from debris`;
+  $('playback-note').textContent=next.busy?'Rebuilding experiment…':`${next.bodies.length} bodies · ${s.moons} bound moon${s.moons===1?'':'s'} · ${s.formed} worlds formed from debris`;
   updateResonanceReadings(next);
   $('next-mission').hidden=!s.completed||mission===null;
   $('next-mission').textContent=mission===9?'Explore the sandbox':'Next challenge';

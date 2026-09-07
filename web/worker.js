@@ -11,7 +11,8 @@ try {
     try {
       const wasPlaying=runtime.playing;
       runtime.advanceElapsed((now - previous) / 1000);
-      if ((runtime.playing && now - lastState >= 33) || (wasPlaying && !runtime.playing)) {
+      const count=runtime.sim?.body_count()||0,interval=count>=2048?100:count>256?66:33;
+      if ((runtime.playing && now - lastState >= interval) || (wasPlaying && !runtime.playing)) {
         runtime.state(); lastState = now;
       }
     } catch (error) {

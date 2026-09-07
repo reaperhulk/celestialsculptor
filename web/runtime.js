@@ -2,7 +2,8 @@ import {PLAYBACK_SPEEDS} from './playback.js';
 import {historyView} from './history-view.js';
 // Worker-owned controller. Its protocol is tested with real WASM without graphics.
 export class Runtime {
-  constructor(Simulation, send) {
+  constructor(Simulation, send, {now=()=>performance.now(), workBudgetMs=6}={}) {
+    this.now=now;this.workBudgetMs=workBudgetMs;
     this.Simulation = Simulation;
     this.send = send;
     this.sim = null;
@@ -39,7 +40,7 @@ export class Runtime {
       let slice=performance.now(),reported=-Infinity;
       for(;;){
         if(this.operation!==operation)throw new Error('Reconstruction cancelled. Your current experiment is unchanged.');
-        if(temp.advance_import(32))return temp;
+        if(temp.advance_import(1))return temp;
         const now=performance.now();
         if(now-reported>=250){this.send({type:'progress',id:operation.id,operation:operation.type,tick:temp.import_tick(),end_tick:data.end_tick});reported=now;}
         if(now-slice>=6){await new Promise(resolve=>setTimeout(resolve,0));slice=performance.now();}
@@ -142,13 +143,16 @@ export class Runtime {
     this.debt -= ticks;
     if (ticks) {
       const previous = this.sim.flags();
-      if(this.eventPolicy==='off')this.sim.advance(ticks);
-      else {
-        for(let remaining=ticks;remaining>0;){
-          const count=Math.min(8,remaining),serial=this.sim.event_serial();this.sim.advance(count);remaining-=count;
-          if(this.sim.event_serial()!==serial){this.debt=0;if(this.eventPolicy==='pause')this.playing=false;else this.speed=.25;break;}
-        }
+      const large=(this.sim.body_count?.()||0)>64,start=this.now();
+      let remaining=ticks;
+      while(remaining>0){
+        const count=large?1:this.eventPolicy==='off'?remaining:Math.min(8,remaining);
+        const serial=this.eventPolicy==='off'?null:this.sim.event_serial();
+        this.sim.advance(count);remaining-=count;
+        if(serial!==null&&this.sim.event_serial()!==serial){this.debt=0;remaining=0;if(this.eventPolicy==='pause')this.playing=false;else this.speed=.25;break;}
+        if(large&&this.now()-start>=this.workBudgetMs)break;
       }
+      this.debt=Math.min(128,this.debt+remaining);
       const current = this.sim.flags();
       if ((current & 2) || (!(previous & 1) && (current & 1))) this.playing = false;
     }

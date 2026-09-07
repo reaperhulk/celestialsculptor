@@ -50,8 +50,9 @@ fn malformed_replay_is_rejected_without_unbounded_work() {
 }
 
 #[test]
-fn body_limit_rejects_whole_belt_without_rng_or_budget_changes() {
+fn legacy_body_limit_rejects_whole_belt_without_rng_or_budget_changes() {
     let mut w = world(42);
+    w.rules_version = 5;
     for _ in 0..5 {
         w.apply(Command::SeedBelt { radius: 2.5 }).unwrap();
     }

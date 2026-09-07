@@ -86,6 +86,13 @@ impl ForceProbe {
     }
 }
 
+/// Whole-engine reference for convergence tests, never selected by UI cadence.
+pub fn advance_exact(world: &mut World, ticks: u32) {
+    for _ in 0..ticks {
+        world.integrate_tick_with_solver(4, false);
+    }
+}
+
 #[cfg(test)]
 mod tree_tests {
     use super::*;

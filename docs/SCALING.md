@@ -1,6 +1,27 @@
 # Scaling the orbital simulation
 
-## Current result and next decision
+## Current live architecture
+
+Rules 6 supports up to **8,192 physical bodies** in the sandbox. Choose **Large
+particle swarm** in the generator; begin with 1,024. All particles both feel and
+source gravity. Historical replays and missions retain the 64-body cap and exact
+solver. Current systems use exact f64 SIMD below 512 bodies and a symmetric mutual
+tree with second-order cell forces and tides above that, at opening 0.25. The star
+and nearby leaves remain direct. Four integration substeps are unchanged.
+
+The first whole-engine host sweep sustained 269 ticks/s at 1,024 quiet bodies and
+108 at 2,048; 1x requests 102.4 ticks/s. Larger systems slow simulated time. Worker
+batches yield at tick boundaries, display cadence is independent, and histories,
+trails and menus have memory/work limits. Physical iPhone/iPad FPS is not established
+by these host measurements. Ongoing needs are impact-ledger work and snapshot
+transport, followed by GPU compute qualification.
+
+Run `npm run bench:gravity` for force/error curves through 8,192 bodies and
+`npm run bench:scaling` for complete simulation and snapshot workloads. Actions runs
+both on x64 and Apple Silicon and archives raw samples. The force probe is compiled
+separately so benchmark-only code does not increase the live download.
+
+## Initial SIMD measurements (iteration 150)
 
 The release build enables WASM SIMD128. Gravity processes two independent pairs
 with `f64x2` arithmetic, retaining double precision, the existing summation order,
@@ -31,8 +52,8 @@ ledgers, observation histories, and exported replays must match exactly. Actions
 runs this gate and retains `simd-benchmark-results.json` with raw samples, host,
 toolchain, and commit. Native/WASM tolerance checks and browser engine tests remain.
 
-**The supported body cap is still 64.** SIMD is the first improvement; increasing
-the cap requires the work below. Do not equate a smooth renderer with the worker
+**At this baseline the cap was 64.** The iterations below measure the subsequent
+scaling work. Do not equate a smooth renderer with the worker
 keeping up at the requested speed.
 
 ## Where the work grows

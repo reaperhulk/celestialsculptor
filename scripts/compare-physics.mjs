@@ -31,13 +31,13 @@ try {
   function pair(config, work) {
     const a = new scalar.Simulation(JSON.stringify(config));
     const b = new simd.Simulation(JSON.stringify(config));
-    try { return work(a, b); } finally { a.free(); b.free(); }
+    try { for(const s of [a,b])s.import_replay(JSON.stringify({version:5,config,commands:[],end_tick:0})); return work(a, b); } finally { a.free(); b.free(); }
   }
   const campaign = native('fixtures'), sweep = native('sweep');
   assert.equal(sweep.passed, true);
   for (const example of [...campaign, ...sweep.cases]) {
     pair(example.replay.config, (a, b) => {
-      for (const s of [a, b]) s.import_replay(JSON.stringify(example.replay));
+      for (const s of [a, b]) s.import_replay(JSON.stringify({...example.replay,version:Math.min(5,example.replay.version)}));
       equal(a, b, example.name || `${example.style}/${example.seed}`);
     });
   }
@@ -72,7 +72,7 @@ try {
       pair(fixture.replay.config, (a, b) => {
         const worlds = [a, b];
         for (const index of round % 2 ? [1, 0] : [0, 1]) {
-          const s = worlds[index]; s.import_replay(JSON.stringify(fixture.replay));
+          const s = worlds[index]; s.import_replay(JSON.stringify({...fixture.replay,version:5}));
           const start = performance.now();
           for (let batch = 0; batch < 4; batch++) s.advance(512);
           if (round >= 3) samples[index].push(performance.now() - start);

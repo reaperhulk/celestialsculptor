@@ -23,6 +23,17 @@ pub fn campaign() -> Vec<Scenario> {
         serde_json::from_str::<Vec<Scenario>>(include_str!("../../../scenarios/campaign-v5.json"))
             .expect("valid impact scenarios"),
     );
+    let current: Vec<Scenario> =
+        serde_json::from_str::<Vec<Scenario>>(include_str!("../../../scenarios/campaign-v5.json"))
+            .expect("valid current scenarios")
+            .into_iter()
+            .map(|mut s| {
+                s.name = s.name.replacen("v5", "v6", 1);
+                s.replay.version = 6;
+                s
+            })
+            .collect();
+    cases.extend(current);
     cases
 }
 impl Scenario {

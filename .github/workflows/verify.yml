@@ -37,7 +37,7 @@ jobs:
   web:
     needs: simulation
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: dtolnay/rust-toolchain@49fda20b3f489226feadfba7767be1db54e2cee1 # 1.90.0
@@ -68,12 +68,14 @@ jobs:
       - name: Compare scalar and SIMD physics and throughput
         run: npm run bench:simd
       - run: npm run bench:gravity
+      - run: npm run bench:scaling
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: performance-results
           path: |
             benchmark-results.json
             gravity-benchmark-results.json
+            scaling-benchmark-results.json
             simd-benchmark-results.json
           retention-days: 14
       - run: npx playwright install --with-deps chromium firefox webkit
@@ -103,7 +105,7 @@ jobs:
   arm64:
     name: Apple Silicon physics and WebKit
     runs-on: macos-14
-    timeout-minutes: 25
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: dtolnay/rust-toolchain@49fda20b3f489226feadfba7767be1db54e2cee1 # 1.90.0
@@ -133,6 +135,7 @@ jobs:
       - name: Compare scalar and SIMD on ARM64
         run: npm run bench:simd
       - run: npm run bench:gravity
+      - run: npm run bench:scaling
       - run: npx playwright install webkit
       - name: Execute recipes in ARM64 WebKit
         run: npx playwright test --project=webkit-engine
@@ -143,6 +146,7 @@ jobs:
           path: |
             simd-benchmark-results.json
             gravity-benchmark-results.json
+            scaling-benchmark-results.json
             test-results
             playwright-report
           retention-days: 14

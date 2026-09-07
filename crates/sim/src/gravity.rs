@@ -7,6 +7,8 @@ pub(crate) struct Forces {
     pub mass: Vec<f64>,
     pub output: Vec<V2>,
     softening2: f64,
+    use_tree: bool,
+    tree: crate::gravity_tree::Tree,
 }
 // Cache contents do not change the meaning of a physical state.
 impl PartialEq for Forces {
@@ -15,8 +17,10 @@ impl PartialEq for Forces {
     }
 }
 impl Forces {
-    pub fn update(&mut self, bodies: &[Body], softening2: f64) {
-        if self.x.len() == bodies.len()
+    pub fn update(&mut self, bodies: &[Body], softening2: f64, tree_allowed: bool) {
+        let use_tree = tree_allowed && bodies.len() >= 512;
+        if self.use_tree == use_tree
+            && self.x.len() == bodies.len()
             && self.softening2.to_bits() == softening2.to_bits()
             && bodies.iter().enumerate().all(|(i, b)| {
                 self.x[i].to_bits() == b.pos.x.to_bits()
@@ -27,6 +31,7 @@ impl Forces {
             return;
         }
         self.softening2 = softening2;
+        self.use_tree = use_tree;
         self.x.clear();
         self.y.clear();
         self.mass.clear();
@@ -37,6 +42,17 @@ impl Forces {
         }
         self.output.resize(bodies.len(), V2::default());
         self.output.fill(V2::default());
+        if use_tree {
+            self.tree.compute(
+                &self.x,
+                &self.y,
+                &self.mass,
+                softening2,
+                0.25,
+                &mut self.output,
+            );
+            return;
+        }
         #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
         crate::gravity_simd::accelerations(
             &self.x,
@@ -79,11 +95,11 @@ mod tests {
                 _ => (),
             }
             let softening2 = if change == 5 { 0.001 } else { 1e-8 };
-            cache.update(&w.bodies, softening2);
+            cache.update(&w.bodies, softening2, false);
             let mut expected = vec![V2::default(); w.bodies.len()];
             direct(&cache.x, &cache.y, &cache.mass, softening2, &mut expected);
             assert_eq!(cache.output, expected);
-            cache.update(&w.bodies, softening2);
+            cache.update(&w.bodies, softening2, false);
             assert_eq!(cache.output, expected);
         }
     }

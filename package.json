@@ -17,7 +17,8 @@
     "verify": "node scripts/verify.mjs",
     "report": "node scripts/release-report.mjs",
     "audit": "node scripts/audit-design.mjs",
-    "bench:gravity": "node scripts/gravity-benchmark.mjs"
+    "bench:gravity": "node scripts/gravity-benchmark.mjs",
+    "bench:scaling": "node scripts/scaling-benchmark.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.55.0"

@@ -59,7 +59,7 @@ try {
   }
   // Empty pair loops, single pairs, both vector tails, and all historical rules.
   const config = {seed: 42, mission: null, star_mass: 1};
-  for (const count of [1, 2, 3, 4, 5, 31, 33, 63]) for (let version = 1; version <= 5; version++) {
+  for (const count of [1, 2, 3, 4, 5, 31, 33, 63]) for (let version = 1; version <= 6; version++) {
     const replay = {version, config, end_tick: 512, commands: Array.from({length: count - 1}, (_, i) => ({
       tick: 0, command: {type: 'launch', kind: 'rocky', radius: .5 + i * .08, angle: i * 2.399963229728653, speed: 1},
     }))};
@@ -69,6 +69,12 @@ try {
     });
   }
 
+  for(const count of [256,512,1024]) pair(config,(a,b)=>{
+    for(const s of [a,b])s.command(JSON.stringify({type:'seed_swarm',count:count-1,disorder:.1}));
+    equal(a,b,`swarm/${count}/initial`);
+    for(const s of [a,b])s.advance(32);
+    equal(a,b,`swarm/${count}/advanced`);
+  });
   const cases = [];
   for (const fixture of native('bench').cases) {
     const samples = [[], []];
@@ -93,7 +99,7 @@ try {
     dirty: run('git', ['status', '--porcelain', '--untracked-files=no']).trim() !== '',
     cpu: cpus()[0]?.model, node: process.version, rust: run('rustc', ['--version']).trim(),
     backend: simd.gravity_backend(), bitwiseEqualCheckpoints: checkpoints, cases,
-    scope: 'Whole simulation ticks at the current 64-body cap; host CPU, not device FPS or thousand-body support.',
+    scope: 'Whole simulation ticks at the small-system exact path; host CPU, not device FPS or thousand-body support.',
   };
   await writeFile('simd-benchmark-results.json', JSON.stringify(report, null, 2) + '\n');
   console.log(JSON.stringify({...report, cases: cases.map(({samples, ...item}) => item)}, null, 2));

@@ -1,5 +1,5 @@
 //! Bounded gameplay impact regimes; see docs/COLLISIONS.md for scientific limits.
-use crate::{Body, Impact, Kind, Material, World, G, MAX_BODIES, V2};
+use crate::{Body, Impact, Kind, Material, World, G, V2};
 use serde::{Deserialize, Serialize};
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -95,7 +95,11 @@ impl World {
             heat = (incoming - 0.5 * reduced * relative.norm2()).max(0.);
             self.grazes += 1;
         } else {
-            let count = if self.bodies.len() < MAX_BODIES { 3 } else { 2 };
+            let count = if self.bodies.len() < self.max_bodies() {
+                3
+            } else {
+                2
+            };
             let fractions: &[f64] = if count == 3 {
                 &[0.65, 0.25, 0.1]
             } else {
@@ -237,7 +241,8 @@ mod tests {
             .unwrap();
         }
         if capacity {
-            while w.bodies.len() < MAX_BODIES {
+            w.rules_version = 5;
+            while w.bodies.len() < crate::LEGACY_MAX_BODIES {
                 let mut b = w.bodies[1].clone();
                 b.id = w.next_id;
                 w.next_id += 1;
@@ -273,7 +278,7 @@ mod tests {
                     } else {
                         assert!(handled);
                     }
-                    assert!(w.bodies.len() <= MAX_BODIES);
+                    assert!(w.bodies.len() <= w.max_bodies());
                     assert!((w.bodies.iter().map(|b| b.mass).sum::<f64>() - mass).abs() < 1e-14);
                     assert!(w.momentum().minus(p).norm() < 1e-13);
                     assert!((w.angular_momentum() - l).abs() < 1e-13);

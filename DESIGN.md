@@ -1705,3 +1705,27 @@ Validation: headless tests exercise 8,192-body sizing under reversed ordering,
 selected trail retention, the global line budget, and allocation reuse. Existing
 close-pass, moon-frame, appearance and vertex-bound checks pass. Browser rendering
 remains gated by Actions, including the prior close-giant phone regression.
+
+### 158 — Enable versioned large swarms with bounded worker slices
+
+Review needs: force and render kernels now scale, but generation, replay limits,
+worker batch duration, snapshot cost and history storage still assume small worlds.
+Implemented: rules 6 sandbox supports up to 8,192 bodies; historical rules and
+missions retain 64. Generate a swarm with fixed total mass and volume-derived
+radii at increasing resolution. Every particle exerts gravity. Above 511 bodies,
+the live solver uses the measured mutual tree with conservative opening 0.25;
+smaller systems retain direct SIMD. Worker work yields after a six-ms budget at
+tick boundaries, retaining debt; reconstruction yields between ticks. History is
+bounded by 65,536 readings, inspector menus by 256 entries plus the selected body,
+and large snapshot cadence is reduced. Existing saves remain reproducible.
+Validation: native suite and 419 scalar/SIMD checkpoints pass, including new-rule
+campaign fixtures and large swarm checkpoints. Tests cover maximum import/generation,
+atomic rejection, legacy limits, budgeted Pause, direct-solver trajectory/energy
+convergence, and prograde/retrograde moons with 512 gravitating bodies. Browser
+swarm/navigation coverage is added. Whole-engine host probes sustain about 269
+and 108 ticks/s at 1,024 and 2,048 quiet bodies (1x requests 102.4). At 8,192,
+impacts and full JSON snapshots are costly: 78–100 ms/tick and 36–39 ms snapshot
+encode/parse. Next needs: incremental impact energy and compact transferred frames.
+The long notebook journey gets a 60-second overall test budget; each assertion
+retains its response limit. Its timeout was the only failure of the prior release,
+whose close-giant phone and tablet checks now pass.

@@ -79,7 +79,17 @@ impl World {
         {
             self.history.frames.pop();
         }
-        if self.history.frames.len() >= MAX_SAMPLES {
+        while self.history.frames.len() >= MAX_SAMPLES
+            || (self.history.frames.len() > 1
+                && self
+                    .history
+                    .frames
+                    .iter()
+                    .map(|f| f.bodies.len())
+                    .sum::<usize>()
+                    + frame.bodies.len()
+                    > 65_536)
+        {
             // Keep the beginning and decimate uniformly; never grow with run age.
             self.history.frames = self.history.frames.iter().step_by(2).cloned().collect();
             self.history.stride *= 2;

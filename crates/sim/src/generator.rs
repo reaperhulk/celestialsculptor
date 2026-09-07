@@ -4,6 +4,7 @@ use std::f64::consts::{PI, TAU};
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum SystemStyle {
+    Swarm,
     Calm,
     Nursery,
     Chaos,
@@ -33,6 +34,7 @@ pub fn commands(
     let mut rng = Rng(seed);
     let mut commands = vec![];
     match style {
+        SystemStyle::Swarm => return Err("Use current swarm generation rules".into()),
         SystemStyle::Nursery => commands.push(Command::SeedDisk {
             radius: 1.05 + rng.next() * 0.4,
             spread: 0.05 + chaos * 0.3,

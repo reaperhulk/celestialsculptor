@@ -19,7 +19,12 @@ pub fn commands(
     chaos: f64,
     star_mass: f64,
 ) -> Result<Vec<Command>, String> {
-    if !(4..=32).contains(&count)
+    if !(4..=if style == SystemStyle::Swarm {
+        8191
+    } else {
+        32
+    })
+        .contains(&count)
         || !chaos.is_finite()
         || !(0.0..=1.0).contains(&chaos)
         || !star_mass.is_finite()
@@ -31,6 +36,10 @@ pub fn commands(
     let phase = rng.next() * TAU;
     let mut out = vec![];
     match style {
+        SystemStyle::Swarm => out.push(Command::SeedSwarm {
+            count,
+            disorder: chaos,
+        }),
         SystemStyle::Nursery => out.push(Command::SeedDisk {
             radius: 0.62 + rng.next() * 0.22,
             spread: 0.05 + chaos * 0.035,
