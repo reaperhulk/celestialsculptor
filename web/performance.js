@@ -1,3 +1,9 @@
+import {BASE_TICKS_PER_SECOND} from './playback.js';
+
+export function simulationPace(ticksPerSecond,speed=1,playing=true){
+ const valid=Number.isFinite(speed)&&speed>0,rate=Number.isFinite(ticksPerSecond)?Math.max(0,ticksPerSecond):0;
+ return {requestedSpeed:valid?speed:null,achievedSpeed:playing?rate/BASE_TICKS_PER_SECOND:0,targetTicksPerSecond:playing&&valid?speed*BASE_TICKS_PER_SECOND:0,throughputRatio:playing&&valid?rate/(speed*BASE_TICKS_PER_SECOND):null};
+}
 export class FrameMeter {
  constructor(){this.frames=[];this.costs=[];this.lastReport=0;this.lastTick=0;}
  record(time,cost){this.frames.push(time);this.costs.push(cost);if(this.frames.length>120){this.frames.shift();this.costs.shift();}}

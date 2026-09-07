@@ -1884,3 +1884,37 @@ Malformed state, nonfinite values, invalid tick requests and f32 range failures
 are rejected. Actual shader execution and orbital accuracy are CI gates; this
 prototype does not provide gameplay collisions, migration, escapes, histories or
 cross-device replay and cannot be selected for live physics.
+
+
+### 167 — Report achieved physics speed alongside rendered FPS
+
+Review needs: 60 rendered FPS alone can conceal a large simulation advancing
+below the requested warp. Device reports required manual tick-rate conversion,
+and the preparation message incorrectly said quarter speed for 1x swarms.
+Implemented: show achieved/requested physics speed in the FPS overlay and export
+both plus a throughput ratio in device report version 2. Share the scheduler's
+102.4 ticks/s base rate, reset the overlay measurement on timeline, speed and
+play/pause transitions, and report the actual prepared scenario speed. Paused
+physics is identified explicitly; bounded recordings still exclude idle time.
+Validation: all 287 headless Node tests and workspace/all-feature Clippy pass.
+A 60-FPS fixture with half-rate physics reports 0.5x achieved against 1x requested;
+catch-up, slow motion, pause and invalid rates are covered. Browser swarm checks
+require the paused label after acknowledgement. Build contracts and payload
+budgets pass at 474,114 WASM bytes and about 725 KB total. The Apple M1 rules-6/7
+comparison independently confirms disordered 8,192-body ticks improving from
+51.48 to 31.10 ms (1.66x), with the existing physical accuracy gates unchanged.
+
+Current next needs: obtain sustained phone/tablet reports that include both frame
+rate and achieved warp; compare the resident GPU result with complete CPU ticks
+without conflating its missing collision/history work; qualify GPU collision and
+replay behavior before activation; and reduce tree moment/build work. The new
+8,192-body sampled profile is 45% SIMD leaf pairs, 20% traversal and 14% tree
+building, with roughly 8% in sorting helpers. Profile shares include profiler
+cost and describe where to investigate, not an independent speedup measurement.
+
+The iteration-166 Apple GPU job passes resident moving-orbit qualification:
+1,024/4,096/8,192-body collisionless speedups are 1.54x/2.42x/2.34x. The 8,192
+case is 24.46 to 10.46 ms/tick against the f64 orbital oracle. One-year moon
+phase errors stay below 0.001 radians and split batching matches exactly. GPU
+energy drift (2.44e-6) and momentum drift (3.12e-6) remain greater than production
+f64 requirements; both precision and collision handling remain activation gates.

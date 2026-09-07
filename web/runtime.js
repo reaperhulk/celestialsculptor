@@ -1,4 +1,4 @@
-import {PLAYBACK_SPEEDS} from './playback.js';
+import {PLAYBACK_SPEEDS,BASE_TICKS_PER_SECOND} from './playback.js';
 import {historyView} from './history-view.js';
 // Worker-owned controller. Its protocol is tested with real WASM without graphics.
 export class Runtime {
@@ -140,7 +140,7 @@ export class Runtime {
   advanceElapsed(seconds) {
     if (!this.playing || !this.sim || !Number.isFinite(seconds) || seconds <= 0) return;
     // Backpressure is explicit. A slow worker slows simulated time; dt never grows.
-    this.debt = Math.min(128, this.debt + Math.max(0, Math.min(0.1, seconds)) * 102.4 * this.speed);
+    this.debt = Math.min(128, this.debt + Math.max(0, Math.min(0.1, seconds)) * BASE_TICKS_PER_SECOND * this.speed);
     const ticks = Math.floor(this.debt);
     this.debt -= ticks;
     if (ticks) {

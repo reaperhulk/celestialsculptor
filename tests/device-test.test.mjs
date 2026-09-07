@@ -15,3 +15,8 @@ test('large device workloads instantiate the requested physical population at 1x
  for(const count of [1024,4096,8192]){const name=`swarm${count}`,replay=deviceScenario(name),sim=new Simulation(JSON.stringify(replay.config));try{sim.import_replay(JSON.stringify(replay));assert.equal(sim.body_count(),count);assert.equal(deviceScenarioSpeed(name),1);assert.equal(replay.version,7);}finally{sim.free();}}
  assert.equal(deviceScenarioSpeed('stress'),.25);
 });
+
+test('smooth device frames cannot hide simulation throughput below the requested speed',()=>{
+ const r=new DeviceRecording({speed:1},1000);for(let i=0;i<=60;i++)r.record(i*1000/60,2,Math.floor(i*51.2/60),true);
+ const report=r.report();assert.equal(report.version,2);assert.ok(Math.abs(report.fps-60)<1e-8);assert.equal(report.requestedSpeed,1);assert.equal(report.targetTicksPerSecond,102.4);assert.ok(report.achievedSpeed>.49&&report.achievedSpeed<.51);assert.equal(report.throughputRatio,report.achievedSpeed);
+});

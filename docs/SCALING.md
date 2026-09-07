@@ -62,6 +62,18 @@ the deployed engine. `npm run bench:tree-rules` reproduces the versioned compari
 and records both CPU and wall samples in CI. Results across the two openings are
 qualified by physical invariants and convergence, rather than exact trajectory equality.
 
+Apple M1 Actions run [34136539164](https://github.com/reaperhulk/celestialsculptor/actions/runs/34136539164)
+independently measured the disordered cases below. The ARM job passed; its full
+workflow was superseded by iteration 166. These are complete physics ticks in
+Node/WASM, not phone FPS or combined rendering measurements.
+
+| Bodies | Rules 6 ms/tick | Rules 7 ms/tick | Speedup |
+|---:|---:|---:|---:|
+| 1,024 | 4.165 | 3.035 | 1.37× |
+| 2,048 | 10.077 | 7.405 | 1.36× |
+| 4,096 | 21.291 | 14.213 | 1.50× |
+| 8,192 | 51.483 | 31.103 | 1.66× |
+
 The continuation starts with a repeatable profile: `npm run build && npm run
 profile:scaling -- 8192 256` writes `scaling.cpuprofile` using the matching named
 WASM artifact. Sampled timings include profiler overhead. The iteration-163
@@ -87,9 +99,9 @@ trajectory qualification and is selected only for new rules-7 worlds.
 2. Profile the retained tree at the largest counts: tune leaf size, opening/error
    curves and construction cost with the existing exact force and orbit gates.
    Keep replay rules explicit for changes that alter arithmetic or approximation.
-3. If GPU readback still loses at larger counts, prototype device-resident
-   integration and collision handling as a separate qualified backend. Include
-   conservation, close encounters, resonance and replay portability in acceptance.
+3. Qualify the resident GPU prototype (166), then implement GPU collision handling
+   only if moving-orbit throughput and precision justify it. Include conservation,
+   close encounters, resonance and replay portability in acceptance.
 4. Evaluate deterministic shared-memory workers only after verifying the hosting
    requirements and measuring synchronization overhead against the remaining CPU
    bottleneck. No live multithreaded or GPU physics backend is claimed today.
@@ -293,3 +305,21 @@ renderer. This is a **collisionless qualification prototype**, not a new live
 backend or a full-engine throughput claim. Collision detection, migration,
 escapes, observation history and deterministic cross-device replay remain required
 before a GPU backend can advance a playable system.
+
+
+Apple hardware run [34137564530](https://github.com/reaperhulk/celestialsculptor/actions/runs/34137564530)
+passed the resident orbit gates. Warmed median milliseconds per collisionless tick:
+
+| Bodies | f64 CPU SIMD/tree | Resident f32 GPU | Speedup |
+|---:|---:|---:|---:|
+| 65 | 0.0875 | 1.7125 | 0.05× |
+| 1,024 | 2.4000 | 1.5625 | 1.54× |
+| 4,096 | 10.8625 | 4.4875 | 2.42× |
+| 8,192 | 24.4625 | 10.4625 | 2.34× |
+
+One-year moon phase errors were 0.000781 and 0.000899 radians; relative energy
+drift was −2.44e−6 (f64 reference 3.53e−12), and normalized momentum drift was
+3.12e−6. Batch invariance passed exactly. These exploratory float32 limits are
+looser than production conservation requirements. The gain justifies further GPU
+collision/precision work; it does not qualify activation or promise these rates
+for complete gameplay on iPhone/iPad. Below the crossover, keep the f64 CPU path.

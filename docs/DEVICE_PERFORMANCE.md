@@ -6,12 +6,16 @@ Prepare a scenario; this saves the current experiment in the notebook. Record
 five minutes, pan/pinch/follow bodies, and open Observe while the simulation runs.
 
 - 64 worlds: sustained gravity at ¼ speed; denser systems have the same 600-year age range.
+- 1,024 / 4,096 / 8,192 bodies: disordered physical swarms at requested 1×.
 - Moon tracking: follow the host and a moon; pinch and pan between local/system views.
 - Nursery: observe impacts and charts while bodies merge, graze or fragment.
 
 Download the timing report. It includes exact replay conditions, browser,
 viewport, DPR, rendering settings, build revision, playback speed, active duration, frame percentiles, slowest
-frame, draw CPU and simulation tick throughput. Hidden and paused intervals are
+frame, draw CPU, simulation tick throughput, achieved speed and requested speed.
+Report version 2 includes `throughputRatio`: 1 means the simulation kept pace;
+0.5 means it achieved half the requested warp. The FPS overlay shows the same
+achieved/requested speed. A 60-FPS scene can still have a throughput ratio below 1. Hidden and paused intervals are
 excluded. A changed system, speed, rendering setting or viewport ends the recording; an early download is a partial
 report. Histograms have fixed memory; delays over 250 ms have a separate overflow
 count and the actual maximum is retained. Draw CPU is not GPU time.

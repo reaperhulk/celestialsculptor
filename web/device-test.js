@@ -1,3 +1,4 @@
+import {simulationPace} from './performance.js';
 // Fixed histograms keep a five-minute device recording independent of run length.
 export class DeviceRecording {
  constructor(metadata,duration=300000){this.metadata=metadata;this.duration=duration;this.elapsed=0;this.frames=0;this.intervals=new Uint32Array(1001);this.draws=new Uint32Array(1001);this.last=null;this.lastTick=null;this.ticks=0;this.maxInterval=0;this.done=false;this.reason='recording';}
@@ -7,7 +8,7 @@ export class DeviceRecording {
   this.last=time;this.lastTick=tick;if(this.elapsed>=this.duration)this.stop('completed');
  }
  stop(reason='stopped'){this.done=true;this.reason=reason;}
- report(){const percentile=(bins,p)=>{const target=Math.ceil(this.frames*p);let count=0;for(let i=0;i<bins.length;i++){count+=bins[i];if(count>=target)return i/4;}return 0;};return {format:'celestial-device-recording',version:1,...this.metadata,reason:this.reason,activeSeconds:this.elapsed/1000,frames:this.frames,fps:this.elapsed?this.frames*1000/this.elapsed:0,p50FrameMs:percentile(this.intervals,.5),p95FrameMs:percentile(this.intervals,.95),p99FrameMs:percentile(this.intervals,.99),p95DrawCpuMs:percentile(this.draws,.95),maxFrameMs:this.maxInterval,ticksPerSecond:this.elapsed?this.ticks*1000/this.elapsed:0,histogramOverflowFrames:this.intervals[1000]};}
+ report(){const percentile=(bins,p)=>{const target=Math.ceil(this.frames*p);let count=0;for(let i=0;i<bins.length;i++){count+=bins[i];if(count>=target)return i/4;}return 0;};return {format:'celestial-device-recording',version:2,...this.metadata,reason:this.reason,activeSeconds:this.elapsed/1000,frames:this.frames,fps:this.elapsed?this.frames*1000/this.elapsed:0,p50FrameMs:percentile(this.intervals,.5),p95FrameMs:percentile(this.intervals,.95),p99FrameMs:percentile(this.intervals,.99),p95DrawCpuMs:percentile(this.draws,.95),maxFrameMs:this.maxInterval,ticksPerSecond:this.elapsed?this.ticks*1000/this.elapsed:0,histogramOverflowFrames:this.intervals[1000],...simulationPace(this.elapsed?this.ticks*1000/this.elapsed:0,this.metadata.speed)};}
 }
 export function deviceScenario(name){
  const config={mission:null,seed:42,star_mass:1};let commands;

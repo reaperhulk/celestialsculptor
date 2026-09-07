@@ -8,7 +8,7 @@ import {experimentDifferences} from './comparison.js';
 import {orbitalWatchSpeed} from './playback.js';
 import { Renderer } from './renderer.js';
 import {clampZoom} from './camera.js';
-import {FrameMeter,fpsFlag} from './performance.js';
+import {FrameMeter,fpsFlag,simulationPace} from './performance.js';
 import {DeviceRecording,deviceScenario,deviceScenarioSpeed} from './device-test.js';
 import { installInput } from './input.js';
 import { readProfile, writeProfile, canPlay, nextMission, award, normalizeProfile } from './progression.js';
@@ -138,6 +138,7 @@ $('inspect-body').onchange=()=>selectBody(Number($('inspect-body').value));
 for(const button of document.querySelectorAll('[data-nudge]'))button.onclick=()=>{const command={type:'nudge',id:selectedBody,tangential:0,radial:0};command[button.dataset.nudge]=Number(button.dataset.amount);action('command',{command});};
 let lastUI=0,lastEventSignature='',lastObjectives='';
 function renderState(next){
+  if(!state||next.generation!==state.generation||next.speed!==state.speed||next.playing!==state.playing||next.tick<state.tick)frameMeter.reset(performance.now(),next.tick);
   const present=shouldPresent(state,next,lastUI,performance.now());
   if(deviceRecording&&!deviceRecording.done&&state&&next.speed!==state.speed)stopDeviceRecording('playback speed changed');
   if(next.generation!==state?.generation){frameMeter.reset(performance.now(),next.tick);setPlacement(false);}
@@ -349,7 +350,7 @@ function frame(time){
    deviceRecording.record(time,performance.now()-start,state?.tick||0,Boolean(drawn&&state?.playing&&!document.hidden));
    if(deviceRecording.done){$('device-status').textContent=`Recording ${deviceRecording.reason}. Download the report in View.`;toast('Device recording finished. Its report is ready in View.');}
   }
-  if(viewSettings.showFps&&drawn){frameMeter.record(time,performance.now()-start);const report=frameMeter.report(time,state?.tick||0);if(report){globalThis.__celestialPerformance={...report,bodies:state.bodies.length,dpr:renderer.dpr,camera:{...renderer.center,zoom:renderer.zoom,following:renderer.follow}};$('fps-overlay').textContent=`${report.fps.toFixed(0)} fps · p95 ${report.p95.toFixed(1)} ms\nDraw CPU ${report.drawMs.toFixed(1)} ms · ${report.ticksPerSecond.toFixed(0)} ticks/s\n${state.bodies.length} bodies · DPR ${renderer.dpr}`;}}
+  if(viewSettings.showFps&&drawn){frameMeter.record(time,performance.now()-start);const report=frameMeter.report(time,state?.tick||0);if(report){const pace=simulationPace(report.ticksPerSecond,state.speed,state.playing);globalThis.__celestialPerformance={...report,...pace,bodies:state.bodies.length,dpr:renderer.dpr,camera:{...renderer.center,zoom:renderer.zoom,following:renderer.follow}};$('fps-overlay').textContent=`${report.fps.toFixed(0)} fps · p95 ${report.p95.toFixed(1)} ms\nDraw CPU ${report.drawMs.toFixed(1)} ms · ${report.ticksPerSecond.toFixed(0)} ticks/s\n${state.playing?`Physics ${pace.achievedSpeed.toFixed(2)}× / ${state.speed}× requested`:'Physics paused'}\n${state.bodies.length} bodies · DPR ${renderer.dpr}`;}}
  }
  requestAnimationFrame(frame);
 }requestAnimationFrame(frame);
@@ -449,7 +450,7 @@ $('prepare-device').onclick=async()=>{try{
  await send('play',{value:false});const original=await send('original');notebookEntries=preserveOriginal(storage,notebookEntries,original.replay,original.snapshot);
  deviceScenarioName=$('device-scenario').value;saveEpoch++;await send('import',{replay:JSON.stringify(deviceScenario(deviceScenarioName))});await send('speed',{value:deviceScenarioSpeed(deviceScenarioName)});await send('event_policy',{value:'off'});preparedGeneration=state.generation;renderer?.fit();
  if(deviceScenarioName==='moons'){selectedBody=1;renderer?.focus(1);inspect();}
- $('device-status').textContent='Scenario ready at ¼ speed. Your original is in the notebook. Start recording, then pan, zoom and open Observe while it runs.';await autosave();
+ $('device-status').textContent=`Scenario ready at ${state.speed}× speed. Your original is in the notebook. Start recording, then pan, zoom and open Observe while it runs.`;await autosave();
  }catch(error){$('device-status').textContent=error.message;}};
 $('record-device').onclick=async()=>{try{const response=await fetch(new URL('./build-info.json',import.meta.url));if(!response.ok)throw new Error('Build details could not load. Try recording again.');const build=await response.json();await send('play',{value:true});deviceGeneration=state.generation;
  const {replay}=await send('export');deviceRecording=new DeviceRecording({revision:build.revision,speed:state.speed,scenario:preparedGeneration===state.generation?deviceScenarioName:'current',replay:JSON.parse(replay),browser:navigator.userAgent,viewport:{width:innerWidth,height:innerHeight,pixelRatio:devicePixelRatio},quality:{...viewSettings},dpr:renderer?.dpr,created:new Date().toISOString()});

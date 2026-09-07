@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {worldAt,anchoredZoom,panCenter,pinchCamera,MIN_ZOOM,MAX_ZOOM} from '../web/camera.js';
-import {FrameMeter,fpsFlag} from '../web/performance.js';
+import {FrameMeter,fpsFlag,simulationPace} from '../web/performance.js';
 const near=(a,b)=>assert.ok(Math.hypot(a.x-b.x,a.y-b.y)<1e-10);
 test('wheel zoom keeps the pointed world fixed across desktop, touch and moon scales',()=>{
  for(const [w,h] of [[390,360],[1366,620],[1024,768]])for(const z of [.02,.1,3.5,9])for(const tilt of [.62,1]){
@@ -24,4 +24,11 @@ test('resetting device timing at a restored tick excludes the old timeline',()=>
 test('local scene context counts the current moon family and hides absent stellar bands',async()=>{
  const {sceneContext}=await import('../web/camera.js');const state={bodies:[{id:0,pos:{x:0,y:0}},{id:1,parent:null},{id:2,parent:1}],status:{zone_inner:.9,zone_outer:1.4}};
  assert.equal(sceneContext(state,{x:3,y:0},.1,390,400,1,2),'World 1 · 1 bound moon');assert.equal(sceneContext(state,{x:8,y:0},.1,390,400,1,null),'System view');assert.equal(sceneContext(state,{x:0,y:0},2,390,400,1,null),'Potential habitable zone');
+});
+
+test('physics pace distinguishes slow integration, catch-up and pause',()=>{
+ assert.deepEqual(simulationPace(51.2,1),{requestedSpeed:1,achievedSpeed:.5,targetTicksPerSecond:102.4,throughputRatio:.5});
+ assert.equal(simulationPace(204.8,1).throughputRatio,2);assert.equal(simulationPace(25.6,.25).throughputRatio,1);
+ assert.equal(simulationPace(102.4,16).throughputRatio,1/16);assert.equal(simulationPace(100,1,false).achievedSpeed,0);assert.equal(simulationPace(100,1,false).throughputRatio,null);
+ assert.equal(simulationPace(NaN,1).achievedSpeed,0);assert.equal(simulationPace(100,0).throughputRatio,null);
 });
