@@ -1676,3 +1676,18 @@ at 64–512 bodies, roughly breaks even at 1,024, and reaches 3.45x/3.65x at 4,0
 sparse/clumped bodies. Timings include tree construction. Error is measured without
 a dominating star. Next need: vectorize spatially contiguous leaf interactions;
 current scalar leaf work is the main obstacle to an earlier crossover.
+
+### 156 — Pack and vectorize tree leaves; isolate benchmark code
+
+Review needs: scattered scalar leaf interactions dominate the first tree candidate.
+Its measurement-only WASM exports also exceeded the production download budget.
+Implemented: reorder leaf x/y/mass arrays into reusable contiguous spatial storage
+and share the exact f64x2 row kernel between direct gravity and tree leaves. Keep
+cell force propagation symmetric. Benchmark exports now require a Cargo feature;
+the harness builds a separate temporary package and never changes the live artifact.
+Validation: force-error and conservation gates pass after vectorization. At opening
+0.35, 4,096-body force throughput reaches 7.46x sparse / 8.84x clumped versus direct
+SIMD, up from 3.45x/3.65x; 8,192 reaches 14.27x/15.93x. A tighter opening of 0.2
+also improves at large counts (3.46x/4.82x at 4,096). Production WASM is 486,312
+bytes and again passes the existing 512,000-byte cap; measurement code is excluded.
+These are force timings, not whole-engine or physical-device results.

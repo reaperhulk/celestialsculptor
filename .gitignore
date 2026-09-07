@@ -8,3 +8,6 @@
 /benchmark-results.json
 /simd-benchmark-results.json
 /release-report.json
+gravity-benchmark-results.json
+physics-comparison-results.json
+scaling-benchmark-results.json

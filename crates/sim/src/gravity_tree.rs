@@ -47,6 +47,10 @@ impl Node {
 }
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Tree {
+    x: Vec<f64>,
+    y: Vec<f64>,
+    mass: Vec<f64>,
+    local: Vec<V2>,
     order: Vec<usize>,
     nodes: Vec<Node>,
     pub direct_pairs: usize,
@@ -81,7 +85,17 @@ impl Tree {
             return;
         }
         self.build(0, self.order.len(), x, y, mass);
-        self.interact(0, 0, x, y, mass, soft2, theta * theta, a);
+        self.x.clear();
+        self.y.clear();
+        self.mass.clear();
+        for &i in &self.order {
+            self.x.push(x[i]);
+            self.y.push(y[i]);
+            self.mass.push(mass[i]);
+        }
+        self.local.resize(self.order.len(), V2::default());
+        self.local.fill(V2::default());
+        self.interact(0, 0, soft2, theta * theta);
         self.propagate(
             0,
             V2::default(),
@@ -138,31 +152,18 @@ impl Tree {
         at
     }
     #[allow(clippy::too_many_arguments)]
-    fn interact(
-        &mut self,
-        ai: usize,
-        bi: usize,
-        x: &[f64],
-        y: &[f64],
-        mass: &[f64],
-        soft2: f64,
-        theta2: f64,
-        out: &mut [V2],
-    ) {
+    fn interact(&mut self, ai: usize, bi: usize, soft2: f64, theta2: f64) {
         let a = self.nodes[ai];
         let b = self.nodes[bi];
         if ai == bi {
             if a.leaf() {
                 for p in a.start..a.end {
-                    for q in p + 1..a.end {
-                        direct_pair(self.order[p], self.order[q], x, y, mass, soft2, out);
-                        self.direct_pairs += 1;
-                    }
+                    self.leaf_row(p, p + 1, a.end, soft2);
                 }
             } else {
-                self.interact(a.left, a.left, x, y, mass, soft2, theta2, out);
-                self.interact(a.left, a.right, x, y, mass, soft2, theta2, out);
-                self.interact(a.right, a.right, x, y, mass, soft2, theta2, out);
+                self.interact(a.left, a.left, soft2, theta2);
+                self.interact(a.left, a.right, soft2, theta2);
+                self.interact(a.right, a.right, soft2, theta2);
             }
             return;
         }
@@ -194,18 +195,33 @@ impl Tree {
         }
         if a.leaf() && b.leaf() {
             for p in a.start..a.end {
-                for q in b.start..b.end {
-                    direct_pair(self.order[p], self.order[q], x, y, mass, soft2, out);
-                    self.direct_pairs += 1;
-                }
+                self.leaf_row(p, b.start, b.end, soft2);
             }
         } else if !a.leaf() && (b.leaf() || a.radius >= b.radius) {
-            self.interact(a.left, bi, x, y, mass, soft2, theta2, out);
-            self.interact(a.right, bi, x, y, mass, soft2, theta2, out);
+            self.interact(a.left, bi, soft2, theta2);
+            self.interact(a.right, bi, soft2, theta2);
         } else {
-            self.interact(ai, b.left, x, y, mass, soft2, theta2, out);
-            self.interact(ai, b.right, x, y, mass, soft2, theta2, out);
+            self.interact(ai, b.left, soft2, theta2);
+            self.interact(ai, b.right, soft2, theta2);
         }
+    }
+    fn leaf_row(&mut self, i: usize, start: usize, end: usize, soft2: f64) {
+        #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+        crate::gravity_simd::range(
+            &self.x,
+            &self.y,
+            &self.mass,
+            soft2,
+            &mut self.local,
+            i,
+            start,
+            end,
+        );
+        #[cfg(not(all(target_arch = "wasm32", target_feature = "simd128")))]
+        for j in start..end {
+            direct_pair(i, j, &self.x, &self.y, &self.mass, soft2, &mut self.local);
+        }
+        self.direct_pairs += end - start;
     }
     #[allow(clippy::too_many_arguments)]
     fn propagate(
@@ -224,8 +240,10 @@ impl Tree {
                 .plus(parent_t.apply(n.center.minus(parent_center)));
         let tide = n.tide.plus(parent_t);
         if n.leaf() {
-            for &i in &self.order[n.start..n.end] {
+            for at in n.start..n.end {
+                let i = self.order[at];
                 out[i] = out[i]
+                    .plus(self.local[at])
                     .plus(a)
                     .plus(tide.apply(V2::new(x[i], y[i]).minus(n.center)));
             }

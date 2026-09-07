@@ -1,9 +1,17 @@
 import assert from 'node:assert/strict';
-import {readFile,writeFile} from 'node:fs/promises';
-import {cpus,arch} from 'node:os';
+import {readFile,writeFile,mkdtemp,rm} from 'node:fs/promises';
+import {cpus,arch,tmpdir} from 'node:os';
 import {execFileSync} from 'node:child_process';
-import init,{GravityProbe} from '../dist/pkg/celestial_wasm.js';
-await init({module_or_path:await readFile('dist/pkg/celestial_wasm_bg.wasm')});
+import {join,resolve} from 'node:path';
+import {pathToFileURL} from 'node:url';
+const pkg=await mkdtemp(join(tmpdir(),'celestial-gravity-'));
+const target=resolve('target/gravity-benchmark');
+execFileSync('cargo',['build','--release','--locked','-p','celestial-wasm','--features','benchmarks','--target','wasm32-unknown-unknown'],{env:{...process.env,CARGO_TARGET_DIR:target},stdio:'inherit'});
+execFileSync('wasm-bindgen',[join(target,'wasm32-unknown-unknown/release/celestial_wasm.wasm'),'--target','web','--out-dir',pkg,'--out-name','celestial_wasm'],{stdio:'inherit'});
+await writeFile(join(pkg,'package.json'),' {"type":"module"}');
+const {default:init,GravityProbe}=await import(pathToFileURL(join(pkg,'celestial_wasm.js')).href);
+await init({module_or_path:await readFile(join(pkg,'celestial_wasm_bg.wasm'))});
+try {
 const cases=[];
 for(const cluster of [false,true])for(const bodies of [64,128,256,512,1024,2048,4096,8192]){
  const probe=new GravityProbe(bodies,42,cluster,0);
@@ -27,3 +35,5 @@ for(const cluster of [false,true])for(const bodies of [64,128,256,512,1024,2048,
  }finally{probe.free();}
 }
 await writeFile('gravity-benchmark-results.json',JSON.stringify({revision:execFileSync('git',['rev-parse','HEAD'],{encoding:'utf8'}).trim(),architecture:arch(),cpu:cpus()[0]?.model,node:process.version,scope:'Force kernels only. Tree timings include construction. Error excludes the dominating star. Not whole-game FPS.',cases},null,2)+'\n');
+
+} finally {await rm(pkg,{recursive:true,force:true});}

@@ -188,10 +188,12 @@ pub fn missions() -> String {
 }
 
 /// Isolated force-kernel benchmark; it cannot modify a live simulation.
+#[cfg(feature = "benchmarks")]
 #[wasm_bindgen]
 pub struct GravityProbe {
     inner: celestial_sim::benchmark::ForceProbe,
 }
+#[cfg(feature = "benchmarks")]
 #[wasm_bindgen]
 impl GravityProbe {
     #[wasm_bindgen(constructor)]
