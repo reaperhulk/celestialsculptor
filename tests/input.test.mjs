@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {launchFromPoint,nearestBody} from '../web/input.js';
+import {launchFromPoint,nearestBody,installInput} from '../web/input.js';
 test('touch placement respects stellar offset and supported radius',()=>{
  assert.deepEqual(launchFromPoint(3,1,{x:2,y:1}),{radius:1,angle:0});
  assert.equal(launchFromPoint(0,-2).angle,270);
@@ -17,4 +17,13 @@ test('wheel zoom normalizes pixel line and page units with bounded jumps',async(
  const {wheelZoom}=await import('../web/input.js');
  assert.equal(wheelZoom(2,1),wheelZoom(32,0));assert.equal(wheelZoom(.1,2,800),wheelZoom(80,0));
  assert.equal(wheelZoom(NaN),1);assert.equal(wheelZoom(10000),wheelZoom(150));assert.ok(Math.abs(wheelZoom(50)*wheelZoom(-50)-1)<1e-12);
+});
+test('lifting one finger from a pinch continues panning without another touch or selection',()=>{
+ const handlers={},canvas={clientWidth:800,clientHeight:600,getBoundingClientRect:()=>({left:0,top:0}),focus(){},setPointerCapture(){},addEventListener:(name,fn)=>handlers[name]=fn};
+ const renderer={center:{x:0,y:0},zoom:3,tilt:1,inputMode:'pan'},calls=[];
+ installInput(canvas,renderer,{onDraft:()=>calls.push('draft'),onSelect:()=>calls.push('select')});
+ const event=(pointerId,clientX,clientY)=>({pointerId,clientX,clientY,button:0,pointerType:'touch'});
+ handlers.pointerdown(event(1,300,300));handlers.pointerdown(event(2,400,300));handlers.pointermove(event(2,440,300));
+ handlers.pointerup(event(2,440,300));const before={...renderer.center};handlers.pointermove(event(1,320,320));handlers.pointerup(event(1,320,320));
+ assert.notDeepEqual(renderer.center,before);assert.deepEqual(calls,[]);
 });

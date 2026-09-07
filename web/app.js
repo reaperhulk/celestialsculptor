@@ -18,6 +18,7 @@ import {diskCommand,diskIssue} from './disk.js';
 import {readViewSettings,writeViewSettings} from './preferences.js';
 import {entry,readNotebook,writeNotebook,compare} from './notebook.js';
 import {moonRegion} from './moons.js';
+import {orbitReading} from './readings.js';
 
 const $=id=>document.getElementById(id);
 let state=null, missions=[], mission=0, renderer, selectedBody=null, ready=false, toastTimer;
@@ -44,7 +45,7 @@ function action(type,data={}){return send(type,data).catch(error=>toast(error.me
 function draft(){return {...parseLaunchFields({kind:$('kind').value,radius:$('radius').value,angle:$('angle').value,speed:$('speed').value}),mass:Number($('body-mass').value)};}
 function updateDraft(){
   let d;try{d=draft();}catch(error){if(renderer)renderer.draft=null;$('launch').disabled=true;$('orbit-reading').textContent=error.message;return;}
-  if(renderer)renderer.draft=d;
+  if(renderer)renderer.draft={...d,speed:d.speed*Number($('orbit-direction').value)};
   $('radius-range').value=String(d.radius);$('speed-range').value=String(d.speed*100);
   const tool=state?.status.tools.find(t=>t.kind===d.kind);
   $('body-mass').min=String(tool?.min_mass??.1);$('body-mass').max=String(tool?.max_mass??10);$('body-mass').disabled=state?.rules_version===1;
@@ -100,7 +101,8 @@ function inspect(){
    if(hostKey!==moonHost){moonHost=hostKey;const mass=Math.max(.001,Math.min(.1,body.mass/3.003e-6*.01));$('moon-mass').value=String(Number(mass.toFixed(3)));const region=moonRegion(body,state.orbits.find(([id])=>id===body.id)?.[1],state.bodies[0].mass,mass);$('moon-distance').value=String(Number(Math.sqrt(region.min*region.max).toFixed(4)));}
    updateMoonRegion(body);
   }
-  $('nudge-controls').hidden=!body||body.id===0||(mission!==null&&mission<4)||(state?.rules_version>=3&&mission===6);
+  $('nudge-controls').hidden=!body||body.id===0||!state?.burns_available;
+  if(body&&body.id!==0)$('nudge-controls').querySelector('p').textContent=`Adjust orbit around ${state.moon_orbits?.some(([id])=>id===body.id)?`World ${body.parent}`:'the star'} · 1 matter per burn. Boost follows the orbital direction; strength is a fraction of circular speed around this host.`;
   const p=$('inspector');
   p.replaceChildren();const label=document.createElement('span');label.className='eyebrow';label.textContent='OBSERVATION';p.append(label);
   const text=document.createElement('p');
@@ -108,7 +110,7 @@ function inspect(){
   else if(body.id===0)text.textContent=`${body.mass.toFixed(2)} solar masses. The potential habitable zone spans ${state.status.zone_inner.toFixed(2)}–${state.status.zone_outer.toFixed(2)} AU.`;
   else{
     const moonOrbit=state.moon_orbits?.find(([id])=>id===body.id)?.[1];const orbit=moonOrbit||state.orbits.find(([id])=>id===body.id)?.[1];
-    text.textContent=`World ${body.id} · ${body.kind}${moonOrbit?` · Moon of ${body.parent}`:''}\n${(body.mass/3.003e-6).toFixed(2)} Earth masses · ${orbit.distance.toFixed(2)} AU\n${orbit.habitable?'Potentially habitable':orbit.calm?'Calm orbit':orbit.bound?'Eccentric orbit':'Escaping'} · e = ${orbit.eccentricity.toFixed(3)}\nClosest: ${orbit.periapsis.toFixed(2)} AU\nFarthest: ${orbit.bound?orbit.apoapsis.toFixed(2)+' AU':'unbounded'}\nPeriod: ${orbit.period_years===null?'no return':orbit.period_years.toFixed(2)+' years'}`;
+    text.textContent=orbitReading(body,orbit,moonOrbit?state.bodies.find(b=>b.id===body.parent):state.bodies[0]);
     text.style.whiteSpace='pre-line';
   }
   p.append(text);

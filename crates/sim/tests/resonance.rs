@@ -77,3 +77,16 @@ fn a_near_integer_period_ratio_is_not_sufficient_evidence_of_libration() {
     w.advance(512 * 100);
     assert!(!w.resonances.iter().any(|r| r.librating));
 }
+
+#[test]
+fn axial_rotation_preserves_observed_resonance_and_hold_time() {
+    let mut w = pair(1.5, 0.);
+    w.advance(512 * 160);
+    let readings = w.resonances.clone();
+    let held = w.held_ticks;
+    assert!(readings.iter().any(|r| r.librating));
+    w.apply(Command::Spin { id: 1, rate: -1. }).unwrap();
+    assert_eq!(w.resonances, readings);
+    assert_eq!(w.held_ticks, held);
+    assert_eq!(w, World::from_replay(w.replay()).unwrap());
+}

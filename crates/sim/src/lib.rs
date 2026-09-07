@@ -4,6 +4,7 @@ use std::f64::consts::TAU;
 pub mod benchmark;
 pub mod generator;
 pub mod resonance;
+pub mod satellites;
 pub mod scenarios;
 pub mod sweep;
 
@@ -12,7 +13,7 @@ pub const EARTH: f64 = 3.003e-6;
 pub const DT: f64 = 1.0 / 512.0;
 pub const MAX_BODIES: usize = 64;
 pub const SOFTENING: f64 = 0.002;
-pub const SAVE_VERSION: u32 = 3;
+pub const SAVE_VERSION: u32 = 4;
 pub const MAX_TICKS: u64 = 512 * 600;
 pub const MAX_WORK_UNITS: u64 = 20_000_000;
 
@@ -157,6 +158,7 @@ pub struct Body {
     pub birth_mass: f64,
     pub initially_bound: bool,
     pub parent: Option<u32>,
+    pub origin_parent: Option<u32>,
     pub rotation: f64,
     pub mergers: u32,
     pub debris_origin: bool,
@@ -413,6 +415,7 @@ impl World {
             birth_mass: config.star_mass,
             initially_bound: true,
             parent: None,
+            origin_parent: None,
             rotation: 0.0,
             mergers: 0,
             debris_origin: false,
@@ -599,6 +602,7 @@ impl World {
                 moon.pos = host.pos.plus(d.scale(distance));
                 moon.vel = host.vel.plus(V2::new(-d.y, d.x).scale(v));
                 moon.parent = Some(parent);
+                moon.origin_parent = Some(parent);
                 self.emit(
                     "placed",
                     self.next_id - 1,
@@ -686,7 +690,15 @@ impl World {
                 if self.spent + 1.0 > self.budget() + 1e-8 {
                     return Err("An orbital nudge needs 1 matter".into());
                 }
-                let star = &self.bodies[0];
+                let star = if self.rules_version >= 4 {
+                    self.bodies[index]
+                        .parent
+                        .and_then(|id| self.bodies.iter().find(|b| b.id == id))
+                        .filter(|_| self.moon_orbit(&self.bodies[index]).is_some())
+                        .unwrap_or(&self.bodies[0])
+                } else {
+                    &self.bodies[0]
+                };
                 let b = &self.bodies[index];
                 let r = b.pos.minus(star.pos);
                 let v = b.vel.minus(star.vel);
@@ -694,7 +706,13 @@ impl World {
                 let direction = r.scale(1.0 / distance);
                 let handedness = if r.cross(v) < 0.0 { -1.0 } else { 1.0 };
                 let tangent = V2::new(-direction.y, direction.x).scale(handedness);
-                let circular = (G * (star.mass + b.mass) / distance).sqrt();
+                let circular = if self.rules_version >= 4 && star.id != 0 {
+                    (G * (star.mass + b.mass) * distance * distance
+                        / self.pow(distance * distance + self.softening().powi(2), 1.5))
+                    .sqrt()
+                } else {
+                    (G * (star.mass + b.mass) / distance).sqrt()
+                };
                 let impulse = direction
                     .scale(radial * circular)
                     .plus(tangent.scale(tangential * circular));
@@ -790,8 +808,13 @@ impl World {
                 );
             }
         }
-        self.held_ticks = 0;
-        self.resonances.clear();
+        if self.rules_version < 4 || !matches!(command, Command::Spin { .. }) {
+            self.held_ticks = 0;
+            self.resonances.clear();
+        }
+        if self.rules_version >= 4 {
+            self.refresh_satellites();
+        }
         self.commands.push(RecordedCommand {
             tick: self.tick,
             command,
@@ -856,6 +879,7 @@ impl World {
             birth_mass: mass,
             initially_bound: speed.abs() < 2.0_f64.sqrt(),
             parent: None,
+            origin_parent: None,
             rotation: 0.0,
             mergers: 0,
             debris_origin: kind == Kind::Dust,
@@ -909,7 +933,14 @@ impl World {
     pub fn moon_orbit(&self, body: &Body) -> Option<Orbit> {
         let id = body.parent?;
         let parent = self.bodies.iter().find(|b| b.id == id)?;
-        let orbit = self.orbit_around(body, parent);
+        let mut orbit = self.orbit_around(body, parent);
+        if self.rules_version >= 4 {
+            orbit.calm = orbit.bound
+                && orbit.eccentricity < 0.25
+                && orbit.periapsis > body.radius + parent.radius
+                && orbit.apoapsis < self.hill_radius(parent) * 0.7;
+            orbit.habitable = orbit.calm && self.orbit(body).habitable;
+        }
         (orbit.bound && orbit.distance < self.hill_radius(parent)).then_some(orbit)
     }
     fn emit(&mut self, kind: &str, body: u32, text: String) {
@@ -990,6 +1021,9 @@ impl World {
             }
         }
         self.tick += 1;
+        if self.rules_version >= 4 && self.tick.is_multiple_of(8) {
+            self.refresh_satellites();
+        }
         self.observe_resonances();
         for i in (1..self.bodies.len()).rev() {
             let orbit = self.orbit(&self.bodies[i]);

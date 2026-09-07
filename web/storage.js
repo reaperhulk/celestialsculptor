@@ -6,7 +6,7 @@ export function deviceStorage(){try{return globalThis.localStorage;}catch{return
 export function parseReplay(text){
   if(typeof text!=='string'||text.length>512_000)throw new Error('Choose an experiment smaller than 512 KB.');
   let value;try{value=JSON.parse(text);}catch{throw new Error('This file is not valid JSON.');}
-  if(![1,2,3].includes(value?.version)||!value.config||!Array.isArray(value.commands)||value.commands.length>2048||!Number.isInteger(value.end_tick)||value.end_tick<0||value.end_tick>307200)throw new Error('This experiment format is unsupported or exceeds the 600-year limit.');
+  if(![1,2,3,4].includes(value?.version)||!value.config||!Array.isArray(value.commands)||value.commands.length>2048||!Number.isInteger(value.end_tick)||value.end_tick<0||value.end_tick>307200)throw new Error('This experiment format is unsupported or exceeds the 600-year limit.');
   return value;
 }
 export function saveExperiment(storage,text){

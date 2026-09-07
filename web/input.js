@@ -43,6 +43,7 @@ export function installInput(canvas,renderer,{onDraft,onSelect}){
    }else if(renderer.inputMode!=='place'&&performance.now()-gesture.time<80){renderer.panVelocity=gesture.velocity;renderer.lastCameraTime=performance.now();}
   }
   pointers.delete(event.pointerId);pinch=null;gesture=null;
+  if(pointers.size===1){const p=[...pointers.values()][0];gesture={start:p,last:p,center:{...renderer.center},moved:true,time:performance.now(),velocity:{x:0,y:0}};}
  });
  for(const type of ['pointercancel','lostpointercapture'])canvas.addEventListener(type,event=>{pointers.delete(event.pointerId);pinch=null;gesture=null;});
  canvas.addEventListener('dblclick',event=>{event.preventDefault();if(renderer.selected!==null)renderer.focus(renderer.selected);});

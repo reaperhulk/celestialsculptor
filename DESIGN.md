@@ -70,7 +70,7 @@ local. Backups and bug reports are portable, importable, and directly reproducib
 with the native CLI. Matter is a gameplay budget; burns are external interventions
 and are excluded from conservation claims across edits.
 
-A replay is versioned configuration plus ordered tick-stamped commands. Versions 1–3
+A replay is versioned configuration plus ordered tick-stamped commands. Versions 1–4
 support 2,048 edits, 600 years and 20 million pair-tick work units. Reconstruction
 never trusts serialized scores or body state. Exact reproduction is scoped to the
 same executable; cross-target comparisons use tolerances. Future physics changes
@@ -1080,3 +1080,18 @@ Validation: reviewed the corrected desktop and DPR-3 phone moon/notebook artifac
 The viewport, gesture, history and resonance checks passed apart from the already
 repaired selector. Static artifact checks pass; the final browser run compiles and
 captures this small visibility adjustment with the existing graphics gates.
+
+
+### 111 — Trustworthy moon interventions and observation frames
+
+Review needs: fix star-relative moon burns, false eccentric labels, lost resonance
+observations after spin edits, stale satellite membership and pinch continuation.
+Implemented: version 4 rules with host-relative prograde/retrograde burns;
+separate current and origin parents with release/transfer events; satellite calm
+criteria, precise masses, day/km readings; authoritative burn capability; signed
+launch previews; continuous one-finger pan after pinch. Version 1–3 replay physics
+and command semantics remain available. Ten new development cycles are tracked
+in docs/DEVELOPMENT_CYCLES.md, independently of these smaller commits.
+Validation: native suite passed before the added regressions; all eight targeted
+satellite/resonance tests, clippy, production WASM build, web contracts and 126
+Node/WASM checks pass. Browser gates run on the pushed revision in Actions.
