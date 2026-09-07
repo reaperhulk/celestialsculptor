@@ -1298,3 +1298,12 @@ relative to the orbit. Players choose turns per year, spin either way or stop
 rotation using the existing conserved-spin command.
 Validation: clockwise orbital cases distinguish same/opposite axial sense; zero,
 invalid and boundary rates are covered. Reading tests and build/contracts pass.
+
+### 128 — Make earned mastery visible across sessions
+
+Review needs: optional mastery survived in the profile but players could not see
+which completed challenges had earned it after moving to another challenge.
+Implemented: challenge selection displays named Economy / Restraint medals and
+the collection includes the total. Existing completion/unlock rules are retained.
+Validation: profile/backup regressions and production contracts pass. Added a
+browser persistence flow covering the collection and challenge map after reload.

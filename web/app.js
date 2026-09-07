@@ -168,7 +168,7 @@ function renderState(next){
   updateResonanceReadings(next);
   $('next-mission').hidden=!s.completed||mission===null;
   $('next-mission').textContent=mission===9?'Explore the sandbox':'Next challenge';
-  $('collection').textContent=`${profile.completed.length} / 10 discoveries`;
+  $('collection').textContent=`${profile.completed.length} / 10 discoveries${profile.mastery?.length?` · ${profile.mastery.length} mastery medals`:""}`;
   $('time-speed').value=String(next.speed);
   $('sim-years').textContent=s.years.toFixed(2);$('matter').textContent=s.remaining.toLocaleString(undefined,{maximumFractionDigits:2});
   $('planet-count').textContent=String(s.planets);$('calm-count').textContent=String(s.calm);$('habitable-count').textContent=String(s.habitable);
@@ -260,7 +260,7 @@ $('campaign').onclick=()=>{
     const button=document.createElement('button');button.className='mission-choice';button.disabled=!canPlay(profile,i);
     const number=document.createElement('span');number.className='mission-number';number.textContent=profile.completed.includes(i)?'✓':String(i+1).padStart(2,'0');
     const label=document.createElement('span');const title=document.createElement('strong');title.textContent=m.name;
-    const brief=document.createElement('small');brief.textContent=button.disabled?'Complete the preceding challenge':m.brief;label.append(title,brief);button.append(number,label);
+    const brief=document.createElement('small');brief.textContent=button.disabled?'Complete the preceding challenge':m.brief;label.append(title,brief);const medals=(profile.mastery||[]).filter(code=>code.startsWith(`${i}:`)).map(code=>code.endsWith(':economy')?'Economy':'Restraint');if(medals.length){const badge=document.createElement('small');badge.className='mastery-badge';badge.textContent='◇ '+medals.join(' · ');label.append(badge);}button.append(number,label);
     button.onclick=()=>{$('mission-dialog').close();confirmReset(()=>reset(i));};$('mission-list').append(button);
   });
   $('mission-dialog').showModal();
