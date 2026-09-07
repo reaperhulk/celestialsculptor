@@ -11,6 +11,7 @@ pub mod generator;
 mod gravity;
 #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
 mod gravity_simd;
+mod gravity_tree;
 pub mod history;
 pub mod replay;
 pub mod resonance;

@@ -16,7 +16,8 @@
     "bench:simd": "node scripts/simd-benchmark.mjs",
     "verify": "node scripts/verify.mjs",
     "report": "node scripts/release-report.mjs",
-    "audit": "node scripts/audit-design.mjs"
+    "audit": "node scripts/audit-design.mjs",
+    "bench:gravity": "node scripts/gravity-benchmark.mjs"
   },
   "devDependencies": {
     "@playwright/test": "1.55.0"

@@ -1658,3 +1658,21 @@ Validation: 380 full reference checkpoints remain bitwise identical to iteration
 8.97% at 32 bodies and 6.11% at 64 (89.87 to 84.69 ms / 2,048 ticks), with no
 meaningful eight-body change. Cache invalidation is tested independently against
 fresh direct forces after edits, removal, reordering and softening changes.
+
+### 155 — Measure hierarchical gravity against an exact oracle
+
+Review needs: SIMD still leaves quadratic gravity work. A tree must earn its
+crossover and preserve tidal behavior and conservation before entering gameplay.
+Implemented: a flat deterministic binary spatial tree exchanges symmetric cell
+forces from a second-order potential expansion, with matching tidal terms. The
+star and nearby leaves remain direct. Bounded median splits handle coincident
+points. An isolated WASM GravityProbe and scaling harness compare 64–8,192 bodies,
+sparse/clumped distributions, opening criteria, force errors and conservation.
+The candidate is not yet selected by the live engine.
+Validation: randomized native force/conservation tests pass, including degenerate
+positions. WASM sweeps match exact scalar/SIMD forces and retain normalized force
+and torque residuals below 1e-12. At opening 0.35, the unoptimized tree is slower
+at 64–512 bodies, roughly breaks even at 1,024, and reaches 3.45x/3.65x at 4,096
+sparse/clumped bodies. Timings include tree construction. Error is measured without
+a dominating star. Next need: vectorize spatially contiguous leaf interactions;
+current scalar leaf work is the main obstacle to an earlier crossover.

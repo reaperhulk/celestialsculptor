@@ -67,11 +67,13 @@ jobs:
       - run: npm run bench
       - name: Compare scalar and SIMD physics and throughput
         run: npm run bench:simd
+      - run: npm run bench:gravity
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: performance-results
           path: |
             benchmark-results.json
+            gravity-benchmark-results.json
             simd-benchmark-results.json
           retention-days: 14
       - run: npx playwright install --with-deps chromium firefox webkit
@@ -130,6 +132,7 @@ jobs:
       - run: npm test
       - name: Compare scalar and SIMD on ARM64
         run: npm run bench:simd
+      - run: npm run bench:gravity
       - run: npx playwright install webkit
       - name: Execute recipes in ARM64 WebKit
         run: npx playwright test --project=webkit-engine
@@ -139,6 +142,7 @@ jobs:
           name: arm64-performance-and-browser-results
           path: |
             simd-benchmark-results.json
+            gravity-benchmark-results.json
             test-results
             playwright-report
           retention-days: 14

@@ -186,3 +186,51 @@ impl Simulation {
 pub fn missions() -> String {
     serde_json::to_string(&MISSIONS).expect("mission data")
 }
+
+/// Isolated force-kernel benchmark; it cannot modify a live simulation.
+#[wasm_bindgen]
+pub struct GravityProbe {
+    inner: celestial_sim::benchmark::ForceProbe,
+}
+#[wasm_bindgen]
+impl GravityProbe {
+    #[wasm_bindgen(constructor)]
+    pub fn new(
+        count: u32,
+        seed: u32,
+        cluster: bool,
+        star_mass: f64,
+    ) -> Result<GravityProbe, JsValue> {
+        if !(2..=8192).contains(&count)
+            || !star_mass.is_finite()
+            || !(0.0..=1.5).contains(&star_mass)
+        {
+            return Err(JsValue::from_str("Invalid gravity benchmark configuration"));
+        }
+        Ok(Self {
+            inner: celestial_sim::benchmark::ForceProbe::new(
+                count as usize,
+                seed,
+                cluster,
+                star_mass,
+            ),
+        })
+    }
+    pub fn run(&mut self, theta: f64, repeats: u32) -> Result<f64, JsValue> {
+        if !theta.is_finite() || !(-1.0..=0.7).contains(&theta) || !(1..=128).contains(&repeats) {
+            return Err(JsValue::from_str("Invalid gravity benchmark workload"));
+        }
+        Ok(self.inner.run(theta, repeats))
+    }
+    pub fn forces(&self) -> Vec<f64> {
+        self.inner.output.iter().flat_map(|a| [a.x, a.y]).collect()
+    }
+    pub fn particles(&self) -> Vec<f64> {
+        (0..self.inner.x.len())
+            .flat_map(|i| [self.inner.x[i], self.inner.y[i], self.inner.mass[i]])
+            .collect()
+    }
+    pub fn statistics(&self) -> String {
+        self.inner.statistics().to_string()
+    }
+}
