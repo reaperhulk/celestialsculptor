@@ -158,7 +158,7 @@ instructions and living architecture to the delivered game, run the complete
 native/WASM/browser release gates, inspect new screenshots and verify the deployed
 artifact. Resolve failures before marking the ten-cycle request complete.
 
-Cycle 10 delivery: 136–139 close controller-contract, documentation, reviewed
+Cycle 10 delivery: 136–140 close controller-contract, documentation, reviewed
 history-cache/preservation and mobile lesson-handoff gaps. The final full local
 verification passes 79 native tests; the subsequent corrected runtime passes all
 199 Node/WASM tests, including the 120 generated-system matrix. Browser run 123
@@ -177,4 +177,9 @@ that known fixture issue and mobile lesson handoff failures. Their fixes are in
 | 7 | 130–131 | Open-system conservation and encounter convergence |
 | 8 | 132–133 | Consistent device workloads and stable encounter controls |
 | 9 | 134–135 | Observation composition and accessible charts |
-| 10 | 136–139 | Whole-controller validation, documentation and final release corrections |
+| 10 | 136–140 | Whole-controller validation, documentation and final release corrections |
+
+Final timing review in 140 also preserves distinct interpolation samples during
+slow playback and invalidates orbit caches immediately on selection. Its focused
+presentation regressions pass; the current release contains 30 implementation
+commits across the ten review cycles.

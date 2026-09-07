@@ -1440,3 +1440,16 @@ original immediately reachable on phones. The browser flow asserts this state.
 Validation: all 199 Node/WASM tests passed after the timeline correction. Build
 and all-controller DOM contracts pass for this mobile handoff. The final Actions
 run remains responsible for full browser and deployed-artifact verification.
+
+### 140 — Keep slow orbital playback visually continuous
+
+Review needs: final timing review found that 1/16× produces fewer physics ticks
+than worker snapshots; repeated snapshots reset the interpolation endpoints and
+could make slow orbital watching appear to step. Selection also retained a cached
+orbit path until another simulation snapshot arrived.
+Implemented: rendering retains two distinct physics samples and skips redundant
+geometry/trail work between them. Edits, pause and timeline replacement still
+refresh samples. Selecting a body immediately invalidates its orbit/gravity caches.
+Validation: a headless slow-playback sequence with repeated transport snapshots
+retains the correct intermediate position and reacts to edits and replacement.
+Motion/input/geometry tests and production contracts pass; no physics rules change.

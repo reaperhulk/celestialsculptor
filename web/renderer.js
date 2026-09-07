@@ -2,7 +2,7 @@ import { project, unproject } from './geometry.js';
 import { VertexStream, PlanetStream, LINE_CAPACITY } from './vertices.js';
 import {planetVertex,planetFragment} from './planet-shaders.js';
 import {clampZoom,sceneContext} from './camera.js';
-import {interpolationAlpha,sampleBody} from './motion.js';
+import {interpolationAlpha,sampleBody,MotionSamples} from './motion.js';
 import {bodyDiameter,orbitPath,strongestPerturber,fitZoom} from './appearance.js';
 import {updateTrails} from './trails.js';
 import {PreviewCache} from './preview.js';
@@ -55,6 +55,7 @@ export class Renderer {
     this.lineStream=new VertexStream(LINE_CAPACITY);this.pointStream=new PlanetStream(65*16);
     this.center={x:0,y:0};this.follow=null;this.inputMode='navigate';this.cameraActiveUntil=0;this.cameraTween=null;this.panVelocity=null;this.impacts=[];this.lastEvent=0;
     this.displayPositions=new Map();this.moonTrails=new Map();this.trails=new Map(); this.selected=null; this.showGrid=true;
+    this.motion=new MotionSamples();
     this.showTrails=true; this.showPreview=true; this.reduceMotion=false; this.state=null; this.draft=null; this.lost=false;
     const gl=canvas.getContext('webgl2',{alpha:false,antialias:false,powerPreference:'high-performance'});
     if(!gl) throw new Error('WebGL 2 is unavailable. Enable hardware acceleration or try another browser.');
@@ -95,9 +96,12 @@ export class Renderer {
   get selected(){return this._selected;}
   set draft(value){this._draft=value;this.previewPath=this.previewCache.update(value);}
   get draft(){return this._draft;}
+  get selected(){return this._selected;}
+  set selected(id){if(id!==this._selected){this._selected=id;this.selectedPath=null;this.perturber=null;this.familyPaths=null;}}
   get previewVisible(){return this.showPreview&&(this.inputMode==='place'||this.previewEditing);}
   set encounterOverlay(impact){this._encounterOverlay=impact?.anchor?{anchor:impact.anchor,paths:[orbitPath(impact.orbit_before),orbitPath(impact.orbit_after)]}:null;}
   setState(state){
+    if(!this.motion.push(state,performance.now()/1000)){this.state=state;return;}
     updateTrails(this.trails,this.state,state);updateTrails(this.moonTrails,this.state,state,true);
     const replaced=!this.state||state.generation!==this.state.generation||state.tick<this.state.tick;
     if(replaced||state.playing)this._encounterOverlay=null;
@@ -108,7 +112,7 @@ export class Renderer {
     if(this.follow!==null&&!state.bodies.some(b=>b.id===this.follow))this.follow=null;
     for(const id of this.displayPositions.keys())if(!state.bodies.some(b=>b.id===id))this.displayPositions.delete(id);
     if(!state.bodies.some(body=>body.id===this.selected))this.selected=null;
-    this.previousState=this.state;this.previousReceived=this.receivedAt;this.receivedAt=performance.now()/1000;
+    this.previousState=this.motion.previous;this.previousReceived=this.motion.previousTime;this.receivedAt=this.motion.time;
     this.state=state;this.orbitById=new Map(state.orbits);this.moonOrbitById=new Map(state.moon_orbits||[]);this.sortedBodies=[...state.bodies].sort((a,b)=>a.pos.y-b.pos.y);this.previousBodies=new Map((this.previousState?.bodies||[]).map(b=>[b.id,b]));
     const selected=state.bodies.find(b=>b.id===this.selected);this.selectedPath=selected?orbitPath(this.moonOrbitById.get(selected.id)||this.orbitById.get(selected.id)):[];this.perturber=strongestPerturber(selected,state.bodies,state.rules_version===1?.002:.0001);this.familyPaths=null;
   }
