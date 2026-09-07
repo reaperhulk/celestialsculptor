@@ -1616,3 +1616,14 @@ Validation: a headless regression selects new bodies with absent/non-finite sizi
 data; existing geometry and input checks remain. ARM64 and full browser validation
 run in Actions before Pages publication. Desktop ARM timings remain distinct from
 the required sustained iPhone/iPad performance measurements.
+
+### 152 — Respect phone wheel scaling in the close-pass check
+
+Review needs: the phone browser converts a wheel event into a 9.5% zoom change;
+the regression incorrectly required 10% and failed despite visible separation.
+Implemented: wait for a measurable 5% response and allow sixteen bounded gestures
+to reach the same close-pass framing. Keep the rendered separation and picking
+assertions unchanged.
+Validation: release 151 passed all native/ARM64/WASM checks and 275 browser tests;
+its only failure was this wheel assertion. The corrected test runs in the full
+Actions release gate, including phone and tablet viewports.
