@@ -38,7 +38,7 @@ export function installInput(canvas,renderer,{onDraft,onSelect}){
  });
  canvas.addEventListener('pointerup',event=>{
   if(gesture&&pointers.size===1){
-   if(!gesture.moved){const p=pixel(event),id=nearestBody(renderer.state?.bodies||[],p.x,p.y,(x,y)=>renderer.toScreen(x,y),event.pointerType==='touch'?28:18,b=>bodyDiameter(b,canvas.clientHeight,renderer.zoom)*.31,b=>renderer.displayPositions.get(b.id)||b.pos);
+   if(!gesture.moved){const p=pixel(event),id=nearestBody(renderer.state?.bodies||[],p.x,p.y,(x,y)=>renderer.toScreen(x,y),event.pointerType==='touch'?28:18,b=>renderer.bodyScale?.radius(b)??bodyDiameter(b,canvas.clientHeight,renderer.zoom)*.31,b=>renderer.displayPositions.get(b.id)||b.pos);
     if(id!==null){renderer.selected=id;onSelect();if(lastTap?.id===id&&performance.now()-lastTap.time<360)renderer.focus(id);lastTap={id,time:performance.now()};}
     else if(renderer.inputMode==='place')updateDraft(event);
    }else if(renderer.inputMode!=='place'&&performance.now()-gesture.time<80){renderer.panVelocity=gesture.velocity;renderer.lastCameraTime=performance.now();}

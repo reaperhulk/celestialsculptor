@@ -1564,3 +1564,20 @@ interval and records every primary-save write, requiring all saved endpoints to
 retain at least the original forty years. Projection tests require revealed sites
 to fit portrait, narrow desktop and wide canvases at different angles. Full local native/WASM verification is
 retained, with browser and deployment validation in the final Actions gate.
+
+### 149 — Keep visibly separate surfaces during physical near misses
+
+Review needs: a player capture showed giant globes and rings visibly intersecting
+while their much smaller contact radii remained separated. Visual magnification
+was independent of nearby bodies and the shader imposed an oversized minimum quad.
+Implemented: a bounded, allocation-stable sizing pass limits local magnification
+using physical contact gaps and the current projected, interpolated positions.
+Crowded rings fade, picking uses the rendered solid radius, and small bodies retain
+their requested silhouette inside a minimum raster quad. Isolated worlds keep
+the existing detail and mass-growth scaling; no physical sizes or orbits change.
+Validation: headless geometry sweeps cover close giant passes across zoom, tilt,
+angle and viewport size, plus mixed 64-body populations, interpolation and growth.
+A browser test examines the vertices actually sent to WebGL, checks separated
+giant surfaces and selection, and records desktop/phone screenshots for review.
+All 211 Node/WASM checks pass locally. The new 64-body sizing pass measured
+0.028 ms per frame on this host; physical-device frame rates remain separately measured.

@@ -4,6 +4,7 @@ import {planetVertex,planetFragment} from './planet-shaders.js';
 import {clampZoom,sceneContext} from './camera.js';
 import {interpolationAlpha,sampleBody,MotionSamples} from './motion.js';
 import {bodyDiameter,orbitPath,strongestPerturber,fitZoom} from './appearance.js';
+import {BodyScale} from './body-scale.js';
 import {updateTrails} from './trails.js';
 import {PreviewCache} from './preview.js';
 
@@ -51,6 +52,7 @@ const KINDS = {star:0,rocky:1,ice:2,giant:3,dust:4};
 export class Renderer {
   constructor(canvas, onError = () => {}) {
     this.previewCache=new PreviewCache();
+    this.bodyScale=new BodyScale();
     this.canvas=canvas; this.onError=onError; this.zoom=3.5; this.tilt=.62; this.maxDpr=2;
     this.lineStream=new VertexStream(LINE_CAPACITY);this.pointStream=new PlanetStream(65*16);
     this.center={x:0,y:0};this.follow=null;this.inputMode='navigate';this.cameraActiveUntil=0;this.cameraTween=null;this.panVelocity=null;this.impacts=[];this.lastEvent=0;
@@ -149,6 +151,7 @@ export class Renderer {
     this.updateCamera(time*1000);
     const animationTime=this.reduceMotion?0:time;
     const gl=this.gl,canvas=this.canvas,r=canvas.getBoundingClientRect();this.dpr=Math.min(devicePixelRatio||1,this.maxDpr);
+    this.bodyScale.update(this.state.bodies,this.displayPositions,r.height,this.zoom,this.tilt);
     this.sceneLabel=sceneContext(this.state,this.center,this.zoom,r.width,r.height,this.tilt,this.follow);
     const width=Math.max(1,Math.round(r.width*this.dpr)),height=Math.max(1,Math.round(r.height*this.dpr));
     if(canvas.width!==width||canvas.height!==height){canvas.width=width;canvas.height=height;}
@@ -202,10 +205,10 @@ export class Renderer {
     for(const b of this.sortedBodies){
       const o=this.orbitById.get(b.id);
       const c=b.kind==='star'?(b.mass<.85?[1,.48,.19]:b.mass>1.2?[.65,.8,1]:COLORS.star):COLORS[b.kind];
-      const size=bodyDiameter(b,r.height,this.zoom),position=this.displayPositions.get(b.id);
+      const size=this.bodyScale.diameter(b.id),position=this.displayPositions.get(b.id);
       const dx=starPosition.x-position.x,dy=(starPosition.y-position.y)*this.tilt,dist=Math.hypot(dx,dy)||1;
       const heat=this.impacts.filter(impact=>impact.body===b.id).reduce((h,impact)=>Math.max(h,Math.max(0,1-(time-impact.time)/3)),0);
-      points.point(position.x,position.y,size,c,KINDS[b.kind],Number(this.selected===b.id),[(b.id*.6180339)%1,(b.material?.ice||0)/b.mass,Number(o?.habitable||false),position.rotation],[dx/dist,dy/dist,.45],heat);
+      points.point(position.x,position.y,size,c,KINDS[b.kind],Number(this.selected===b.id),[(b.id*.6180339)%1,b.kind==='giant'?this.bodyScale.rings(b.id):(b.material?.ice||0)/b.mass,Number(o?.habitable||false),position.rotation],[dx/dist,dy/dist,.45],heat);
 
     }
     if(this.draft&&this.previewVisible)points.point(star.pos.x+this.draft.radius*Math.cos(this.draft.angle),star.pos.y+this.draft.radius*Math.sin(this.draft.angle),bodyDiameter({kind:this.draft.kind,mass:(this.draft.mass||1)*3.003e-6},r.height,this.zoom),[.96,.76,.4],1,1);

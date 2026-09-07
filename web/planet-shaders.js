@@ -16,7 +16,7 @@ out float v_heat;
 void main(){
  vec2 p=a_pos-u_center;
  const vec2 corners[6]=vec2[6](vec2(-1,-1),vec2(1,-1),vec2(-1,1),vec2(-1,1),vec2(1,-1),vec2(1,1));
- vec2 corner=corners[gl_VertexID];v_uv=vec2(corner.x,-corner.y);v_pixels=a_size*u_dpr;
+ vec2 corner=corners[gl_VertexID];v_uv=vec2(corner.x,-corner.y)*max(a_size,6.)/max(a_size,.000001);v_pixels=a_size*u_dpr;
  vec2 center=vec2(p.x/u_zoom*u_resolution.y/u_resolution.x,p.y/u_zoom*u_tilt);
  gl_Position=vec4(center+corner*max(a_size,6.)*u_dpr/u_resolution,0,1);
  v_color=a_color;v_kind=a_kind;v_style=a_style;v_light=a_light;v_heat=a_heat;
@@ -42,12 +42,12 @@ void main(){
   outColor=vec4(col,max(core,glow)*(1.-smoothstep(.8,1.,r)));return;
  }
  if(v_kind.x>3.5){float shape=length(uv*vec2(1.,1.3));outColor=vec4(v_color*(.55+.45*(1.-uv.x)),1.-smoothstep(.42,.67,shape));return;}
- if(v_pixels<12.){float shade=.65+.35*max(0.,dot(normalize(vec3(uv.x,-uv.y,.6)),normalize(v_light)));outColor=vec4(v_color*shade,1.-smoothstep(.5,.65,r));return;}
+ if(v_pixels<12.){float shade=.65+.35*max(0.,dot(normalize(vec3(uv.x,-uv.y,.6)),normalize(v_light)));outColor=vec4(v_color*shade,1.-smoothstep(.5,.62,r));return;}
  float sphere=.62;
  // Ring planes extend around giants; the back half is occluded by the globe.
  float ringRadius=length(vec2(uv.x+uv.y*.32,uv.y*2.8));
  float ringBand=smoothstep(.71,.76,ringRadius)*(1.-smoothstep(.95,.99,ringRadius));
- float rings=ringBand*(.48+.17*sin(ringRadius*170.))*float(v_kind.x>2.5);
+ float rings=ringBand*(.48+.17*sin(ringRadius*170.))*float(v_kind.x>2.5)*v_style.y;
  vec3 ringColor=mix(vec3(.50,.41,.31),vec3(.89,.79,.60),.5+.5*sin(ringRadius*80.));
  if(r>sphere){
   float atmosphere=exp(-(r-sphere)*33.)*.30*(1.-smoothstep(.84,.95,r));
