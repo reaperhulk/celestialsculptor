@@ -5,7 +5,7 @@ export function series(history,id,metric,pair=''){
   const body=frame.bodies.find(b=>b.id===Number(id));
   const resonance=frame.resonances.find(r=>`${r.inner}:${r.outer}`===pair);
   const value=metric==='angle'?(resonance?.angle??NaN)*180/Math.PI:metric==='ratio'?resonance?.ratio:metric==='mass'?body?.mass/3.003e-6:body?.[metric];
-  return {tick:frame.tick,value:Number.isFinite(value)?value:null,parent:body?.parent};
+  return {tick:frame.tick,value:Number.isFinite(value)?value:null,parent:['angle','ratio'].includes(metric)?pair:body?.parent};
  });
 }
 export function chartGeometry(samples,metric){

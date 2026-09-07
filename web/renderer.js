@@ -1,7 +1,7 @@
 import { project, unproject } from './geometry.js';
 import { VertexStream, PlanetStream, LINE_CAPACITY } from './vertices.js';
 import {planetVertex,planetFragment} from './planet-shaders.js';
-import {clampZoom} from './camera.js';
+import {clampZoom,sceneContext} from './camera.js';
 import {interpolationAlpha,sampleBody} from './motion.js';
 import {bodyDiameter,orbitPath,strongestPerturber,fitZoom} from './appearance.js';
 import {updateTrails} from './trails.js';
@@ -146,6 +146,7 @@ export class Renderer {
     this.updateCamera(time*1000);
     const animationTime=this.reduceMotion?0:time;
     const gl=this.gl,canvas=this.canvas,r=canvas.getBoundingClientRect();this.dpr=Math.min(devicePixelRatio||1,this.maxDpr);
+    this.sceneLabel=sceneContext(this.state,this.center,this.zoom,r.width,r.height,this.tilt,this.follow);
     const width=Math.max(1,Math.round(r.width*this.dpr)),height=Math.max(1,Math.round(r.height*this.dpr));
     if(canvas.width!==width||canvas.height!==height){canvas.width=width;canvas.height=height;}
     gl.viewport(0,0,width,height);

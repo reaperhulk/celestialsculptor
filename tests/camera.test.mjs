@@ -21,3 +21,7 @@ test('FPS flag is explicit and the overlay reports actual rendered intervals',()
 test('resetting device timing at a restored tick excludes the old timeline',()=>{
  const meter=new FrameMeter();meter.reset(1000,50000);for(let i=0;i<60;i++)meter.record(1000+i*1000/60,1);const report=meter.report(2000,50102);assert.equal(report.ticksPerSecond,102);assert.ok(Math.abs(report.fps-60)<1e-8);
 });
+test('local scene context counts the current moon family and hides absent stellar bands',async()=>{
+ const {sceneContext}=await import('../web/camera.js');const state={bodies:[{id:0,pos:{x:0,y:0}},{id:1,parent:null},{id:2,parent:1}],status:{zone_inner:.9,zone_outer:1.4}};
+ assert.equal(sceneContext(state,{x:3,y:0},.1,390,400,1,2),'World 1 · 1 bound moon');assert.equal(sceneContext(state,{x:8,y:0},.1,390,400,1,null),'System view');assert.equal(sceneContext(state,{x:0,y:0},2,390,400,1,null),'Potential habitable zone');
+});

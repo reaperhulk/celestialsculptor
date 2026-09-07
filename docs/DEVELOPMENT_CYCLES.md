@@ -60,3 +60,14 @@ moon view, and pair graphs can acquire gaps from an unrelated selected body.
 Implement accurate placement validation, frame-aware scene context and independent
 pair histories; verify the controls across native/WASM/UI boundaries. Delivery
 of cycle 1 remains subject to the pending browser gate.
+
+Cycle 2 implemented in 120–121. Actual-cost, camera-context and graph continuity
+checks pass, with production contracts verified. Re-review found that merely
+touching a followed body drops tracking before a drag begins, and high warp has
+no convenient way to return to a readable local orbital timescale.
+
+## Cycle 3 — readable orbital navigation
+
+Keep follow on taps, release it only when navigation actually begins, and provide
+a selected-orbit watching speed with a slower playback option. Verify pointer
+state transitions and real worker timing; preserve the fixed physics timestep.

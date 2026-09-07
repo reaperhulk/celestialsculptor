@@ -331,6 +331,7 @@ $('show-fps').onchange=()=>{viewSettings.showFps=$('show-fps').checked;$('fps-ov
 function frame(time){
  if(frameClock.due(time,{playing:state?.playing||time<(renderer?.cameraActiveUntil||0),batterySaver:viewSettings.maxDpr===1,reduceMotion:viewSettings.reduceMotion,hidden:document.hidden})){
   const start=performance.now(),drawn=renderer?.draw(time/1000);
+  if(drawn&&$('scene-context').textContent!==renderer.sceneLabel)$('scene-context').textContent=renderer.sceneLabel;
   if(deviceRecording&&!deviceRecording.done){
    if(state?.generation!==deviceGeneration)deviceRecording.stop('system changed');
    deviceRecording.record(time,performance.now()-start,state?.tick||0,Boolean(drawn&&state?.playing&&!document.hidden));

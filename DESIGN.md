@@ -1224,3 +1224,14 @@ Implemented: placement validation uses the chosen mass, authoritative mass limit
 and remaining budget. Restored fixed-mass rules retain their original cost path.
 Validation: range, actual-cost and legacy-cost regressions pass alongside existing
 launch-field tests; production build and web contracts pass.
+
+### 121 — Frame-aware scene and resonance readings
+
+Review needs: close moon views retained a stellar-zone key, mobile moon counts
+were hidden in the footer, and unrelated body transfers broke pair graphs.
+Implemented: the scene key describes the followed moon family at local scale,
+shows the stellar band only when it intersects the view, and otherwise identifies
+the system view. Pair histories use their pair as the continuity reference.
+Validation: camera-context cases cover local moons, absent and visible stellar
+bands; graph regressions retain continuity through unrelated host changes.
+Production build/contracts and focused camera/observation tests pass.

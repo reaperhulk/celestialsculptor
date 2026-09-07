@@ -11,3 +11,7 @@ test('automatic branching saves a durable original once and fails before a destr
  assert.throws(()=>preserveOriginal(null,[],replay,state),/storage/);
  const full=Array.from({length:12},(_,i)=>entry('x',replay+' ',state,String(i)));assert.throws(()=>preserveOriginal(storage,full,replay,state),/12 experiments/);
 });
+test('pair histories are independent of an unrelated body changing its host',()=>{
+ const frames=[null,3,null].map((parent,i)=>({tick:i*64,bodies:[{id:8,parent}],resonances:[{inner:1,outer:2,ratio:2+i*.01,angle:.2+i*.01}]}));
+ for(const metric of ['ratio','angle'])assert.equal(chartGeometry(series({frames},8,metric,'1:2'),metric).paths.length,1);
+});
