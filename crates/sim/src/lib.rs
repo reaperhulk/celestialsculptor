@@ -2,6 +2,7 @@
 use serde::{Deserialize, Serialize};
 use std::f64::consts::TAU;
 pub mod assessment;
+pub mod balances;
 pub mod benchmark;
 pub mod collisions;
 pub mod generation;
@@ -299,6 +300,10 @@ pub struct World {
     pub resonances: Vec<resonance::Resonance>,
     pub disk_momentum: V2,
     pub disk_angular_momentum: f64,
+    pub disk_energy: f64,
+    pub escaped_momentum: V2,
+    pub escaped_angular_momentum: f64,
+    pub escaped_energy: f64,
     pub config: Config,
     pub bodies: Vec<Body>,
     pub tick: u64,
@@ -454,6 +459,10 @@ impl World {
             resonances: vec![],
             disk_momentum: V2::default(),
             disk_angular_momentum: 0.0,
+            disk_energy: 0.,
+            escaped_momentum: V2::default(),
+            escaped_angular_momentum: 0.,
+            escaped_energy: 0.,
             rng: config.seed.max(1),
             config,
             bodies: vec![star],
@@ -1067,6 +1076,7 @@ impl World {
                         radial
                             .scale(projected * (1.0 - libm::exp(-h * body.migration_rate * 10.0))),
                     );
+                self.disk_energy += 0.5 * body.mass * (before.norm2() - body.vel.norm2());
                 let exchange = before.minus(body.vel).scale(body.mass);
                 self.disk_momentum = self.disk_momentum.plus(exchange);
                 self.disk_angular_momentum += body.pos.cross(exchange);
@@ -1080,7 +1090,11 @@ impl World {
         for i in (1..self.bodies.len()).rev() {
             let orbit = self.orbit(&self.bodies[i]);
             if orbit.distance > 8.0 && !orbit.bound {
+                let before_energy = self.energy();
                 let b = self.bodies.remove(i);
+                self.escaped_energy += before_energy - self.energy();
+                self.escaped_momentum = self.escaped_momentum.plus(b.vel.scale(b.mass));
+                self.escaped_angular_momentum += b.mass * b.pos.cross(b.vel) + b.spin;
                 self.escaped_mass += b.mass;
                 self.ejections += 1;
                 self.assisted_ejections += u32::from(b.initially_bound);

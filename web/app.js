@@ -366,7 +366,7 @@ $('close-recipes').onclick=()=>$('recipes-dialog').close();
 
 $('debug-report').onclick=async()=>{
  try{const {replay}=await send('export');const response=await fetch(new URL('./build-info.json',import.meta.url));if(!response.ok)throw new Error('Build details could not load. Export the experiment instead.');
- const build=await response.json();download(diagnosticReport(replay,profile,build,{browser:navigator.userAgent,viewport:{width:innerWidth,height:innerHeight,pixelRatio:devicePixelRatio},webgl:Boolean(renderer),view:viewSettings,performance:globalThis.__celestialPerformance||null}),'celestial-bug-report.json');
+ const build=await response.json();const {balances}=await send('balances');download(diagnosticReport(replay,profile,build,{balances,browser:navigator.userAgent,viewport:{width:innerWidth,height:innerHeight,pixelRatio:devicePixelRatio},webgl:Boolean(renderer),view:viewSettings,performance:globalThis.__celestialPerformance||null}),'celestial-bug-report.json');
  }catch(error){toast(error.message);}
 };
 

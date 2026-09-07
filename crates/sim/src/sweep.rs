@@ -20,6 +20,7 @@ fn run_case(
     })?;
     let mass = world.bodies.iter().map(|b| b.mass).sum::<f64>();
     let momentum = world.momentum();
+    let angular = world.angular_momentum();
     let years = if style == SystemStyle::Resonance {
         120
     } else {
@@ -53,14 +54,17 @@ fn run_case(
     let momentum_error = world
         .momentum()
         .plus(world.disk_momentum)
+        .plus(world.escaped_momentum)
         .minus(momentum)
         .norm();
+    let angular_error = (world.balances().angular_momentum - angular).abs();
     let passed = finite
         && mass_error < 1e-10
-        && (world.ejections > 0 || momentum_error < 1e-10)
+        && momentum_error < 1e-10
+        && angular_error < 1e-10
         && world.history.frames.len() <= 256;
     Ok(
-        json!({"style":style,"set":set,"seed":seed,"star_mass":star_mass,"count":count,"chaos":chaos,"years":years,"observed_years":status.years,"first_event_years":first,"bodies":world.bodies.len(),"calm":status.calm,"formed":status.formed,"moons":status.moons,"collisions":world.collisions,"ejections":world.ejections,"librating":world.resonances.iter().any(|r|r.librating),"finite":finite,"mass_error":mass_error,"momentum_error":momentum_error,"passed":passed,"replay":world.replay(),"final_bodies":world.bodies}),
+        json!({"style":style,"set":set,"seed":seed,"star_mass":star_mass,"count":count,"chaos":chaos,"years":years,"observed_years":status.years,"first_event_years":first,"bodies":world.bodies.len(),"calm":status.calm,"formed":status.formed,"moons":status.moons,"collisions":world.collisions,"ejections":world.ejections,"librating":world.resonances.iter().any(|r|r.librating),"finite":finite,"mass_error":mass_error,"momentum_error":momentum_error,"angular_error":angular_error,"passed":passed,"replay":world.replay(),"final_bodies":world.bodies}),
     )
 }
 pub fn run() -> Result<Value, String> {

@@ -1318,3 +1318,18 @@ before import; future edits/completion are excluded, and unlocks are checked.
 Validation: all six real WASM lesson setups start incomplete at tick zero with
 their intended bodies. Future edits are excluded without mutating the example.
 Build/contracts pass; added browser original-preservation and playable-setup flow.
+
+### 130 — Account for escaped bodies and disk energy
+
+Review needs: ejections made conservation reports incomplete, and the population
+sweep exempted escaped systems from its momentum check.
+Implemented: escape momentum/angular/energy ledgers and a disk-energy ledger feed
+a native/WASM balance report, also included in exported bug reports. Sweep gates
+now require momentum and angular conservation for every case, including escapes.
+Balances describe intervals between external edits; older contact ledgers are
+explicitly marked incomplete. Trajectory rules remain unchanged.
+Validation: native escape/migration balances conserve mass, momentum and angular
+momentum, with bounded resolved-energy error and exact replay reconstruction.
+All 120 native/WASM population cases pass the stronger gates. Build/contracts and
+clippy pass. Browser run 123 passed 196 checks; its sole failure was the new phone
+screenshot fixture clicking a hidden Sculpt control. The fixture now opens that tab.

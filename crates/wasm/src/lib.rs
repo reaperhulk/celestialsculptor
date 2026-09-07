@@ -93,6 +93,9 @@ impl Simulation {
         u8::from(self.world.completed) | (u8::from(self.world.exhausted()) << 1)
     }
     /// Large histories are requested explicitly, never copied with each display snapshot.
+    pub fn balances(&self) -> String {
+        serde_json::to_string(&self.world.balances()).expect("finite balances")
+    }
     pub fn observations(&self) -> String {
         serde_json::to_string(&self.world.history).expect("finite observations")
     }

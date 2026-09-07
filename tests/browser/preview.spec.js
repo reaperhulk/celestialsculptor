@@ -21,7 +21,7 @@ test('review the observation chart and comparative lesson on desktop and phone',
  await page.goto('./');await expect(page.locator('#play')).toBeEnabled();if(await page.locator('.mobile-tabs').isVisible())await page.locator('[data-panel=mission]').click();
  await page.locator('#study-example').click();await expect(page.locator('#lesson-outcome')).toContainText('achieved');
  let path=testInfo.outputPath(`review-lesson-${testInfo.project.name}.png`);await page.screenshot({path});await testInfo.attach('Comparative lesson',{path,contentType:'image/png'});await page.locator('#close-lesson').click();
- await page.locator('#sandbox').click();await page.locator('#launch').click();for(let i=0;i<5;i++)await page.locator('#step').click();
+ await page.locator('#sandbox').click();if(await page.locator('.mobile-tabs').isVisible())await page.locator('[data-panel=sculpt]').click();await page.locator('#launch').click();for(let i=0;i<5;i++)await page.locator('#step').click();
  if(await page.locator('.mobile-tabs').isVisible())await page.locator('[data-panel=observe]').click();else await page.locator('#analysis-tools > summary').click();
  await expect(page.locator('#history-chart path')).not.toHaveCount(0);path=testInfo.outputPath(`review-chart-${testInfo.project.name}.png`);await page.screenshot({path});await testInfo.attach('Observation chart',{path,contentType:'image/png'});
 });

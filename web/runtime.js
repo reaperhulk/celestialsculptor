@@ -44,6 +44,7 @@ export class Runtime {
           case 'undo': this.sim.undo();this.timelineSource=null;this.timelineHistory=null; this.playing = false; this.debt = 0; break;
           case 'export': this.send({type: 'export', id, replay: this.sim.export_replay()}); return;
           case 'import': this.sim.import_replay(message.replay);this.timelineSource=null;this.timelineHistory=null; this.playing = false; this.debt = 0; break;
+          case 'balances': this.send({type:'balances',id,balances:JSON.parse(this.sim.balances())});return;
           case 'snapshot': break;
           case 'event_policy':
             if(!['off','pause','slow'].includes(message.value))throw new Error('Choose how to watch major events');
