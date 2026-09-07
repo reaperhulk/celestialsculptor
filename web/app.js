@@ -173,7 +173,7 @@ function renderState(next){
   challengeGuide.update(next);
   generatorControls.update();
   $('goal-label').textContent=m?(m.hold_years?'Maintain conditions':'Make a discovery'):'Open exploration';$('goal-progress').hidden=mission===null;
-  $('outcome-totals').textContent=`${s.collisions} mergers · ${s.ejections} escapes · ${s.absorbed} stellar impacts`;
+  $('outcome-totals').textContent=`${s.collisions} mergers · ${s.grazes||0} grazes · ${s.disruptions||0} disruptions · ${s.ejections} escapes · ${s.absorbed} stellar impacts`;
   $('play').textContent=next.playing?'Ⅱ Pause':'▶ Run';$('play').disabled=!ready||s.exhausted;
   $('system-title').textContent=s.completed?'A little order, from the unknown.':s.planets>0?'Gravity has the pen now.':'A beginning, in starlight.';
   const eventSignature=JSON.stringify(next.events);

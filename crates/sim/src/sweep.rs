@@ -36,7 +36,7 @@ fn run_case(
                 .find(|e| {
                     matches!(
                         e.kind.as_str(),
-                        "collision" | "escape" | "absorb" | "satellite"
+                        "collision" | "graze" | "disruption" | "escape" | "absorb" | "satellite"
                     )
                 })
                 .map(|e| e.tick as f64 * DT);

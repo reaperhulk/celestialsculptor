@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::f64::consts::TAU;
 pub mod assessment;
 pub mod benchmark;
+pub mod collisions;
 pub mod generation;
 pub mod generator;
 pub mod history;
@@ -16,7 +17,7 @@ pub const EARTH: f64 = 3.003e-6;
 pub const DT: f64 = 1.0 / 512.0;
 pub const MAX_BODIES: usize = 64;
 pub const SOFTENING: f64 = 0.002;
-pub const SAVE_VERSION: u32 = 4;
+pub const SAVE_VERSION: u32 = 5;
 pub const MAX_TICKS: u64 = 512 * 600;
 pub const MAX_WORK_UNITS: u64 = 20_000_000;
 
@@ -258,7 +259,8 @@ pub struct Replay {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Impact {
     pub position: V2,
-    pub consumed: u32,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub consumed: Option<u32>,
     pub masses: [f64; 2],
     pub mass: f64,
     pub radius_before: f64,
@@ -273,6 +275,10 @@ pub struct Impact {
     pub orbit_after: Option<Orbit>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub anchor: Option<V2>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub outcome: Option<collisions::Outcome>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub remnants: Vec<u32>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Event {
@@ -299,6 +305,10 @@ pub struct World {
     pub spent: f64,
     pub work_units: u64,
     pub collisions: u32,
+    pub grazes: u32,
+    pub disruptions: u32,
+    /// Signed transfer out of resolved orbital energy during contact resolution.
+    pub collision_energy: f64,
     pub ejections: u32,
     pub assisted_ejections: u32,
     pub absorbed: u32,
@@ -372,6 +382,8 @@ pub struct ToolAvailability {
 #[derive(Clone, Debug, Serialize)]
 pub struct Status {
     pub collisions: u32,
+    pub grazes: u32,
+    pub disruptions: u32,
     pub ejections: u32,
     pub assisted_ejections: u32,
     pub absorbed: u32,
@@ -449,6 +461,9 @@ impl World {
             spent: 0.0,
             work_units: 0,
             collisions: 0,
+            grazes: 0,
+            disruptions: 0,
+            collision_energy: 0.,
             ejections: 0,
             assisted_ejections: 0,
             absorbed: 0,
@@ -1011,14 +1026,17 @@ impl World {
     }
     /// Each tick always runs four kick-drift-kick substeps. Speed never changes dt.
     pub fn step(&mut self) {
+        self.integrate_tick(4);
+    }
+    fn integrate_tick(&mut self, substeps: u32) {
         if self.exhausted() {
             return;
         }
         self.work_units += self.tick_work();
-        let h = DT / 4.0;
+        let h = DT / f64::from(substeps);
         self.merge_contacts(0.0);
         let mut a = self.accelerations();
-        for _ in 0..4 {
+        for _ in 0..substeps {
             for (i, b) in self.bodies.iter_mut().enumerate() {
                 b.vel = b.vel.plus(a[i].scale(h / 2.0));
                 b.pos = b.pos.plus(b.vel.scale(h));
@@ -1126,6 +1144,11 @@ impl World {
                     };
                     let closest = separation.minus(drift.scale(fraction));
                     if closest.norm2() <= (a.radius + b.radius).powi(2) {
+                        if self.rules_version >= 5 && self.resolve_solid_contact(i, j, sweep) {
+                            j += 1;
+                            continue;
+                        }
+                        let energy_before = (self.rules_version >= 5).then(|| self.energy());
                         let orbit_before = self
                             .moon_orbit(&self.bodies[i])
                             .unwrap_or_else(|| self.orbit(&self.bodies[i]));
@@ -1207,7 +1230,7 @@ impl World {
                                 event.text = format!("Impact → {:.2} Earth masses · radius +{:.0}% · orbit e {before:.2} → {after:.2}", mass / EARTH, (radius_after / radius_before - 1.0) * 100.0);
                                 event.impact = Some(Impact {
                                     position,
-                                    consumed: b.id,
+                                    consumed: Some(b.id),
                                     masses,
                                     mass,
                                     radius_before,
@@ -1219,6 +1242,13 @@ impl World {
                                     orbit_before: (self.rules_version >= 4).then_some(orbit_before),
                                     orbit_after: (self.rules_version >= 4).then_some(orbit_after),
                                     anchor: (self.rules_version >= 4).then_some(anchor),
+                                    outcome: (self.rules_version >= 5)
+                                        .then_some(collisions::Outcome::Merge),
+                                    remnants: if self.rules_version >= 5 {
+                                        vec![id]
+                                    } else {
+                                        vec![]
+                                    },
                                 });
                             }
                         }
@@ -1229,6 +1259,9 @@ impl World {
                             if child.parent == Some(child.id) {
                                 child.parent = None;
                             }
+                        }
+                        if let Some(before) = energy_before {
+                            self.collision_energy += before - self.energy();
                         }
                         // A growing contact radius can overlap bodies tested earlier.
                         j = i + 1;
@@ -1300,6 +1333,8 @@ impl World {
     pub fn status(&self) -> Status {
         let mut s = Status {
             collisions: self.collisions,
+            grazes: self.grazes,
+            disruptions: self.disruptions,
             ejections: self.ejections,
             assisted_ejections: self.assisted_ejections,
             absorbed: self.absorbed,

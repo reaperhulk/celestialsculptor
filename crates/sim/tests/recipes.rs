@@ -7,7 +7,13 @@ fn sandbox_recipes_exhibit_their_advertised_outcomes() {
     for recipe in recipes {
         let config: Config = serde_json::from_value(recipe["config"].clone()).unwrap();
         assert_eq!(config.mission, None);
-        let mut w = World::new(config).unwrap();
+        let mut w = World::from_replay(Replay {
+            version: recipe["version"].as_u64().unwrap() as u32,
+            config,
+            commands: vec![],
+            end_tick: 0,
+        })
+        .unwrap();
         for value in recipe["commands"].as_array().unwrap() {
             w.apply(serde_json::from_value(value.clone()).unwrap())
                 .unwrap();

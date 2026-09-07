@@ -1158,3 +1158,21 @@ and produce chaos escapes. Resonance librates in 12 of 16 core cases after 120
 years. The same 120 replays match WASM identities, parents, masses and trajectories
 within 1e-8. Both generator tests, clippy, build/contracts and 157 Node/WASM checks
 pass. Observatory and lesson browser releases 113 and 114 are deployed successfully.
+
+### 116 — Three impact regimes with conserved remnants
+
+Review needs: make collision geometry and energy change the outcome without
+breaking old experiments or awarding formation for smashing an existing planet.
+Implemented: rules version 5 adds grazing survival and bounded disruption for
+solid bodies, preserves gentle merging and stellar/giant accretion, and records
+retained material, orbit/radius changes and remnant identities. Equal-and-opposite
+impulses conserve momentum; unresolved spin carries angular momentum; a signed
+orbital-energy ledger records the resolved change separately from impact heat.
+Versions 1–4 preserve their contact rules. New outcomes appear in encounter pause,
+observation details, counters, sound and visual effects. Current campaign fixtures
+include the now-failing disordered garden and a second successful protected seed.
+Validation: focused tests cover three regimes, unequal masses, saturated capacity,
+material/mass/momentum/angular conservation, fast crossings and near misses.
+Four/eight/sixteen-substep moon integration converges with bounded position error.
+Full native suite, the 120-case native/WASM population matrix, production build,
+web contracts and all Node checks pass; browser acceptance remains an Actions gate.

@@ -184,10 +184,11 @@ export class Renderer {
     }
     this.impacts=this.impacts.filter(impact=>time-impact.time<3);
     if(!this.reduceMotion)for(const impact of this.impacts){
+      const color=impact.outcome==='graze'?[.5,.85,1]:impact.outcome==='disruption'?[1,.35,.25]:[1,.55,.18];
       const age=time-impact.time,alpha=Math.max(0,1-age/3),radius=.025+age*.13;
       for(let i=0;i<32;i++){
         const a=i*Math.PI/16,b=(i+1)*Math.PI/16;
-        lines.line(impact.position.x+Math.cos(a)*radius,impact.position.y+Math.sin(a)*radius,impact.position.x+Math.cos(b)*radius,impact.position.y+Math.sin(b)*radius,[1,.55,.18],alpha*.8);
+        lines.line(impact.position.x+Math.cos(a)*radius,impact.position.y+Math.sin(a)*radius,impact.position.x+Math.cos(b)*radius,impact.position.y+Math.sin(b)*radius,color,alpha*.8);
         if(i%2===0){const d=radius*(1.25+(i%5)*.1);lines.line(impact.position.x+Math.cos(a)*d*.8,impact.position.y+Math.sin(a)*d*.8,impact.position.x+Math.cos(a)*d,impact.position.y+Math.sin(a)*d,[1,.8,.4],alpha*.8);}
       }
     }

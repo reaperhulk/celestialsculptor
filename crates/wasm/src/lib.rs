@@ -104,7 +104,7 @@ impl Simulation {
             .find(|e| {
                 matches!(
                     e.kind.as_str(),
-                    "collision" | "escape" | "absorb" | "satellite"
+                    "collision" | "graze" | "disruption" | "escape" | "absorb" | "satellite"
                 )
             })
             .map_or(0, |e| e.id)

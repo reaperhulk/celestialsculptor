@@ -61,6 +61,7 @@ export class Observatory {
   const list=this.$('encounter-list');list.replaceChildren();
   if(!events.length){const p=document.createElement('li');p.textContent='Major encounters will appear here.';list.append(p);}
   for(const event of events){const li=document.createElement('li'),text=document.createElement('p');text.textContent=`${quantity(event.tick/512)} yr · ${event.text}`;li.append(text);
+   if(event.impact){const detail=document.createElement('p'),hit=event.impact;detail.className='impact-detail';detail.textContent=`${hit.outcome||'merge'} · ${quantity(hit.mass/3.003e-6)} Earth masses retained · radius ${quantity(hit.radius_before)} → ${quantity(hit.radius_after)} AU · e ${quantity(hit.eccentricity_before)} → ${quantity(hit.eccentricity_after)}`;li.append(detail);}
    for(const [label,tick] of [['Before',Math.max(0,event.tick-(event.impact?0:1))],['After',event.tick+(event.impact?1:0)]]){
     const button=document.createElement('button');button.textContent=label;button.disabled=tick>state.timeline_end;button.onclick=async()=>{try{await this.seek(tick);this.selectEvent(event);this.$('history-caption').textContent=event.impact?'Impact orbits: gold before, blue after. Run or edit here to branch; the original is saved automatically.':'Reviewing this encounter. Run or edit to branch; the original is saved automatically.';}catch(e){this.$('history-caption').textContent=e.message;}};li.append(button);
    }

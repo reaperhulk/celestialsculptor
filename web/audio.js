@@ -27,7 +27,7 @@ export class Soundscape {
     osc.onended=()=>{osc.disconnect();gain.disconnect();this.voices--;};
   }
   event(kind){
-    const notes={launch:[220,330],placed:[220,330],seed:[164.81,246.94,329.63],nudge:[293.66,349.23],collision:[130.81,196],escape:[523.25,392,261.63],absorb:[110,82.41],complete:[261.63,329.63,392,523.25]}[kind]||[];
+    const notes={launch:[220,330],placed:[220,330],seed:[164.81,246.94,329.63],nudge:[293.66,349.23],collision:[130.81,196],graze:[349.23,293.66],disruption:[98,73.42,65.41],escape:[523.25,392,261.63],absorb:[110,82.41],complete:[261.63,329.63,392,523.25]}[kind]||[];
     notes.forEach((frequency,i)=>this.note(frequency,i*.12,kind==='complete'?1.5:.7));
   }
   async visibility(hidden){if(!this.context||!this.enabled)return;if(hidden)await this.context.suspend();else await this.context.resume();}
