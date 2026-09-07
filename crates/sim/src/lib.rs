@@ -1149,9 +1149,9 @@ impl World {
             }
             let orbit = self.orbit(&self.bodies[i]);
             if orbit.distance > 8.0 && !orbit.bound {
-                let before_energy = self.energy();
+                let before_energy = self.affected_energy(&[self.bodies[i].id]);
                 let b = self.bodies.remove(i);
-                self.escaped_energy += before_energy - self.energy();
+                self.escaped_energy += before_energy - self.affected_energy(&[]);
                 self.escaped_momentum = self.escaped_momentum.plus(b.vel.scale(b.mass));
                 self.escaped_angular_momentum += b.mass * b.pos.cross(b.vel) + b.spin;
                 self.escaped_mass += b.mass;
@@ -1234,7 +1234,8 @@ impl World {
                             j += 1;
                             continue;
                         }
-                        let energy_before = (self.rules_version >= 5).then(|| self.energy());
+                        let energy_before = (self.rules_version >= 5)
+                            .then(|| self.affected_energy(&[self.bodies[i].id, self.bodies[j].id]));
                         let orbit_before = self
                             .moon_orbit(&self.bodies[i])
                             .unwrap_or_else(|| self.orbit(&self.bodies[i]));
@@ -1347,7 +1348,7 @@ impl World {
                             }
                         }
                         if let Some(before) = energy_before {
-                            self.collision_energy += before - self.energy();
+                            self.collision_energy += before - self.affected_energy(&[id]);
                         }
                         if indexed {
                             self.contact_search.rebuild(&self.bodies, sweep);
@@ -1570,6 +1571,30 @@ impl World {
             };
         }
         s
+    }
+    /// Only pairs touching changed bodies can change during an instantaneous impact.
+    /// Legacy saves retain the original full-sum rounding; rules 6 uses O(kN).
+    fn affected_energy(&self, ids: &[u32]) -> f64 {
+        if self.rules_version < 6 {
+            return self.energy();
+        }
+        let changed: Vec<_> = self.bodies.iter().filter(|b| ids.contains(&b.id)).collect();
+        let mut energy = changed
+            .iter()
+            .map(|b| 0.5 * b.mass * b.vel.norm2())
+            .sum::<f64>();
+        let soft2 = self.softening().powi(2);
+        for (i, a) in changed.iter().enumerate() {
+            for b in &self.bodies {
+                if !ids.contains(&b.id) {
+                    energy -= G * a.mass * b.mass / (a.pos.minus(b.pos).norm2() + soft2).sqrt();
+                }
+            }
+            for b in changed.iter().skip(i + 1) {
+                energy -= G * a.mass * b.mass / (a.pos.minus(b.pos).norm2() + soft2).sqrt();
+            }
+        }
+        energy
     }
     pub fn energy(&self) -> f64 {
         let mut e: f64 = self

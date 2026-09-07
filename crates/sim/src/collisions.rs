@@ -66,7 +66,7 @@ impl World {
         } else {
             return false;
         };
-        let before_energy = self.energy();
+        let before_energy = self.affected_energy(&[a.id, b.id]);
         let before = self.moon_orbit(&a).unwrap_or_else(|| self.orbit(&a));
         let anchor = a
             .parent
@@ -174,7 +174,7 @@ impl World {
             .map(|body| body.mass * body.pos.cross(body.vel) + body.spin)
             .sum::<f64>();
         self.bodies[i].spin += angular - after_angular;
-        self.collision_energy += before_energy - self.energy();
+        self.collision_energy += before_energy - self.affected_energy(&remnants);
         let after = self
             .moon_orbit(&self.bodies[i])
             .unwrap_or_else(|| self.orbit(&self.bodies[i]));
@@ -439,5 +439,40 @@ mod flyby_refinement {
             errors[2] < errors[0] * 0.4,
             "refinement energy errors: {errors:?}"
         );
+    }
+}
+
+#[cfg(test)]
+mod ledger_tests {
+    use crate::{benchmark, Kind, Material, EARTH, V2};
+    #[test]
+    fn affected_energy_matches_full_energy_differences_after_changes_and_removal() {
+        let mut w = benchmark::system(64);
+        for i in 0..20 {
+            let ids = [w.bodies[1].id, w.bodies[2].id];
+            let before = w.energy();
+            let local = w.affected_energy(&ids);
+            w.bodies[1].pos = w.bodies[1].pos.plus(V2::new(0.01, 0.02));
+            w.bodies[1].vel.x += 0.2;
+            if i % 2 == 0 {
+                w.bodies[1].mass += w.bodies[2].mass;
+                w.bodies.remove(2);
+            } else {
+                let mut part = w.bodies[2].clone();
+                part.id = 10000 + i;
+                part.mass = 0.01 * EARTH;
+                part.material = Material::new(Kind::Dust, part.mass);
+                w.bodies[2].mass -= part.mass;
+                w.bodies.push(part);
+            }
+            let after_ids = if i % 2 == 0 {
+                vec![ids[0]]
+            } else {
+                vec![ids[0], ids[1], 10000 + i]
+            };
+            assert!(
+                ((before - w.energy()) - (local - w.affected_energy(&after_ids))).abs() < 1e-16
+            );
+        }
     }
 }

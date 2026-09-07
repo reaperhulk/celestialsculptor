@@ -1729,3 +1729,17 @@ encode/parse. Next needs: incremental impact energy and compact transferred fram
 The long notebook journey gets a 60-second overall test budget; each assertion
 retains its response limit. Its timeout was the only failure of the prior release,
 whose close-giant phone and tablet checks now pass.
+
+### 159 — Account for impacts and escapes in linear work
+
+Review needs: each impact recomputes two complete quadratic energy sums, making
+an 8,192-body disordered run cost about 100 ms/tick despite accelerated gravity.
+Implemented: rules 6 sums kinetic terms for affected bodies and potential terms
+for pairs touching those bodies. Unaffected pairs cancel. Mergers, grazing,
+fragmentation and escape ledgers now need O(kN) work for k changed bodies. Earlier
+rules retain the original full-sum arithmetic and rounding.
+Validation: randomized affected-body edits, removal and remnant addition match
+full energy differences within 1e-16. The existing collision matrix and conservation
+tests pass. The same 8,192-body disordered workload falls from 99.59 to 43.56 ms/tick
+(2.29x throughput), while collision/graze counts remain 2/1; 4,096 falls from
+23.91 to 20.27 ms. Snapshot transport remains the next measured bottleneck.
