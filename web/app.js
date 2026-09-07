@@ -390,7 +390,7 @@ function showNotebook(){
  for(const item of [...notebookEntries].reverse()){
   const card=document.createElement('article');card.className='notebook-entry';card.dataset.entry=item.id;
   const heading=document.createElement('h3');heading.textContent=item.name;
-  const description=document.createElement('p');description.textContent=`Year ${item.summary.years.toFixed(2)} · ${item.summary.planets} worlds · ${item.summary.moons} moons · ${item.summary.collisions} mergers`;
+  const description=document.createElement('p');description.textContent=`Year ${item.summary.years.toFixed(2)} · ${item.summary.planets} worlds · ${item.summary.moons} moons · ${item.summary.collisions} mergers · ${item.summary.grazes} grazes · ${item.summary.disruptions} disruptions`;
   const checkLabel=document.createElement('label');checkLabel.className='check-label';const check=document.createElement('input');check.type='checkbox';check.checked=comparisonIds.includes(item.id);check.setAttribute('aria-label',`Compare ${item.name}`);
   check.onchange=()=>{if(check.checked){if(comparisonIds.length===2){check.checked=false;$('notebook-status').textContent='Choose two checkpoints. Deselect one to change the comparison.';return;}comparisonIds.push(item.id);}else comparisonIds=comparisonIds.filter(id=>id!==item.id);renderComparison();};checkLabel.append(check,document.createTextNode('Compare'));
   const actions=document.createElement('div');actions.className='notebook-actions';

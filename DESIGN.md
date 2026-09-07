@@ -1255,3 +1255,14 @@ possible, follows the selected body and runs. Moon periods use their host frame.
 Validation: orbital timescale boundaries and supported-speed selection pass with
 real worker regression tests; production contracts verify the new controls.
 Physics timestep and replay format are unchanged.
+
+### 124 — Compare all impact outcomes without losing old notebooks
+
+Review needs: experiment summaries still counted mergers alone after introducing
+grazing and disruption, hiding meaningful differences between two runs.
+Implemented: notebook cards and comparison tables include grazes and disruptions.
+Existing saved summaries migrate missing counters to zero while preserving replays
+and the validation of their existing fields.
+Validation: portable checkpoint round-trips, old-summary migration and impact
+comparison regressions pass; browser row expectations and production contracts
+match the eleven displayed metrics.
