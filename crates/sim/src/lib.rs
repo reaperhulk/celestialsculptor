@@ -8,6 +8,7 @@ pub mod collisions;
 mod contact_search;
 pub mod generation;
 pub mod generator;
+mod gravity;
 #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
 mod gravity_simd;
 pub mod history;
@@ -300,6 +301,8 @@ pub struct Event {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct World {
     #[serde(skip)]
+    forces: gravity::Forces,
+    #[serde(skip)]
     contact_search: contact_search::ContactSearch,
     pub rules_version: u32,
     pub history: history::History,
@@ -460,6 +463,7 @@ impl World {
             migration_rate: 0.0,
         };
         let mut world = Self {
+            forces: gravity::Forces::default(),
             contact_search: contact_search::ContactSearch::default(),
             rules_version,
             history: history::History::default(),
@@ -1027,23 +1031,8 @@ impl World {
         });
         self.next_event += 1;
     }
-    #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
-    fn accelerations(&self) -> [V2; MAX_BODIES] {
-        gravity_simd::accelerations(&self.bodies, self.softening().powi(2))
-    }
-    #[cfg(not(all(target_arch = "wasm32", target_feature = "simd128")))]
-    fn accelerations(&self) -> [V2; MAX_BODIES] {
-        let mut a = [V2::default(); MAX_BODIES];
-        for i in 0..self.bodies.len() {
-            for j in (i + 1)..self.bodies.len() {
-                let d = self.bodies[j].pos.minus(self.bodies[i].pos);
-                let r2 = d.norm2() + self.softening().powi(2);
-                let f = d.scale(G / (r2 * r2.sqrt()));
-                a[i] = a[i].plus(f.scale(self.bodies[j].mass));
-                a[j] = a[j].minus(f.scale(self.bodies[i].mass));
-            }
-        }
-        a
+    fn update_forces(&mut self) {
+        self.forces.update(&self.bodies, self.softening().powi(2));
     }
     /// Each tick always runs four kick-drift-kick substeps. Speed never changes dt.
     pub fn step(&mut self) {
@@ -1056,10 +1045,10 @@ impl World {
         self.work_units += self.tick_work();
         let h = DT / f64::from(substeps);
         self.merge_contacts(0.0);
-        let mut a = self.accelerations();
+        self.update_forces();
         for _ in 0..substeps {
             for (i, b) in self.bodies.iter_mut().enumerate() {
-                b.vel = b.vel.plus(a[i].scale(h / 2.0));
+                b.vel = b.vel.plus(self.forces.output[i].scale(h / 2.0));
                 b.pos = b.pos.plus(b.vel.scale(h));
                 if self.rules_version >= 2 && b.id != 0 {
                     b.rotation = (b.rotation + b.spin / (0.4 * b.mass * b.radius * b.radius) * h)
@@ -1067,9 +1056,9 @@ impl World {
                 }
             }
             self.merge_contacts(h);
-            a = self.accelerations();
+            self.update_forces();
             for (i, b) in self.bodies.iter_mut().enumerate() {
-                b.vel = b.vel.plus(a[i].scale(h / 2.0));
+                b.vel = b.vel.plus(self.forces.output[i].scale(h / 2.0));
             }
             let star = self.bodies[0].clone();
             for body in self.bodies.iter_mut().skip(1) {

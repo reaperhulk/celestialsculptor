@@ -1643,3 +1643,18 @@ exactly. Alternating warmed medians on this x64 host improve 32 bodies from
 44.15 to 28.30 ms and 64 from 170.29 to 88.89 ms per 2,048 ticks (1.56x/1.92x).
 Eight-body timings remain essentially unchanged. Device and CI timings follow
 separately; this is not an iPhone FPS claim.
+
+### 154 — Reuse contiguous force storage and unchanged accelerations
+
+Review needs: fixed 64-element force arrays block scaling; the final force of one
+physics tick is recomputed at the identical positions at the next tick's start.
+Implemented: reusable separate x/y/mass arrays feed contiguous WASM vector loads.
+Acceleration storage grows with live bodies. A bitwise position/mass/softening
+cache reuses identical forces, including after velocity-only edits, while changed
+positions, masses, order, count or softening trigger recomputation. Saves contain
+physical state only. Four integration substeps and exact addition order remain.
+Validation: 380 full reference checkpoints remain bitwise identical to iteration
+153; all 212 Node/WASM tests pass. Warmed whole-engine medians improve another
+8.97% at 32 bodies and 6.11% at 64 (89.87 to 84.69 ms / 2,048 ticks), with no
+meaningful eight-body change. Cache invalidation is tested independently against
+fresh direct forces after edits, removal, reordering and softening changes.
