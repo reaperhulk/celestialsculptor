@@ -27,3 +27,9 @@ test('lifting one finger from a pinch continues panning without another touch or
  handlers.pointerup(event(2,440,300));const before={...renderer.center};handlers.pointermove(event(1,320,320));handlers.pointerup(event(1,320,320));
  assert.notDeepEqual(renderer.center,before);assert.deepEqual(calls,[]);
 });
+test('a tap retains follow and a real drag releases it at the current camera position',()=>{
+ const handlers={},canvas={clientWidth:800,clientHeight:600,getBoundingClientRect:()=>({left:0,top:0}),focus(){},setPointerCapture(){},addEventListener:(name,fn)=>handlers[name]=fn};
+ const renderer={center:{x:2,y:0},zoom:3,tilt:1,inputMode:'navigate',follow:1,state:{bodies:[]}},event={pointerId:1,clientX:300,clientY:300,button:0,pointerType:'touch'};
+ installInput(canvas,renderer,{onDraft(){},onSelect(){}});handlers.pointerdown(event);handlers.pointerup(event);assert.equal(renderer.follow,1);
+ handlers.pointerdown(event);renderer.center={x:3,y:0};handlers.pointermove({...event,clientX:310});assert.equal(renderer.follow,null);assert.ok(renderer.center.x>2.8);
+});

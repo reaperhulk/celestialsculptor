@@ -1235,3 +1235,12 @@ the system view. Pair histories use their pair as the continuity reference.
 Validation: camera-context cases cover local moons, absent and visible stellar
 bands; graph regressions retain continuity through unrelated host changes.
 Production build/contracts and focused camera/observation tests pass.
+
+### 122 — Preserve tracking through selection taps
+
+Review needs: pointer-down immediately cancelled follow, making inspection while
+watching a moon unnecessarily disruptive; a delayed drag could jump backward.
+Implemented: taps retain tracking. A real drag or pinch takes camera control,
+using the current tracked center when the gesture crosses the movement threshold.
+Validation: tap/follow, moving-camera drag and pinch-to-pan regression tests pass;
+production syntax, asset and DOM contracts pass.

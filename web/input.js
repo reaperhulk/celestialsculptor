@@ -20,9 +20,9 @@ export function installInput(canvas,renderer,{onDraft,onSelect}){
  const active=()=>{renderer.cameraActiveUntil=performance.now()+800;renderer.cameraTween=null;renderer.panVelocity=null;renderer.follow=null;};
  const updateDraft=event=>{const [x,y]=renderer.toWorld(event.clientX,event.clientY);onDraft(launchFromPoint(x,y,renderer.state?.bodies[0].pos));};
  canvas.addEventListener('pointerdown',event=>{
-  if(event.button!==0)return;canvas.focus({preventScroll:true});canvas.setPointerCapture(event.pointerId);active();
+  if(event.button!==0)return;canvas.focus({preventScroll:true});canvas.setPointerCapture(event.pointerId);renderer.panVelocity=null;
   pointers.set(event.pointerId,pixel(event));
-  if(pointers.size===2){const [a,b]=[...pointers.values()],middle={x:(a.x+b.x)/2,y:(a.y+b.y)/2};pinch={distance:Math.hypot(a.x-b.x,a.y-b.y),zoom:renderer.zoom,anchor:worldAt(middle,canvas.clientWidth,canvas.clientHeight,renderer.center,renderer.zoom,renderer.tilt)};gesture=null;return;}
+  if(pointers.size===2){active();const [a,b]=[...pointers.values()],middle={x:(a.x+b.x)/2,y:(a.y+b.y)/2};pinch={distance:Math.hypot(a.x-b.x,a.y-b.y),zoom:renderer.zoom,anchor:worldAt(middle,canvas.clientWidth,canvas.clientHeight,renderer.center,renderer.zoom,renderer.tilt)};gesture=null;return;}
   if(pointers.size===1)gesture={start:pixel(event),last:pixel(event),center:{...renderer.center},moved:false,time:performance.now(),velocity:{x:0,y:0}};
  });
  canvas.addEventListener('pointermove',event=>{
@@ -32,6 +32,7 @@ export function installInput(canvas,renderer,{onDraft,onSelect}){
   if(!gesture)return;
   const dx=p.x-gesture.start.x,dy=p.y-gesture.start.y;
   if(Math.hypot(dx,dy)>4)gesture.moved=true;
+  if(gesture.moved&&!gesture.started){gesture.started=true;gesture.center={...renderer.center};active();}
   if(gesture.moved){if(renderer.inputMode==='place')updateDraft(event);else{const now=performance.now(),dt=Math.max(8,now-gesture.time),before=renderer.center;renderer.center=panCenter(gesture.center,dx,dy,canvas.clientHeight,renderer.zoom,renderer.tilt);gesture.velocity={x:(renderer.center.x-before.x)/dt,y:(renderer.center.y-before.y)/dt};gesture.time=now;}}
   gesture.last=p;
  });
