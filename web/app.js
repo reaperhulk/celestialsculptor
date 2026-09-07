@@ -1,3 +1,4 @@
+import {resonanceText} from './resonance-reading.js';
 import {experimentDifferences} from './comparison.js';
 import {orbitalWatchSpeed} from './playback.js';
 import { Renderer } from './renderer.js';
@@ -163,7 +164,7 @@ function renderState(next){
     else toast(`Discovery: ${m.unlock}`);
   }
   $('playback-note').textContent=`${s.moons} bound moon${s.moons===1?'':'s'} · ${s.formed} worlds formed from debris`;
-  updateResonanceReadings(next.resonances||[]);
+  updateResonanceReadings(next);
   $('next-mission').hidden=!s.completed||mission===null;
   $('next-mission').textContent=mission===9?'Explore the sandbox':'Next challenge';
   $('collection').textContent=`${profile.completed.length} / 10 discoveries`;
@@ -371,8 +372,8 @@ $('sound-volume').value=String(Math.round(viewSettings.volume*100));$('sound-vol
 $('sound-volume').oninput=()=>{viewSettings.volume=Number($('sound-volume').value)/100;sound.setVolume(viewSettings.volume);$('sound-volume-value').textContent=$('sound-volume').value+'%';writeViewSettings(storage,viewSettings);};
 
 let lastResonanceText='';
-function updateResonanceReadings(readings){
- const text=readings.length?readings.map(r=>`Worlds ${r.inner} & ${r.outer}: ${r.p}:${r.q} · ratio ${r.ratio.toFixed(3)}\n${r.librating?'Librating resonant angle':'Near ratio · observing the resonant angle'} · ${r.observed_years.toFixed(1)} years observed · angle range ${(r.span*180/Math.PI).toFixed(0)}°`).join('\n\n'):'No nearby simple period ratios yet. Compare neighboring worlds or their moons.';
+function updateResonanceReadings(snapshot){
+ const text=resonanceText(snapshot);
  if(text!==lastResonanceText){lastResonanceText=text;$('resonance-readings').textContent=text;}
 }
 $('start-migration').onclick=()=>action('command',{command:{type:'migration',id:selectedBody,timescale:Number($('migration-time').value)}});

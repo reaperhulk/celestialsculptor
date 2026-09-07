@@ -1277,3 +1277,14 @@ to that age, with bounded output. Stale replies remain guarded by request order.
 Validation: real WASM comparisons omit future placements, reject invalid ages and
 leave the active experiment unchanged. Difference-list tests, build and web
 contracts pass alongside the existing observation and notebook checks.
+
+### 126 — Show the evidence needed for resonance
+
+Review needs: the panel reported a near ratio without explaining remaining
+observation requirements or why reversed orbital directions are absent.
+Implemented: pair readings expose duration in outer-period units, angle reversals,
+eccentricity and bounded-swing requirements, plus the detector's neighboring
+prograde 2:1 / 3:2 / 4:3 scope. Detection is described as evidence, with the
+existing authoritative criteria and saved simulation results preserved.
+Validation: near-ratio cases cannot display capture evidence; missing duration,
+eccentricity and reversals are explained. Focused tests and build/contracts pass.
