@@ -19,6 +19,16 @@ struct Snapshot<'a> {
 }
 use wasm_bindgen::prelude::*;
 
+/// Build provenance for headless differential tests and performance reports.
+#[wasm_bindgen]
+pub fn gravity_backend() -> String {
+    if cfg!(all(target_arch = "wasm32", target_feature = "simd128")) {
+        "wasm-simd-f64x2".into()
+    } else {
+        "scalar-f64".into()
+    }
+}
+
 #[wasm_bindgen]
 pub struct Simulation {
     world: World,

@@ -6,4 +6,5 @@
 /web/pkg/
 *.log
 /benchmark-results.json
+/simd-benchmark-results.json
 /release-report.json

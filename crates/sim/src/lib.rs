@@ -7,6 +7,8 @@ pub mod benchmark;
 pub mod collisions;
 pub mod generation;
 pub mod generator;
+#[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+mod gravity_simd;
 pub mod history;
 pub mod replay;
 pub mod resonance;
@@ -1021,6 +1023,11 @@ impl World {
         });
         self.next_event += 1;
     }
+    #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+    fn accelerations(&self) -> [V2; MAX_BODIES] {
+        gravity_simd::accelerations(&self.bodies, self.softening().powi(2))
+    }
+    #[cfg(not(all(target_arch = "wasm32", target_feature = "simd128")))]
     fn accelerations(&self) -> [V2; MAX_BODIES] {
         let mut a = [V2::default(); MAX_BODIES];
         for i in 0..self.bodies.len() {

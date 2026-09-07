@@ -30,7 +30,9 @@ The simulation never reads elapsed real time. A tick is 1/512 year, with four
 fixed kick-drift-kick substeps. UI speed changes tick throughput only. The star
 moves, collisions preserve mass and momenta, and escape accounting is explicit.
 Body count is capped at 64. Small N favors exact pairwise gravity over an
-approximate tree. Rendering is independent; losing a graphics context must never
+approximate tree. The WASM release uses double-precision SIMD with a scalar
+differential test build. [The scaling plan](docs/SCALING.md) orders the work toward
+hundreds and thousands of mutually gravitating bodies. Rendering is independent; losing a graphics context must never
 corrupt the experiment. No SharedArrayBuffer or cross-origin isolation required.
 
 ## Testing contract
@@ -1581,3 +1583,21 @@ A browser test examines the vertices actually sent to WebGL, checks separated
 giant surfaces and selection, and records desktop/phone screenshots for review.
 All 211 Node/WASM checks pass locally. The new 64-body sizing pass measured
 0.028 ms per frame on this host; physical-device frame rates remain separately measured.
+
+### 150 — Vectorize exact gravity and establish the larger-system roadmap
+
+Review needs: the user wants hundreds or thousands of mutually gravitating bodies;
+the direct gravity and collision loops are quadratic, and a compiler flag alone
+did not improve complete tick throughput in a controlled comparison.
+Implemented: the WASM release uses explicit f64x2 gravity for two pairs at a time,
+preserving summation order, pair symmetry and double precision. A separate scalar
+build provides an Actions differential gate and alternating warmed performance
+report. The scaling design orders contiguous hot storage, swept collision search,
+controlled tree gravity, transport/render budgets and real-device qualification.
+The live cap remains 64 while those milestones are developed and measured.
+Validation: the initial whole-engine probe measured 1.19x/1.24x throughput at
+32/64 bodies, with matching snapshots. The repeatable gate passed 380 exact
+comparisons locally and measured 1.24x/1.26x throughput. It checks exact snapshots,
+ledgers, histories and replays across campaign/seeded fixtures, recipes, forty-year
+resonant moons, legacy rules and vector tails. Existing native, WASM and browser
+physics gates also exercise the production artifact; timings remain informational.

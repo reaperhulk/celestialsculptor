@@ -13,6 +13,7 @@
     "serve": "node scripts/serve.mjs",
     "check": "node scripts/check.mjs",
     "bench": "node scripts/benchmark.mjs",
+    "bench:simd": "node scripts/simd-benchmark.mjs",
     "verify": "node scripts/verify.mjs",
     "report": "node scripts/release-report.mjs",
     "audit": "node scripts/audit-design.mjs"

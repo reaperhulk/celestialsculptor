@@ -44,6 +44,7 @@ jobs:
         with:
           toolchain: 1.90.0
           targets: wasm32-unknown-unknown
+          components: clippy
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
@@ -60,13 +61,18 @@ jobs:
       - if: steps.bindgen-cache.outputs.cache-hit != 'true'
         run: cargo install wasm-bindgen-cli --version 0.2.104 --locked
       - run: npm run build
+      - run: cargo clippy -p celestial-sim --lib --target wasm32-unknown-unknown --locked -- -D warnings
       - run: npm run check
       - run: npm test
       - run: npm run bench
+      - name: Compare scalar and SIMD physics and throughput
+        run: npm run bench:simd
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: performance-results
-          path: benchmark-results.json
+          path: |
+            benchmark-results.json
+            simd-benchmark-results.json
           retention-days: 14
       - run: npx playwright install --with-deps chromium firefox webkit
       - run: npm run test:browser

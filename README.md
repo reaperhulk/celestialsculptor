@@ -53,6 +53,10 @@ draw CPU time and simulation throughput. High quality targets 60 fps while runni
 paused scenes use 30 fps, and Battery saver caps rendering at 30. Actual iPhone/iPad
 frame rates must be measured on those devices; CI browser timings are not a substitute.
 
+The WASM engine uses double-precision SIMD (Safari 16.4+ or current Chrome,
+Edge and Firefox). See the [scaling plan](docs/SCALING.md) for measured improvements,
+the scalar comparison command, and the roadmap beyond the current 64-body limit.
+
 For sustained hardware measurements, use **View → Device performance test**.
 It preserves your experiment, prepares a stress scenario and records five active
 minutes with portable frame/tick reports. See [the device protocol](docs/DEVICE_PERFORMANCE.md).
