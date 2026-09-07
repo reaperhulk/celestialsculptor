@@ -1200,3 +1200,18 @@ Validation: a real 64-body WASM history matches the cached-review projection for
 valid, default and missing subjects; each frame contains at most one body/pair,
 the message stays below 350 KB and below one fifth of the full history. Clippy,
 build/contracts and eleven focused history/runtime tests pass.
+
+### 119 — Sustained device scenarios and portable timing evidence
+
+Review needs: make the mobile performance target reproducible while separating
+paused/hidden cadence from running quality and retaining the user's experiment.
+Implemented: View offers 64-world, moon-tracking and impact/chart stress scenarios,
+a five-minute active-time recorder and JSON export with exact conditions, device,
+quality, frame percentiles, draw CPU and tick throughput. Fixed histograms bound
+memory; pauses/hidden time are excluded; system replacement ends a recording.
+Preparing a scenario saves the original in the notebook before mutation. Added
+browser acceptance and representative observation/lesson screenshot captures.
+Validation: recorder tests cover five active minutes, hidden gaps, bounded storage
+and long-frame overflow. Production build, contracts and the complete Node/WASM
+suite pass, including all 120 generated systems. Physical iPhone/iPad sustained
+60 FPS remains a device measurement; software CI does not claim to prove it.

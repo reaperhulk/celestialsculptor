@@ -15,3 +15,13 @@ test('review a moon family at close range and the outcome notebook',async({page}
  await page.locator('#display').click();await page.locator('#show-preview').uncheck();await page.locator('#close-display').click();await expect(page.locator('#toast')).toBeHidden({timeout:6000});await expect(page.locator('#fps-overlay')).toContainText('fps');
  for(const name of ['moons','notebook']){if(name==='notebook'){await page.locator('#notebook').click();await page.locator('#checkpoint-name').fill('A family in motion');await page.locator('#save-checkpoint').click();await expect(page.locator('.notebook-entry')).toHaveCount(1);}const path=testInfo.outputPath(`review-${name}-${testInfo.project.name}.png`);await page.screenshot({path});await testInfo.attach(name,{path,contentType:'image/png'});}
 });
+test('review the observation chart and comparative lesson on desktop and phone',async({page},testInfo)=>{
+ test.skip(!['desktop','phone'].includes(testInfo.project.name),'Representative scientific reading layouts.');
+ await page.addInitScript(()=>localStorage.setItem('celestial-sculptor.profile.v1',JSON.stringify({version:1,completed:[0,1,2,3,4,5,6,7]})));
+ await page.goto('./');await expect(page.locator('#play')).toBeEnabled();if(await page.locator('.mobile-tabs').isVisible())await page.locator('[data-panel=mission]').click();
+ await page.locator('#study-example').click();await expect(page.locator('#lesson-outcome')).toContainText('achieved');
+ let path=testInfo.outputPath(`review-lesson-${testInfo.project.name}.png`);await page.screenshot({path});await testInfo.attach('Comparative lesson',{path,contentType:'image/png'});await page.locator('#close-lesson').click();
+ await page.locator('#sandbox').click();await page.locator('#launch').click();for(let i=0;i<5;i++)await page.locator('#step').click();
+ if(await page.locator('.mobile-tabs').isVisible())await page.locator('[data-panel=observe]').click();else await page.locator('#analysis-tools > summary').click();
+ await expect(page.locator('#history-chart path')).not.toHaveCount(0);path=testInfo.outputPath(`review-chart-${testInfo.project.name}.png`);await page.screenshot({path});await testInfo.attach('Observation chart',{path,contentType:'image/png'});
+});

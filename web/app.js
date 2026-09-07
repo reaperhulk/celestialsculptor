@@ -1,6 +1,7 @@
 import { Renderer } from './renderer.js';
 import {clampZoom} from './camera.js';
 import {FrameMeter,fpsFlag} from './performance.js';
+import {DeviceRecording,deviceScenario} from './device-test.js';
 import {strongestPerturber} from './appearance.js';
 import { installInput } from './input.js';
 import { readProfile, writeProfile, canPlay, nextMission, award, normalizeProfile } from './progression.js';
@@ -325,16 +326,22 @@ document.addEventListener('keydown',event=>{
   }
 });
 const frameClock=new FrameClock(),frameMeter=new FrameMeter();
+let deviceRecording=null,deviceScenarioName='current',deviceGeneration=0;
 $('show-fps').checked=viewSettings.showFps;$('fps-overlay').hidden=!viewSettings.showFps;
 $('show-fps').onchange=()=>{viewSettings.showFps=$('show-fps').checked;$('fps-overlay').hidden=!viewSettings.showFps;writeViewSettings(storage,viewSettings);frameMeter.reset(performance.now(),state?.tick||0);};
 function frame(time){
  if(frameClock.due(time,{playing:state?.playing||time<(renderer?.cameraActiveUntil||0),batterySaver:viewSettings.maxDpr===1,reduceMotion:viewSettings.reduceMotion,hidden:document.hidden})){
   const start=performance.now(),drawn=renderer?.draw(time/1000);
+  if(deviceRecording&&!deviceRecording.done){
+   if(state?.generation!==deviceGeneration)deviceRecording.stop('system changed');
+   deviceRecording.record(time,performance.now()-start,state?.tick||0,Boolean(drawn&&state?.playing&&!document.hidden));
+   if(deviceRecording.done){$('device-status').textContent=`Recording ${deviceRecording.reason}. Download the report in View.`;toast('Device recording finished. Its report is ready in View.');}
+  }
   if(viewSettings.showFps&&drawn){frameMeter.record(time,performance.now()-start);const report=frameMeter.report(time,state?.tick||0);if(report){globalThis.__celestialPerformance={...report,bodies:state.bodies.length,dpr:renderer.dpr,camera:{...renderer.center,zoom:renderer.zoom,following:renderer.follow}};$('fps-overlay').textContent=`${report.fps.toFixed(0)} fps · p95 ${report.p95.toFixed(1)} ms\nDraw CPU ${report.drawMs.toFixed(1)} ms · ${report.ticksPerSecond.toFixed(0)} ticks/s\n${state.bodies.length} bodies · DPR ${renderer.dpr}`;}}
  }
  requestAnimationFrame(frame);
 }requestAnimationFrame(frame);
-document.addEventListener('visibilitychange',()=>frameMeter.reset(performance.now(),state?.tick||0));
+document.addEventListener('visibilitychange',()=>{frameMeter.reset(performance.now(),state?.tick||0);deviceRecording?.record(performance.now(),0,state?.tick||0,false);});
 updateDraft();
 
 let recipes=null;
@@ -422,3 +429,15 @@ const generatorControls=new GeneratorControls({storage,getState:()=>state,
  repeat:({config,command,version})=>confirmReset(async()=>{saveEpoch++;await send('import',{replay:JSON.stringify({version,config,commands:[{tick:0,command}],end_tick:0})});renderer?.fit();await autosave();await send('play',{value:true});toast('The same seed and conditions are running again.');}),
  save:()=>{$('checkpoint-name').value=`Seed ${state.config.seed} · year ${state.status.years.toFixed(2)}`;$('notebook').click();}
 });
+
+$('prepare-device').onclick=async()=>{try{
+ await send('play',{value:false});const original=await send('original');notebookEntries=preserveOriginal(storage,notebookEntries,original.replay,original.snapshot);
+ deviceScenarioName=$('device-scenario').value;saveEpoch++;await send('import',{replay:JSON.stringify(deviceScenario(deviceScenarioName))});await send('speed',{value:.25});renderer?.fit();
+ if(deviceScenarioName==='moons'){selectedBody=1;renderer?.focus(1);inspect();}
+ $('device-status').textContent='Scenario ready at ¼ speed. Your original is in the notebook. Start recording, then pan, zoom and open Observe while it runs.';await autosave();
+ }catch(error){$('device-status').textContent=error.message;}};
+$('record-device').onclick=async()=>{try{await send('play',{value:true});deviceGeneration=state.generation;
+ const {replay}=await send('export');deviceRecording=new DeviceRecording({scenario:deviceScenarioName,replay:JSON.parse(replay),browser:navigator.userAgent,viewport:{width:innerWidth,height:innerHeight,pixelRatio:devicePixelRatio},quality:{...viewSettings},dpr:renderer?.dpr,created:new Date().toISOString()});
+ $('device-status').textContent='Recording five minutes of visible running time. Pauses and hidden time are excluded. Download early for a partial report.';$('download-device').disabled=false;$('display-dialog').close();toast('Five-minute recording started. Navigate and open charts as you watch.');
+ }catch(error){$('device-status').textContent=error.message;}};
+$('download-device').onclick=()=>{if(deviceRecording)download(JSON.stringify(deviceRecording.report(),null,2),'celestial-device-performance.json');};

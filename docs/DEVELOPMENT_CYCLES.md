@@ -44,3 +44,19 @@ version fixtures include multiple solutions for garden, assist and resonance.
 Iteration 115 completes the new generator population and boundary checks with
 120 native/WASM parity cases. Releases 113/114 passed full browser and Pages
 verification. Collision diversity and sustained device scenarios remain in cycle 1.
+
+Iterations 116–119 implement the remaining cycle-1 list: conserved grazing /
+disruption, current-physics starting points, timestep refinement, filtered chart
+transport and sustained device recording. All local headless gates pass; the
+latest browser release is pending. Physical five-minute hardware evidence remains
+an explicitly documented device measurement, not a claimed automated result.
+
+## Cycle 2 — control and observation consistency
+
+Review of the implemented cycle-1 source, current headless results and available
+phone captures found three concrete usability defects: custom-mass launch checks
+use fixed kind cost, the stellar habitable-zone key remains visible in a local
+moon view, and pair graphs can acquire gaps from an unrelated selected body.
+Implement accurate placement validation, frame-aware scene context and independent
+pair histories; verify the controls across native/WASM/UI boundaries. Delivery
+of cycle 1 remains subject to the pending browser gate.
