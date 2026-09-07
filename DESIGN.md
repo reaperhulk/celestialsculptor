@@ -1387,3 +1387,13 @@ and replace the accessible description instead of retaining stale measurements.
 Validation: graph geometry/continuity tests and production contracts pass. Browser
 checks now cover empty accessible descriptions and populated chart metric labels;
 CI captures both desktop and phone scientific-reading layouts.
+
+### 136 — Cover every UI controller in headless DOM contracts
+
+Review needs: static DOM validation still inspected app.js alone after observation,
+lesson and generator controls moved into their own modules.
+Implemented: the build gate checks static lookups in every web module, supports
+both quote styles and direct getElementById calls, and names the offending module.
+Duplicate IDs and accessible label references remain required gates.
+Validation: mutation cases with a missing separate-controller element fail as
+expected; the actual production DOM and all controller references pass.
