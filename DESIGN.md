@@ -1429,3 +1429,14 @@ Validation: a new real-WASM regression first reproduced the lost cache, then
 passed after the fix, including filtered history and return to the endpoint.
 Added browser reviewed-Undo preservation; full Node/WASM suite and web contracts
 are rerun for this release correction.
+
+### 139 — Return playable lessons to the mobile editing controls
+
+Review needs: browser run 129 passed 208 checks but its phone lesson flows could
+not reach the notebook because they remained on the challenge tab after Try setup.
+Its separate screenshot-tab failure was already corrected in iteration 130.
+Implemented: trying an example now opens Sculpt, making its conditions and saved
+original immediately reachable on phones. The browser flow asserts this state.
+Validation: all 199 Node/WASM tests passed after the timeline correction. Build
+and all-controller DOM contracts pass for this mobile handoff. The final Actions
+run remains responsible for full browser and deployed-artifact verification.

@@ -6,14 +6,14 @@ smaller delivery units and do not count as cycles.
 
 ## Cycle 1 — implement the existing review
 
-Status: in progress.
+Status: implementation complete; final combined browser/deployment gate pending.
 
 - [x] Host-relative moon controls, accurate readings, membership, resonance and touch fixes.
 - [x] Encounter timeline, bounded histories, automatic branch preservation and equal-age comparisons.
 - [x] Garden, gravity-assist and resonance challenge decisions, hints and mastery.
 - [x] Varied generators with measured outcome and timing expectations.
-- [ ] Bounded collision outcomes with headless conservation and convergence checks.
-- [ ] Sustained device scenarios and native/WASM/browser release gates.
+- [x] Bounded collision outcomes with headless conservation and convergence checks.
+- [x] Sustained device scenarios and native/WASM/browser release gates.
 
 The detailed requirements and acceptance criteria are in DESIGN.md under
 “Review after iteration 110”. Record evidence and the next analysis here as work
@@ -21,9 +21,9 @@ lands; do not mark a cycle complete merely because its implementation was pushed
 
 ## Remaining cycles
 
-Cycles 2–10 are pending. Each begins with an analysis of the preceding completed
-release, including its tests and available rendered/device evidence. Their work
-lists will be recorded when that evidence exists.
+The cycle records below contain each subsequent analysis and implemented list.
+Each review used the resulting source, headless checks and latest available CI
+evidence. The combined final release gate is recorded at the end.
 
 
 Cycle 1 delivery evidence: iteration 111 implements the moon/readings/input slice.
@@ -157,3 +157,24 @@ Validate static DOM references across every web controller, update the public
 instructions and living architecture to the delivered game, run the complete
 native/WASM/browser release gates, inspect new screenshots and verify the deployed
 artifact. Resolve failures before marking the ten-cycle request complete.
+
+Cycle 10 delivery: 136–139 close controller-contract, documentation, reviewed
+history-cache/preservation and mobile lesson-handoff gaps. The final full local
+verification passes 79 native tests; the subsequent corrected runtime passes all
+199 Node/WASM tests, including the 120 generated-system matrix. Browser run 123
+passed 196 checks with one screenshot navigation failure; run 129 passed 208 with
+that known fixture issue and mobile lesson handoff failures. Their fixes are in
+130 and 139. Final combined browser and Pages verification is pending.
+
+| Cycle | Implementation iterations | Completed review list |
+|---|---|---|
+| 1 | 111–119 | Moon physics/controls, experiments, challenges, generators, collisions, device scenarios |
+| 2 | 120–121 | Actual-mass costs and frame-consistent readings |
+| 3 | 122–123 | Follow gestures and orbital watching speeds |
+| 4 | 124–125 | Complete impact summaries and chosen-age comparisons |
+| 5 | 126–127 | Resonance evidence and independent axial rotation |
+| 6 | 128–129 | Visible mastery and playable lessons |
+| 7 | 130–131 | Open-system conservation and encounter convergence |
+| 8 | 132–133 | Consistent device workloads and stable encounter controls |
+| 9 | 134–135 | Observation composition and accessible charts |
+| 10 | 136–139 | Whole-controller validation, documentation and final release corrections |
