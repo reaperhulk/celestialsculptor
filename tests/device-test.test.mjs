@@ -6,3 +6,6 @@ test('a five-minute recording excludes idle gaps, bounds memory and retains slow
  const slow=new DeviceRecording({});slow.record(0,1,0,true);slow.record(500,1,1,true);assert.equal(slow.report().maxFrameMs,500);assert.equal(slow.report().histogramOverflowFrames,1);
  assert.equal(deviceScenario('stress').commands.length,63);assert.equal(deviceScenario('moons').commands[0].command.count,9);
 });
+test('a changed workload finishes an immutable partial measurement',()=>{
+ const r=new DeviceRecording({revision:'abc',speed:.25,scenario:'current'});r.record(0,2,0,true);r.record(16,2,1,true);r.stop('rendering quality changed');const before=r.report();r.record(1000,30,100,true);assert.deepEqual(r.report(),before);assert.equal(before.reason,'rendering quality changed');assert.equal(before.revision,'abc');assert.equal(before.frames,1);
+});

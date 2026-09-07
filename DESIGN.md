@@ -1344,3 +1344,14 @@ energy are checked independently of rendering and playback batching.
 Validation: all three resolutions produce the assisted escape; relative energy
 error stays below 0.001 and the finest run reduces it below 40% of the production
 step's error. The complete native workspace suite passes with the new ledgers.
+
+### 132 — Keep device recordings tied to one workload
+
+Review needs: changing speed, quality or viewport silently mixed unlike workloads;
+a previously prepared scenario could mislabel a later current-system recording.
+Implemented: reports include the exact build and playback speed, scenario identity
+is tied to its simulation generation, and workload-setting changes finish a clear
+partial report. Preparing a stress scenario clears event auto-pausing. Navigation
+and observation remain part of the intended test; paused time stays excluded.
+Validation: finished reports remain immutable under later frames. Added browser
+quality-change coverage; device/worker tests and production contracts pass.
