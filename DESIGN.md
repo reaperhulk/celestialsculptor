@@ -1477,3 +1477,13 @@ to the star. Desktop and phone capture checks require 95% chart visibility.
 Validation: production DOM/style/asset contracts pass; browser acceptance now
 checks the initial star reading and actual chart viewport coverage. No physics or
 replay changes; final combined CI validates this screenshot-driven correction.
+
+### 143 — Fit the complete chart inside the phone observation panel
+
+Review needs: the viewport gate measured 90.7% chart visibility after the landing
+fix, leaving part of the time axis clipped on the representative phone.
+Implemented: a 112-pixel chart-height ceiling fits the mobile observation panel
+while preserving its SVG aspect ratio and larger labels. Desktop intrinsic chart
+height already falls below this ceiling. The 95% visibility assertion is retained.
+Validation: build/style/DOM contracts pass. The prior CI run passed 238 other
+browser checks; the final combined run must confirm the corrected viewport fit.

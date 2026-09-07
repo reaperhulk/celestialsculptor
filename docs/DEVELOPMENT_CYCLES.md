@@ -160,7 +160,7 @@ instructions and living architecture to the delivered game, run the complete
 native/WASM/browser release gates, inspect new screenshots and verify the deployed
 artifact. Resolve failures before marking the ten-cycle request complete.
 
-Cycle 10 delivery: 136–142 close controller-contract, documentation, reviewed
+Cycle 10 delivery: 136–143 close controller-contract, documentation, reviewed
 history-cache/preservation and mobile lesson-handoff gaps. The final full local
 verification passes 79 native tests; the subsequent corrected runtime passes all
 199 Node/WASM tests, including the 120 generated-system matrix. Browser run 123
@@ -180,7 +180,7 @@ checks; failed runs do not publish.
 | 7 | 130–131 | Open-system conservation and encounter convergence |
 | 8 | 132–133 | Consistent device workloads and stable encounter controls |
 | 9 | 134–135 | Observation composition and accessible charts |
-| 10 | 136–142 | Whole-controller validation, documentation and final release corrections |
+| 10 | 136–143 | Whole-controller validation, documentation and final release corrections |
 
 Final timing review in 140 also preserves distinct interpolation samples during
 slow playback and invalidates orbit caches immediately on selection. Its focused
@@ -189,7 +189,7 @@ commits across the ten review cycles.
 
 ## Final review
 
-The ten lists are implemented in 31 implementation commits plus the closing
+The ten lists are implemented in 32 implementation commits plus the closing
 review record. The complete local gate passed 79 native and 199 Node/WASM tests;
 a further focused regression verifies distinct slow-playback interpolation samples.
 The final CI reruns the whole suite, seven Chromium viewport flows, Firefox/WebKit
@@ -213,3 +213,7 @@ hardware performance or additional physics already implemented.
 Screenshot review in 142 corrected the phone Observe landing position, compacted
 the metric/subject selectors and aligned the initial inspector with its star
 selection. The capture gate now requires the chart to be at least 95% visible.
+
+The 142 browser gate measured only 90.7% phone-chart visibility while the other
+238 checks passed. Iteration 143 caps the chart height to fit the panel and keeps
+the 95% acceptance threshold unchanged.
