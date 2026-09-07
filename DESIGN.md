@@ -1487,3 +1487,22 @@ while preserving its SVG aspect ratio and larger labels. Desktop intrinsic chart
 height already falls below this ceiling. The 95% visibility assertion is retained.
 Validation: build/style/DOM contracts pass. The prior CI run passed 238 other
 browser checks; the final combined run must confirm the corrected viewport fit.
+
+### 144 — Reveal selected bodies and make placement and pause explicit
+
+Review needs: body clicks updated an offscreen inspector; launch previews depended
+on disclosure focus, and rapid Run/Pause clicks reused a stale worker state.
+Implemented: selection opens Sculpt and scrolls mass/rotation readings into view;
+orbital detail remains available below. Placement is an explicit mode that survives
+blur and ends after creation. Playback retains the latest user intent until its
+worker acknowledgement, ignoring older in-flight readings.
+Validation: focused input, reading, preview and delayed-acknowledgement tests pass.
+Browser regressions check actual draw instances with closed disclosures, tapped
+planet statistics in the viewport, and settled pause behavior with delayed replies.
+
+## Review after the reported interaction and debris failures
+
+- [x] Reveal body statistics, independent placement previews and reliable pause intent (144).
+- [ ] Remove the dense-system lifetime cap; retain bounded, responsive replay reconstruction.
+- [ ] Re-review navigation and long experiments after the fixes, implement the resulting list.
+- [ ] Verify native/WASM regressions, browser screenshots and the published revision.

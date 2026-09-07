@@ -92,13 +92,11 @@ export class Renderer {
     if(!locations.has(name))locations.set(name,this.gl.getUniformLocation(program,name));
     return locations.get(name);
   }
-  set selected(value){this._selected=value;this.selectedPath=null;this.familyPaths=null;this.perturber=null;}
-  get selected(){return this._selected;}
   set draft(value){this._draft=value;this.previewPath=this.previewCache.update(value);}
   get draft(){return this._draft;}
   get selected(){return this._selected;}
   set selected(id){if(id!==this._selected){this._selected=id;this.selectedPath=null;this.perturber=null;this.familyPaths=null;}}
-  get previewVisible(){return this.showPreview&&(this.inputMode==='place'||this.previewEditing);}
+  get previewVisible(){return this.showPreview&&this.inputMode==='place';}
   set encounterOverlay(impact){this._encounterOverlay=impact?.anchor?{anchor:impact.anchor,paths:[orbitPath(impact.orbit_before),orbitPath(impact.orbit_after)]}:null;}
   setState(state){
     if(!this.motion.push(state,performance.now()/1000)){this.state=state;return;}
