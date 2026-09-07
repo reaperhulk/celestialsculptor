@@ -1760,3 +1760,18 @@ On this host, 8,192-body encode/decode falls from 32.07 to 1.52 ms (21.1x), with
 1.31 MB transferred instead of 5.5 MB. At 1,024 it falls from 4.86 to 0.27 ms.
 The whole-engine harness now reports both formats; real browser timings follow
 through the large-swarm navigation and rendering gate.
+
+### 161 — Remove avoidable worker idle time and debug download bytes
+
+Review needs: a fixed 16-ms worker timer underuses a large-system solver that needs
+one long tick per turn. Debug function names consume nearly 46 KB of the download;
+serial release runs also waste time verifying and deploying superseded commits.
+Implemented: schedule ready work through MessageChannel, accounting for CPU time
+already spent before sleeping. Keep tick-boundary yielding and all Pause controls.
+Ship WASM without its name section and archive the matching symbol-bearing module
+for profiling. New pushes cancel superseded workflows; the latest commit still
+requires every physics, browser and deployment-integrity gate.
+Validation: scheduler tests cover accumulated debt, expensive turns and idle/pause
+sleeping. The pinned binding generator supports name-section removal; the build
+and existing asset integrity checks validate both outputs. Runtime budget tests
+remain in place. This changes neither dt nor physical arithmetic.

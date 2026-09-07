@@ -8,7 +8,7 @@ permissions:
   contents: read
 concurrency:
   group: verify-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: true
 jobs:
   simulation:
     runs-on: ubuntu-latest
@@ -61,6 +61,11 @@ jobs:
       - if: steps.bindgen-cache.outputs.cache-hit != 'true'
         run: cargo install wasm-bindgen-cli --version 0.2.104 --locked
       - run: npm run build
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: wasm-debug-symbols
+          path: target/browser-symbols/celestial_wasm_bg.wasm
+          retention-days: 14
       - run: cargo clippy -p celestial-sim --lib --target wasm32-unknown-unknown --locked -- -D warnings
       - run: npm run check
       - run: npm test
