@@ -6,10 +6,12 @@ export const HINTS={
  7:['Moons orbit their planet while the star perturbs the whole family.','Leave room between the complete moon paths. Reversing an orbit does not reverse axial rotation.','Try a light inner moon and a more distant outer moon, then compare opposite orbital directions.'],
  8:['A near 2:1 period ratio is a candidate, not a completed resonance.','Watch the resonant-angle graph. A bounded swing differs from an angle that continually circulates.','The detector needs at least eight outer orbits and measurable eccentricity. Massive neighbors interact more strongly; lighter pairs can need more time.']
 };
+export function lessonSetup(example){const replay=example.replay;return {...replay,end_tick:0,commands:replay.commands.filter(action=>action.tick===0)};}
 export class ChallengeGuide {
- constructor({send,getState}){
+ constructor({send,getState,trySetup}){
   this.send=send;this.getState=getState;this.$=id=>document.getElementById(id);this.step=0;this.mission=null;
   this.$('next-hint').onclick=()=>{this.step++;this.hint();};
+  this.$('try-lesson').onclick=async()=>{this.$('try-lesson').disabled=true;try{await trySetup(lessonSetup(this.lesson.cases[Number(this.$('lesson-case').value)]));this.$('lesson-dialog').close();}catch(error){this.$('lesson-outcome').textContent=error.message;}finally{this.$('try-lesson').disabled=false;}};
   this.$('study-example').onclick=()=>this.study();this.$('close-lesson').onclick=()=>this.$('lesson-dialog').close();this.$('lesson-case').onchange=()=>this.drawLesson();
  }
  update(state){

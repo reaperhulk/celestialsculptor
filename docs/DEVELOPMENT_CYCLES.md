@@ -108,3 +108,15 @@ Show persisted mastery in challenge selection and the collection count. Let a
 player try the currently studied lesson setup, preserving their existing run
 before replacing it. Verify persistence and setup reconstruction without granting
 unearned completion or applying the lesson's future edits.
+
+Cycle 6 implemented in 128–129. Persisted medals and six playable lesson setups
+are covered by profile/WASM checks and new browser flows. Physics re-review found
+that conservation reports stop being interpretable after a body escapes: escaped
+mass is recorded, but its momentum, angular momentum and resolved energy are not.
+Disk torque also lacks an energy ledger despite recording its momentum transfer.
+
+## Cycle 7 — conservation through open-system events
+
+Record escape and disk-energy exchanges without changing trajectories. Expose a
+headless balance report and verify conservation across ejection, migration and
+collisions. Extend timestep refinement to a gravitational-assist encounter.

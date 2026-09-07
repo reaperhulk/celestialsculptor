@@ -1307,3 +1307,14 @@ Implemented: challenge selection displays named Economy / Restraint medals and
 the collection includes the total. Existing completion/unlock rules are retained.
 Validation: profile/backup regressions and production contracts pass. Added a
 browser persistence flow covering the collection and challenge map after reload.
+
+### 129 — Turn a studied lesson into a playable experiment
+
+Review needs: lesson comparisons ended at explanation, with no direct route to
+try changing their starting conditions.
+Implemented: Try this setup reconstructs the selected arrangement at year zero
+under its actual challenge rules. It preserves the current run in the notebook
+before import; future edits/completion are excluded, and unlocks are checked.
+Validation: all six real WASM lesson setups start incomplete at tick zero with
+their intended bodies. Future edits are excluded without mutating the example.
+Build/contracts pass; added browser original-preservation and playable-setup flow.
