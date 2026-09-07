@@ -56,11 +56,22 @@ impl ForceProbe {
         p
     }
     pub fn run(&mut self, theta: f64, repeats: u32) -> f64 {
+        self.run_config(theta, 8, repeats)
+    }
+    pub fn run_config(&mut self, theta: f64, leaf_size: usize, repeats: u32) -> f64 {
+        assert!([2, 4, 8, 16, 32].contains(&leaf_size));
         for _ in 0..repeats {
             self.output.fill(crate::V2::default());
             if theta > 0. {
-                self.tree
-                    .compute(&self.x, &self.y, &self.mass, 1e-8, theta, &mut self.output);
+                self.tree.compute_with_leaf_size(
+                    &self.x,
+                    &self.y,
+                    &self.mass,
+                    1e-8,
+                    theta,
+                    &mut self.output,
+                    leaf_size,
+                );
             } else {
                 #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
                 if theta == 0. {
@@ -104,7 +115,7 @@ mod tree_tests {
                 let mut p = ForceProbe::new(1024, seed, cluster, 0.);
                 p.run(-1., 1);
                 let exact = p.output.clone();
-                for theta in [0.2, 0.35, 0.5] {
+                for theta in [0.2, 0.25, 0.35, 0.5] {
                     p.run(theta, 1);
                     let error = p
                         .output

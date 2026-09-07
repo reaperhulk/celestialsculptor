@@ -52,6 +52,24 @@ short CPU measurements aggregate calls to avoid zero-duration timer samples.
 
 ## Next measured climbs
 
+The continuation starts with a repeatable profile: `npm run build && npm run
+profile:scaling -- 8192 256` writes `scaling.cpuprofile` using the matching named
+WASM artifact. Sampled timings include profiler overhead. The iteration-163
+8,192-body profile assigns 53% of self time to leaf pairs, 22% to tree traversal,
+9% to tree building, and roughly 10% to sorting.
+
+Preserve a release's `dist/pkg`, build a candidate, then run `npm run
+compare:scaling -- /absolute/reference/pkg`. Optional body-count and tick arguments
+allow longer samples on noisy hosts, for example `8192 128`. Every pair must match
+state, balances, observations and replay exactly. CPU and wall time are both
+recorded; these comparisons measure simulation throughput, not FPS.
+
+`npm run bench:tuning` sweeps compile-time leaf sizes and opening tolerances,
+including the actual 0.25 production setting. It checks forces against exact
+summation without the dominating star and measures momentum/torque residuals.
+The first sweep rejected smaller leaves as a universal improvement. Openings
+0.30–0.35 show a better speed/error tradeoff, subject to trajectory qualification.
+
 1. Use View → Device performance test to record the 1,024/4,096/8,192-body
    workloads at requested 1x for five active minutes on real iPhone and iPad.
    Judge FPS and achieved ticks/s together; inspect and navigate while recording.

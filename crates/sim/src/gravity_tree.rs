@@ -71,6 +71,37 @@ impl Tree {
         theta: f64,
         a: &mut [V2],
     ) {
+        self.compute_impl::<8>(x, y, mass, soft2, theta, a);
+    }
+    #[allow(clippy::too_many_arguments)]
+    pub fn compute_with_leaf_size(
+        &mut self,
+        x: &[f64],
+        y: &[f64],
+        mass: &[f64],
+        soft2: f64,
+        theta: f64,
+        a: &mut [V2],
+        leaf_size: usize,
+    ) {
+        match leaf_size {
+            2 => self.compute_impl::<2>(x, y, mass, soft2, theta, a),
+            4 => self.compute_impl::<4>(x, y, mass, soft2, theta, a),
+            8 => self.compute_impl::<8>(x, y, mass, soft2, theta, a),
+            16 => self.compute_impl::<16>(x, y, mass, soft2, theta, a),
+            32 => self.compute_impl::<32>(x, y, mass, soft2, theta, a),
+            _ => panic!("unsupported leaf size"),
+        }
+    }
+    fn compute_impl<const LEAF_SIZE: usize>(
+        &mut self,
+        x: &[f64],
+        y: &[f64],
+        mass: &[f64],
+        soft2: f64,
+        theta: f64,
+        a: &mut [V2],
+    ) {
         self.order.clear();
         self.order.extend(1..x.len());
         self.nodes.clear();
@@ -84,7 +115,7 @@ impl Tree {
         if self.order.is_empty() {
             return;
         }
-        self.build(0, self.order.len(), x, y, mass);
+        self.build::<LEAF_SIZE>(0, self.order.len(), x, y, mass);
         self.x.clear();
         self.y.clear();
         self.mass.clear();
@@ -106,7 +137,14 @@ impl Tree {
             a,
         );
     }
-    fn build(&mut self, start: usize, end: usize, x: &[f64], y: &[f64], mass: &[f64]) -> usize {
+    fn build<const LEAF_SIZE: usize>(
+        &mut self,
+        start: usize,
+        end: usize,
+        x: &[f64],
+        y: &[f64],
+        mass: &[f64],
+    ) -> usize {
         let mut n = Node {
             start,
             end,
@@ -138,14 +176,14 @@ impl Tree {
         n.radius = n.radius.sqrt();
         let at = self.nodes.len();
         self.nodes.push(n);
-        if end - start > 8 {
+        if end - start > LEAF_SIZE {
             let middle = (start + end) / 2;
             let axis = if hi.x - lo.x >= hi.y - lo.y { x } else { y };
             self.order[start..end].select_nth_unstable_by(middle - start, |&i, &j| {
                 axis[i].total_cmp(&axis[j]).then(i.cmp(&j))
             });
-            let left = self.build(start, middle, x, y, mass);
-            let right = self.build(middle, end, x, y, mass);
+            let left = self.build::<LEAF_SIZE>(start, middle, x, y, mass);
+            let right = self.build::<LEAF_SIZE>(middle, end, x, y, mass);
             self.nodes[at].left = left;
             self.nodes[at].right = right;
         }

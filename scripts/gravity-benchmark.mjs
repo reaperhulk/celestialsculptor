@@ -19,7 +19,7 @@ for(const cluster of [false,true])for(const bodies of [64,128,256,512,1024,2048,
   probe.run(-1,1);const reference=probe.forces(),particles=probe.particles();
   const norm=Math.sqrt(reference.slice(2).reduce((s,v)=>s+v*v,0)/(bodies-1));
   const candidates=[];
-  for(const theta of [0,.2,.35,.5]){
+  for(const theta of [0,.2,.25,.35,.5]){
    const samples=[],repeats=Math.max(1,Math.min(32,Math.floor(8192/bodies)));
    for(let round=0;round<10;round++){const start=performance.now();probe.run(theta,repeats);if(round>=3)samples.push((performance.now()-start)/repeats);}
    const forces=probe.forces(),relative=[];let error2=0,scale2=0,fx=0,fy=0,forceScale=0,torque=0,torqueScale=0;

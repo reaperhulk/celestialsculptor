@@ -256,6 +256,16 @@ impl GravityProbe {
     pub fn forces(&self) -> Vec<f64> {
         self.inner.output.iter().flat_map(|a| [a.x, a.y]).collect()
     }
+    pub fn run_config(&mut self, theta: f64, leaf_size: u32, repeats: u32) -> Result<f64, JsValue> {
+        if !theta.is_finite()
+            || !(-1.0..=0.7).contains(&theta)
+            || ![2, 4, 8, 16, 32].contains(&leaf_size)
+            || !(1..=128).contains(&repeats)
+        {
+            return Err(JsValue::from_str("Invalid gravity benchmark workload"));
+        }
+        Ok(self.inner.run_config(theta, leaf_size as usize, repeats))
+    }
     pub fn particles(&self) -> Vec<f64> {
         (0..self.inner.x.len())
             .flat_map(|i| [self.inner.x[i], self.inner.y[i], self.inner.mass[i]])

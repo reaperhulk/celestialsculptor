@@ -11,3 +11,6 @@
 gravity-benchmark-results.json
 physics-comparison-results.json
 scaling-benchmark-results.json
+scaling-comparison-results.json
+scaling.cpuprofile
+tree-tuning-results.json

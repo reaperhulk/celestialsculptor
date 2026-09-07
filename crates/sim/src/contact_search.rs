@@ -22,9 +22,8 @@ impl PartialEq for ContactSearch {
 impl ContactSearch {
     pub fn rebuild(&mut self, bodies: &[Body], sweep: f64) {
         self.bounds.clear();
-        self.order.clear();
         self.pairs.clear();
-        for (i, b) in bodies.iter().enumerate() {
+        for b in bodies {
             let end = [b.pos.x, b.pos.y];
             let drift = [b.vel.x * sweep, b.vel.y * sweep];
             let mut bounds = Bounds::default();
@@ -37,13 +36,36 @@ impl ContactSearch {
                 bounds.hi[axis] = start.max(end[axis]) + b.radius + pad;
             }
             self.bounds.push(bounds);
-            self.order.push(i);
         }
-        self.order.sort_unstable_by(|&a, &b| {
+        let compare = |&a: &usize, &b: &usize| {
             self.bounds[a].lo[0]
                 .total_cmp(&self.bounds[b].lo[0])
                 .then(a.cmp(&b))
-        });
+        };
+        if self.order.len() != bodies.len() || bodies.len() < 128 {
+            self.order.clear();
+            self.order.extend(0..bodies.len());
+            self.order.sort_unstable_by(compare);
+        } else {
+            // Between substeps, swept endpoints usually move only a few places.
+            // Reuse the previous permutation with a bounded insertion pass;
+            // arbitrary edits and collision reindexing fall back to O(N log N).
+            let mut moves = 0;
+            for at in 1..self.order.len() {
+                let value = self.order[at];
+                let mut slot = at;
+                while slot > 0 && compare(&value, &self.order[slot - 1]).is_lt() {
+                    self.order[slot] = self.order[slot - 1];
+                    slot -= 1;
+                    moves += 1;
+                }
+                self.order[slot] = value;
+                if moves > self.order.len() * 4 {
+                    self.order.sort_unstable_by(compare);
+                    break;
+                }
+            }
+        }
         for (at, &i) in self.order.iter().enumerate() {
             let a = self.bounds[i];
             for &j in &self.order[at + 1..] {
@@ -74,6 +96,8 @@ mod tests {
     #[test]
     fn swept_candidates_never_omit_narrow_phase_contacts() {
         let mut world = benchmark::system(64);
+        // Exercise retained ordering and its fallback above the 128-body cutoff.
+        world.bodies.resize(256, world.bodies[1].clone());
         let mut search = ContactSearch::default();
         let mut state = 42_u64;
         let mut random = || {

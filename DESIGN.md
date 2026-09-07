@@ -29,10 +29,11 @@ to the device, with explicit portable exports. No accounts or server are require
 The simulation never reads elapsed real time. A tick is 1/512 year, with four
 fixed kick-drift-kick substeps. UI speed changes tick throughput only. The star
 moves, collisions preserve mass and momenta, and escape accounting is explicit.
-Body count is capped at 64. Small N favors exact pairwise gravity over an
-approximate tree. The WASM release uses double-precision SIMD with a scalar
-differential test build. [The scaling plan](docs/SCALING.md) orders the work toward
-hundreds and thousands of mutually gravitating bodies. Rendering is independent; losing a graphics context must never
+Rules 6 supports 8,192 mutually gravitating sandbox bodies. Missions and older
+replays retain their 64-body limit. Below 512 bodies gravity is exact; larger
+systems use a symmetric mutual tree. The WASM release uses double-precision SIMD
+with a scalar differential test build. [The scaling scorecard](docs/SCALING.md)
+records measured gains and remaining costs. Rendering is independent; losing a graphics context must never
 corrupt the experiment. No SharedArrayBuffer or cross-origin isolation required.
 
 ## Testing contract
@@ -1818,3 +1819,28 @@ Show Starting/Pausing while intent is pending and expose the authoritative playb
 state; retain immediate input and rapid-toggle ordering. The browser test requires
 the acknowledged paused state followed by exact tick stability, and a controller
 test covers late snapshots and acknowledgement order.
+
+### 164 — Profile remaining costs and reuse collision ordering
+
+Review needs: large-system profiling and exact before/after comparisons were
+ad hoc, and the force sweep omitted the production opening of 0.25. The design's
+architecture summary still described the old 64-body limit.
+Implemented: add a named-WASM CPU profiler, an alternating whole-system comparison
+that checks complete states, ledgers, histories and replays, and a tree tuning
+probe for compile-time leaf sizes 2/4/8/16 and openings 0.25/0.30/0.35. Benchmark
+specializations are excluded from the production build. Report CPU and wall times
+separately and retain raw samples. Correct the architecture summary. For large
+systems, reuse the previous collision sweep order with bounded insertion sorting;
+fall back to full sorting after arbitrary rearrangement. Candidate pair ordering
+and narrow-phase arithmetic remain unchanged.
+Validation: the 8,192-body profile attributes 53% of sampled CPU self time to SIMD
+leaf interactions and 22% to traversal. The first 72-case tuning sweep passed
+force RMS <0.005 and normalized momentum/torque <1e-12. Production 0.25 is now
+included in the existing independent force gate. A packed-output SIMD trial
+passed exact large-system comparisons but showed no consistent whole-engine gain
+and was removed. Smaller leaves also failed to improve all tested distributions;
+wider opening tolerances require trajectory qualification before release.
+The collision-order candidate passes 256-body randomized swept-contact checks
+and fourteen exact 8,192-body comparisons over 128 ticks each. The longer warmed
+whole-engine sample improves quiet swarms by 5.7% and disordered swarms by 0.7%
+on this noisy host; report this as a modest gain, not a change in scaling order.
