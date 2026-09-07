@@ -17,3 +17,10 @@ test('long runs cap each path and omit the star',()=>{
 test('moon trails remove host motion and reset when the parent changes',()=>{
  const trails=new Map(),snapshot=(tick,offset,parent=1)=>({generation:1,tick,bodies:[{id:0,kind:'star',pos:{x:0,y:0}},{id:1,kind:'giant',pos:{x:offset,y:0},parent:null},{id:2,kind:'rocky',pos:{x:offset+.1,y:.2},parent}]});const a=snapshot(0,1),b=snapshot(1,2);updateTrails(trails,null,a,true);updateTrails(trails,a,b,true);assert.equal(trails.size,1);assert.equal(trails.get(2).length,2);assert.ok(Math.abs(trails.get(2)[1][0]-.1)<1e-12);assert.equal(trails.get(2)[1][1],.2);const c=snapshot(2,2,0);updateTrails(trails,b,c,true);assert.deepEqual(trails.get(2),[[2.1,.2]]);
 });
+
+test('8192 bodies retain selected trails within a fixed global vertex budget',()=>{
+ const trails=new Map(),bodies=Array.from({length:8192},(_,id)=>({id,kind:id?'dust':'star',parent:id>1?1:null,pos:{x:id/100,y:0}}));let previous=null;
+ for(let tick=0;tick<200;tick++){const state={tick,generation:0,bodies};updateTrails(trails,previous,state,false,8191);previous=state;}
+ assert.equal(trails.get(8191).length,192);assert.ok(trails.size<=265);assert.ok([...trails.values()].reduce((n,t)=>n+t.length,0)<=64*192);
+ updateTrails(trails,previous,{...previous,tick:201},true,1);assert.ok(trails.size<=265);
+});

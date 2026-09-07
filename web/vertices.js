@@ -1,6 +1,7 @@
 export const LINE_CAPACITY=64*192*12+2400*12;
 export class VertexStream {
   constructor(capacity){this.data=new Float32Array(capacity);this.length=0;}
+  ensure(capacity){if(capacity<=this.data.length)return false;const data=new Float32Array(2**Math.ceil(Math.log2(capacity)));data.set(this.data);this.data=data;return true;}
   reset(){this.length=0;return this;}
   view(){return this.data.subarray(0,this.length);}
   line(ax,ay,bx,by,c,alpha){

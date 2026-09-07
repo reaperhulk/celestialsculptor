@@ -24,3 +24,10 @@ test('a crowded mixed population remains separated without changing physics data
  for(let i=0;i<64;i++)for(let j=i+1;j<64;j++){const a=bodies[i],b=bodies[j],gap=Math.hypot(a.pos.x-b.pos.x,(a.pos.y-b.pos.y)*.62)*600/4;assert.ok(scale.radius(a)+scale.radius(b)<gap);}
  scale.update(bodies,new Map(),600,2,.62);assert.equal(scale.sizes,buffer);assert.equal(JSON.stringify(bodies),before);
 });
+
+test('swept sizing grows to thousands and keeps a close pair separated after reordering',()=>{
+ const bodies=[giant(0,0,0),giant(1,.2,.1),...Array.from({length:8190},(_,i)=>giant(i+2,100+i,100))],scale=new BodyScale();
+ scale.update(bodies,new Map(),600,2,.62);const before=bodies.slice(0,2).map(b=>scale.diameter(b.id));const storage=scale.sizes;
+ assert.ok(before.every(Number.isFinite));assert.ok(scale.radius(bodies[0])+scale.radius(bodies[1])<Math.hypot(.2,.1*.62)*150);
+ bodies.reverse();scale.update(bodies,new Map(),600,2,.62);assert.equal(scale.sizes,storage);assert.deepEqual([scale.diameter(0),scale.diameter(1)],before);
+});

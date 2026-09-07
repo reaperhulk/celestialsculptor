@@ -1691,3 +1691,17 @@ SIMD, up from 3.45x/3.65x; 8,192 reaches 14.27x/15.93x. A tighter opening of 0.2
 also improves at large counts (3.46x/4.82x at 4,096). Production WASM is 486,312
 bytes and again passes the existing 512,000-byte cap; measurement code is excluded.
 These are force timings, not whole-engine or physical-device results.
+
+### 157 — Bound render work while drawing thousands of physical bodies
+
+Review needs: fixed point/sizing buffers and quadratic ID cleanup would fail after
+raising physics capacity; drawing every 192-point trail would exceed line storage.
+Implemented: grow and reuse CPU/GPU instance buffers, sweep projected silhouette
+bounds for large populations, cache coordinates once per sizing pass, cull offscreen
+instances, and use a Set for live-ID cleanup. Trails use a stable sample with a
+fixed total budget and retain the selected body's full path. Every physical body
+still renders and remains pickable; the sample only limits historical trail lines.
+Validation: headless tests exercise 8,192-body sizing under reversed ordering,
+selected trail retention, the global line budget, and allocation reuse. Existing
+close-pass, moon-frame, appearance and vertex-bound checks pass. Browser rendering
+remains gated by Actions, including the prior close-giant phone regression.

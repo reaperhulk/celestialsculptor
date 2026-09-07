@@ -14,3 +14,7 @@ test('capacity errors fail before corrupting an existing vertex stream',()=>{
 test('maximum trails, local moon orbits and active impacts fit one bounded line buffer',async()=>{
  const {LINE_CAPACITY}=await import('../web/vertices.js'),stream=new VertexStream(LINE_CAPACITY);for(let i=0;i<63*191+8*96+192+192+12*48;i++)stream.line(0,0,1,1,[1,1,1],1);assert.ok(stream.length<LINE_CAPACITY);
 });
+
+test('explicit vertex growth preserves data and then reuses the allocation',()=>{
+ const stream=new VertexStream(12);stream.line(1,2,3,4,[1,0,0],.5);const old=Array.from(stream.view());assert.equal(stream.ensure(8193*16),true);assert.deepEqual(Array.from(stream.view()),old);const data=stream.data;assert.equal(stream.ensure(8193*16),false);assert.equal(stream.data,data);
+});
