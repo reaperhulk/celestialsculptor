@@ -82,6 +82,23 @@ impl Simulation {
     pub fn flags(&self) -> u8 {
         u8::from(self.world.completed) | (u8::from(self.world.exhausted()) << 1)
     }
+    /// Large histories are requested explicitly, never copied with each display snapshot.
+    pub fn observations(&self) -> String {
+        serde_json::to_string(&self.world.history).expect("finite observations")
+    }
+    pub fn event_serial(&self) -> u32 {
+        self.world
+            .events
+            .iter()
+            .rev()
+            .find(|e| {
+                matches!(
+                    e.kind.as_str(),
+                    "collision" | "escape" | "absorb" | "satellite"
+                )
+            })
+            .map_or(0, |e| e.id)
+    }
     pub fn export_replay(&self) -> String {
         serde_json::to_string(&self.world.replay()).expect("finite replay")
     }

@@ -1095,3 +1095,16 @@ in docs/DEVELOPMENT_CYCLES.md, independently of these smaller commits.
 Validation: native suite passed before the added regressions; all eight targeted
 satellite/resonance tests, clippy, production WASM build, web contracts and 126
 Node/WASM checks pass. Browser gates run on the pushed revision in Actions.
+
+
+### 112 — Bounded scientific histories and comparison reconstruction
+
+Review needs: record orbital changes independently of render cadence, inspect
+impacts across time, compare equal ages, and stop playback at important events.
+Implemented: tick-based mass/axis/eccentricity/period and resonance observations;
+256-sample decimation and 256-event history caps; impact before/after orbit data;
+explicit WASM history requests; worker original-run and equal-age comparison
+reconstruction; optional pause/slow event policies. Histories are absent from
+normal animation snapshots. The next delivery wires these capabilities into UI.
+Validation: clippy, 13 interaction/satellite/resonance regressions, two history
+conservation/replay/bounds tests, production build and 128 Node/WASM checks pass.

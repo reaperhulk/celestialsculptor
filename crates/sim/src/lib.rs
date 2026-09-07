@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::f64::consts::TAU;
 pub mod benchmark;
 pub mod generator;
+pub mod history;
 pub mod resonance;
 pub mod satellites;
 pub mod scenarios;
@@ -259,6 +260,12 @@ pub struct Impact {
     pub dissipated_energy: f64,
     pub eccentricity_before: f64,
     pub eccentricity_after: f64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub orbit_before: Option<Orbit>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub orbit_after: Option<Orbit>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub anchor: Option<V2>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Event {
@@ -275,6 +282,7 @@ pub struct Event {
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct World {
     pub rules_version: u32,
+    pub history: history::History,
     pub resonances: Vec<resonance::Resonance>,
     pub disk_momentum: V2,
     pub disk_angular_momentum: f64,
@@ -333,7 +341,7 @@ pub const MISSIONS: [Mission;10] = [
  Mission {name:"A system of your own",brief:"Keep 2 debris-born calm worlds, a potential garden, and a bound moon together for 10 years.",hint:"Combine what you learned: accretion, orbital spacing, a gentle garden and a protected satellite orbit.",budget:1000.0,hold_years:10.0,unlock:"Master sculptor"},
 ];
 
-#[derive(Clone, Copy, Debug, Serialize)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
 pub struct Orbit {
     pub periapsis_angle: f64,
     pub period_years: Option<f64>,
@@ -423,6 +431,7 @@ impl World {
         };
         let mut world = Self {
             rules_version,
+            history: history::History::default(),
             resonances: vec![],
             disk_momentum: V2::default(),
             disk_angular_momentum: 0.0,
@@ -819,6 +828,7 @@ impl World {
             tick: self.tick,
             command,
         });
+        self.observe_history(true);
         Ok(())
     }
     fn validate_launch(
@@ -1061,6 +1071,7 @@ impl World {
                 );
             }
         }
+        self.observe_history(false);
     }
     pub fn advance(&mut self, ticks: u32) {
         for _ in 0..ticks {
@@ -1091,7 +1102,19 @@ impl World {
                     };
                     let closest = separation.minus(drift.scale(fraction));
                     if closest.norm2() <= (a.radius + b.radius).powi(2) {
-                        let before = self.orbit(&self.bodies[i]).eccentricity;
+                        let orbit_before = self
+                            .moon_orbit(&self.bodies[i])
+                            .unwrap_or_else(|| self.orbit(&self.bodies[i]));
+                        let anchor = self.bodies[i]
+                            .parent
+                            .and_then(|id| self.bodies.iter().find(|b| b.id == id))
+                            .unwrap_or(&self.bodies[0])
+                            .pos;
+                        let before = if self.rules_version >= 4 {
+                            orbit_before.eccentricity
+                        } else {
+                            self.orbit(&self.bodies[i]).eccentricity
+                        };
                         let b = self.bodies.remove(j);
                         let a = &mut self.bodies[i];
                         let mass = a.mass + b.mass;
@@ -1148,7 +1171,14 @@ impl World {
                             self.collisions += 1;
                             self.emit("collision", id, format!("Worlds {id} and {} merged", b.id));
                             if self.rules_version >= 2 {
-                                let after = self.orbit(&self.bodies[i]).eccentricity;
+                                let orbit_after = self
+                                    .moon_orbit(&self.bodies[i])
+                                    .unwrap_or_else(|| self.orbit(&self.bodies[i]));
+                                let after = if self.rules_version >= 4 {
+                                    orbit_after.eccentricity
+                                } else {
+                                    self.orbit(&self.bodies[i]).eccentricity
+                                };
                                 let event = self.events.last_mut().expect("just emitted collision");
                                 event.text = format!("Impact → {:.2} Earth masses · radius +{:.0}% · orbit e {before:.2} → {after:.2}", mass / EARTH, (radius_after / radius_before - 1.0) * 100.0);
                                 event.impact = Some(Impact {
@@ -1162,6 +1192,9 @@ impl World {
                                     dissipated_energy,
                                     eccentricity_before: before,
                                     eccentricity_after: after,
+                                    orbit_before: (self.rules_version >= 4).then_some(orbit_before),
+                                    orbit_after: (self.rules_version >= 4).then_some(orbit_after),
+                                    anchor: (self.rules_version >= 4).then_some(anchor),
                                 });
                             }
                         }

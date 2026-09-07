@@ -29,3 +29,6 @@ lists will be recorded when that evidence exists.
 Cycle 1 delivery evidence: iteration 111 implements the moon/readings/input slice.
 Native legacy tests, eight focused satellite/resonance regressions, clippy and
 126 Node/WASM checks passed locally; browser/deployment gates run in Actions.
+
+Iteration 112 adds the bounded headless observation/comparison foundation. The
+UI portion of the experiment-loop item remains in progress.

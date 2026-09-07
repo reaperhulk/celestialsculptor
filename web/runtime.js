@@ -9,11 +9,12 @@ export class Runtime {
     this.debt = 0;
     this.generation = 0;
     this.timelineSource=null;this.timelineEnd=0;
+    this.eventPolicy='off';
   }
   state(id) {
     if (!this.sim) return;
     const snapshot = JSON.parse(this.sim.snapshot());
-    this.send({ type: 'state', id, ...snapshot, timeline_end:this.timelineSource?this.timelineEnd:snapshot.tick, reviewing:Boolean(this.timelineSource), playing: this.playing, speed: this.speed, generation: this.generation });
+    this.send({ type: 'state', id, ...snapshot, timeline_end:this.timelineSource?this.timelineEnd:snapshot.tick, reviewing:Boolean(this.timelineSource), playing: this.playing, speed: this.speed, event_policy:this.eventPolicy, generation: this.generation });
   }
   handle(message) {
     const { type, id } = message ?? {};
@@ -41,6 +42,21 @@ export class Runtime {
           case 'export': this.send({type: 'export', id, replay: this.sim.export_replay()}); return;
           case 'import': this.sim.import_replay(message.replay);this.timelineSource=null; this.playing = false; this.debt = 0; break;
           case 'snapshot': break;
+          case 'event_policy':
+            if(!['off','pause','slow'].includes(message.value))throw new Error('Choose how to watch major events');
+            this.eventPolicy=message.value;break;
+          case 'observations': this.send({type:'observations',id,history:JSON.parse(this.sim.observations())});return;
+          case 'original': {
+            const replay=this.timelineSource||this.sim.export_replay();
+            const temp=new this.Simulation(JSON.stringify(JSON.parse(replay).config));
+            try{temp.import_replay(replay);this.send({type:'original',id,replay,snapshot:JSON.parse(temp.snapshot())});}finally{temp.free();}return;
+          }
+          case 'compare': {
+            if(!Array.isArray(message.replays)||message.replays.length!==2||message.replays.some(r=>typeof r!=='string'||r.length>512000))throw new Error('Choose two valid experiments');
+            const replays=message.replays.map(r=>JSON.parse(r));const tick=Math.min(...replays.map(r=>r.end_tick));
+            const states=replays.map(replay=>{const temp=new this.Simulation(JSON.stringify(replay.config));try{temp.import_replay(JSON.stringify({...replay,end_tick:tick,commands:replay.commands.filter(c=>c.tick<=tick)}));return JSON.parse(temp.snapshot());}finally{temp.free();}});
+            this.send({type:'comparison',id,tick,states});return;
+          }
           default: throw new Error('Unknown simulation command');
         }
       }
@@ -56,7 +72,13 @@ export class Runtime {
     this.debt -= ticks;
     if (ticks) {
       const previous = this.sim.flags();
-      this.sim.advance(ticks);
+      if(this.eventPolicy==='off')this.sim.advance(ticks);
+      else {
+        for(let remaining=ticks;remaining>0;){
+          const count=Math.min(8,remaining),serial=this.sim.event_serial();this.sim.advance(count);remaining-=count;
+          if(this.sim.event_serial()!==serial){this.debt=0;if(this.eventPolicy==='pause')this.playing=false;else this.speed=.25;break;}
+        }
+      }
       const current = this.sim.flags();
       if ((current & 2) || (!(previous & 1) && (current & 1))) this.playing = false;
     }
