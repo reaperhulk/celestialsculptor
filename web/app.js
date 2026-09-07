@@ -45,7 +45,7 @@ let worker,startupError;
 try{worker=new Worker(new URL('./worker.js',import.meta.url),{type:'module'});}catch(error){startupError='The simulation worker could not start. Reload to try again. '+error.message;}
 const channel=new RequestChannel(message=>worker.postMessage(message));
 async function send(type,data={}){
- if(state?.reviewing&&(['command','step'].includes(type)||type==='play'&&data.value)){
+ if(state?.reviewing&&(['command','step','undo','rewind'].includes(type)||type==='play'&&data.value)){
   const original=await channel.send('original');notebookEntries=preserveOriginal(storage,notebookEntries,original.replay,original.snapshot);
  }
  return channel.send(type,data).then(reply=>{if(['command','undo','rewind','step'].includes(type)){clearTimeout(autosaveTimer);autosaveTimer=setTimeout(autosave,250);}return reply;});

@@ -1417,3 +1417,15 @@ Validation: the complete verification command passes 79 native and 198 Node/WASM
 tests, including the 120-system outcome/parity sweep, formatting, clippy and web
 contracts. Actions browser acceptance, screenshot review and published hash
 verification remain final release gates.
+
+### 138 — Preserve reviewed histories through pause and Undo
+
+Review needs: final source review found a missing block around playback cache
+invalidation; pausing while reviewing cleared observations while retaining the
+original replay. Undo/Rewind from that point also bypassed automatic preservation.
+Implemented: only resuming playback invalidates the cached future. Reviewed Undo
+and Rewind save the original before editing, using the same durable branch path.
+Validation: a new real-WASM regression first reproduced the lost cache, then
+passed after the fix, including filtered history and return to the endpoint.
+Added browser reviewed-Undo preservation; full Node/WASM suite and web contracts
+are rerun for this release correction.

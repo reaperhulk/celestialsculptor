@@ -28,7 +28,7 @@ export class Runtime {
         if (!this.sim) throw new Error('The simulation is still loading.');
         switch (type) {
           case 'command': this.sim.command(JSON.stringify(message.command)); this.timelineSource=null;this.timelineHistory=null;break;
-          case 'play': if(typeof message.value!=='boolean')throw new Error('Playback requires true or false');this.playing = message.value; this.debt = 0;if(message.value)this.timelineSource=null;this.timelineHistory=null;break;
+          case 'play': if(typeof message.value!=='boolean')throw new Error('Playback requires true or false');this.playing = message.value; this.debt = 0;if(message.value){this.timelineSource=null;this.timelineHistory=null;}break;
           case 'speed':
             if (!PLAYBACK_SPEEDS.includes(message.value)) throw new Error('Invalid playback speed');
             this.speed = message.value; break;
