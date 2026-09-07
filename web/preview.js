@@ -11,3 +11,6 @@ export class PreviewCache {
 export function draftOutsideView(point,width,height,margin=32){
  return point[0]<margin||point[0]>width-margin||point[1]<margin||point[1]>height-margin;
 }
+export function draftZoom(draft,width,height,tilt,zoom,margin=32){
+ return Math.max(zoom,Math.abs(draft.radius*Math.cos(draft.angle))*height/Math.max(1,width-2*margin),Math.abs(draft.radius*Math.sin(draft.angle))*tilt*height/Math.max(1,height-2*margin))*1.05;
+}

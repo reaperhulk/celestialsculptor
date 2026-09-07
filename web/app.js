@@ -1,5 +1,5 @@
 import {Inspector} from './inspector.js';
-import {draftOutsideView} from './preview.js';
+import {draftOutsideView,draftZoom} from './preview.js';
 import {PlayControl} from './play-control.js';
 import {resonanceText} from './resonance-reading.js';
 import {experimentDifferences} from './comparison.js';
@@ -30,7 +30,7 @@ import {ChallengeGuide} from './challenges.js';
 import {GeneratorControls} from './generation.js';
 
 const $=id=>document.getElementById(id);
-let state=null, missions=[], mission=0, renderer, selectedBody=null, ready=false, toastTimer;
+let state=null, missions=[], mission=0, renderer, selectedBody=null, ready=false, restoring=true, toastTimer;
 const storage=deviceStorage();
 const viewSettings=readViewSettings(storage,matchMedia('(prefers-reduced-motion: reduce)').matches);
 viewSettings.showFps=fpsFlag(location.search,viewSettings.showFps);
@@ -174,7 +174,9 @@ function renderState(next){
   generatorControls.update();
   $('goal-label').textContent=m?(m.hold_years?'Maintain conditions':'Make a discovery'):'Open exploration';$('goal-progress').hidden=mission===null;
   $('outcome-totals').textContent=`${s.collisions} mergers · ${s.grazes||0} grazes · ${s.disruptions||0} disruptions · ${s.ejections} escapes · ${s.absorbed} stellar impacts`;
-  playback.observe(next);$('play').disabled=!ready||s.exhausted;
+  playback.observe(next);$('play').disabled=!ready||restoring||s.exhausted;
+  for(const id of ['step','undo','rewind','sandbox','campaign','clear','generate'])$(id).disabled=restoring;
+  document.querySelector('.sculpt-panel').inert=restoring;document.querySelector('.mission-panel').inert=restoring;
   $('system-title').textContent=s.completed?'A little order, from the unknown.':s.planets>0?'Gravity has the pen now.':'A beginning, in starlight.';
   const eventSignature=JSON.stringify(next.events);
   for(const event of eventCursor.consume(next.generation,next.events))sound.event(event.kind);
@@ -199,6 +201,7 @@ if(worker)worker.onmessage=async({data})=>{
       }catch{/* Try backup before starting fresh. */}
     }
     if(!restored)await reset(nextMission(profile));
+    restoring=false;if(state)renderState(state);await autosave();
   }else if(data.type==='state'){renderState(data);}
   else if(data.type==='fatal'){workerFailed(data.message);}
   else if(data.type==='progress')$('playback-note').textContent=`Rebuilding experiment · ${(data.tick/512).toFixed(1)} / ${(data.end_tick/512).toFixed(1)} years`;
@@ -219,11 +222,11 @@ async function confirmReset(callback,onCancel=()=>{}){
  }catch(error){confirming=false;toast(error.message);}
 }
 async function saveSnapshot(){
-  if(!ready||!state)return;
+  if(!ready||!state||restoring||state.busy)return;
   const epoch=saveEpoch;
   try{
     const {replay}=await send('export');
-    if(epoch===saveEpoch)$('save-status').textContent=saveExperiment(storage,replay)?'Saved on this device':'Saving unavailable · export to keep';
+    if(epoch===saveEpoch&&!restoring&&!state?.busy)$('save-status').textContent=saveExperiment(storage,replay)?'Saved on this device':'Saving unavailable · export to keep';
   }catch{$('save-status').textContent='Save pending';}
 }
 const saveTask=new CoalescedTask(saveSnapshot);
@@ -291,7 +294,7 @@ for(const [id,key] of [['show-grid','showGrid'],['show-trails','showTrails'],['s
 $('render-quality').value=String(viewSettings.maxDpr);if(renderer)renderer.maxDpr=viewSettings.maxDpr;
 $('render-quality').onchange=()=>{stopDeviceRecording('rendering quality changed');viewSettings.maxDpr=Number($('render-quality').value);if(renderer)renderer.maxDpr=viewSettings.maxDpr;writeViewSettings(storage,viewSettings);};
 $('reset-view').onclick=()=>{if(renderer){renderer.follow=null;renderer.cameraTo(state?.bodies[0].pos||{x:0,y:0},3.5);renderer.tilt=.62;$('view').textContent='Top view';}};
-function setPlacement(enabled,reveal=false){if(renderer){renderer.inputMode=enabled?'place':'navigate';if(enabled&&reveal&&renderer.draft&&state){const d=renderer.draft,star=state.bodies[0],point=renderer.toScreen(star.pos.x+d.radius*Math.cos(d.angle),star.pos.y+d.radius*Math.sin(d.angle)),canvas=$('universe');if(draftOutsideView(point,canvas.clientWidth,canvas.clientHeight)){renderer.follow=null;renderer.cameraTo(star.pos,Math.max(renderer.zoom,d.radius*1.35));}}}$('place-mode').setAttribute('aria-pressed',String(enabled));$('place-mode').classList.toggle('active',enabled);$('scene-hint').textContent=enabled?'Tap or drag to choose a launch position · Place world to create it':'Drag to pan · Pinch to zoom · Tap a body for statistics';}
+function setPlacement(enabled,reveal=false){if(renderer){renderer.inputMode=enabled?'place':'navigate';if(enabled&&reveal&&renderer.draft&&state){const d=renderer.draft,star=state.bodies[0],point=renderer.toScreen(star.pos.x+d.radius*Math.cos(d.angle),star.pos.y+d.radius*Math.sin(d.angle)),canvas=$('universe');if(draftOutsideView(point,canvas.clientWidth,canvas.clientHeight)){renderer.follow=null;renderer.cameraTo(star.pos,draftZoom(d,canvas.clientWidth,canvas.clientHeight,renderer.tilt,renderer.zoom));}}}$('place-mode').setAttribute('aria-pressed',String(enabled));$('place-mode').classList.toggle('active',enabled);$('scene-hint').textContent=enabled?'Tap or drag to choose a launch position · Place world to create it':'Drag to pan · Pinch to zoom · Tap a body for statistics';}
 $('place-mode').onclick=()=>{const enabled=renderer?.inputMode!=='place';setPlacement(enabled,true);if(enabled){document.querySelector('.mobile-tabs [data-panel="sculpt"]').click();const panel=document.querySelector('.sculpt-panel');panel.scrollTop=0;updateDraft();}};
 $('moon-form').onsubmit=event=>{event.preventDefault();send('command',{command:{type:'launch_moon',parent:selectedBody,kind:'rocky',mass:Number($('moon-mass').value),distance:Number($('moon-distance').value),angle:Number($('moon-angle').value)*Math.PI/180,speed:Number($('moon-direction').value)*Number($('moon-speed').value)/100}}).then(()=>{renderer?.focus(selectedBody);toast('Moon placed. Every body contributes to its orbit.');}).catch(error=>toast(error.message));};
 for(const [id,direction] of [['spin-forward',1],['spin-reverse',-1]])$(id).onclick=()=>{try{action('command',{command:{type:'spin',id:selectedBody,rate:spinRate($('spin-rate').value,direction)}});}catch(error){toast(error.message);}};
@@ -302,7 +305,7 @@ $('show-orbit').onclick=()=>{if(renderer)renderer.selected=selectedBody;toast('B
 $('zoom-in').onclick=()=>{if(renderer)renderer.cameraTo(renderer.center,clampZoom(renderer.zoom*.8));};$('zoom-out').onclick=()=>{if(renderer)renderer.cameraTo(renderer.center,clampZoom(renderer.zoom/.8));};
 for(const button of document.querySelectorAll('[data-panel]'))if(button.tagName==='BUTTON')button.onclick=()=>{document.body.dataset.panel=button.dataset.panel;if(button.dataset.panel==='observe'){$('analysis-tools').open=true;const panel=document.querySelector('.sculpt-panel');panel.scrollTop+=$('analysis-tools').getBoundingClientRect().top-panel.getBoundingClientRect().top-8;}for(const other of document.querySelectorAll('.mobile-tabs button')){other.classList.toggle('active',other===button);other.setAttribute('aria-pressed',String(other===button));}};
 $('help').onclick=()=>$('help-dialog').showModal();for(const button of document.querySelectorAll('.dialog-close'))button.onclick=()=>$('help-dialog').close();
-document.addEventListener('visibilitychange',()=>{if(document.hidden&&ready){action('play',{value:false});autosave();}});
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&ready){if(playback.playing)action('play',{value:false});autosave();}});
 $('sound').onclick=async()=>{$('sound').disabled=true;try{const enabled=await sound.toggle();$('sound').setAttribute('aria-pressed',String(enabled));$('sound').setAttribute('aria-label',enabled?'Mute sound':'Enable sound');$('sound').classList.toggle('active',enabled);}catch(error){toast(error.message);}finally{$('sound').disabled=false;}};
 document.addEventListener('visibilitychange',()=>sound.visibility(document.hidden).catch(()=>{}));
 if(renderer)installInput($('universe'),renderer,{

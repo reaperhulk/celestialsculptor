@@ -1549,3 +1549,18 @@ gate. Local WASM medians for 2,048 ticks changed from 5.32/55.89/210.47 ms to
 4.85/50.25/201.80 ms at 8/32/64 bodies; these are host CPU timings, not device FPS.
 The browser gate retains real planet picking, visible statistics, draw-instance
 checks, delayed pause acknowledgements and long dense restores.
+
+### 148 — Preserve saved experiments during long startup reconstruction
+
+Review needs: incremental startup restoration leaves a temporary world in memory;
+a periodic save during that interval could overwrite the saved long experiment.
+Implemented: autosave waits for startup and active reconstruction to finish and
+rechecks the boundary after export. Startup keeps editing and playback disabled
+until the saved world is installed; manual replay reconstruction remains cancellable.
+Backgrounding an already-paused restore does not cancel it. Launch-site framing
+also accounts for narrow canvas aspect ratios instead of using radius alone.
+Validation: the real dense-restore browser regression accelerates the autosave
+interval and records every primary-save write, requiring all saved endpoints to
+retain at least the original forty years. Projection tests require revealed sites
+to fit portrait, narrow desktop and wide canvases at different angles. Full local native/WASM verification is
+retained, with browser and deployment validation in the final Actions gate.

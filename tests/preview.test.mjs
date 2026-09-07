@@ -13,3 +13,10 @@ test('launch sites outside the usable canvas are revealed without disturbing vis
  assert.equal(draftOutsideView([195,180],390,360),false);
  for(const p of [[-20,180],[400,180],[195,-1],[195,360]])assert.equal(draftOutsideView(p,390,360),true);
 });
+
+test('revealed launch sites fit narrow desktop and phone canvases at every angle',async()=>{
+ const {draftZoom,draftOutsideView}=await import('../web/preview.js'),{project}=await import('../web/geometry.js');
+ for(const [width,height] of [[241,600],[390,350],[320,175],[1366,600]])for(const tilt of [.62,1])for(const angle of [0,.5,1,2,3,4,5,6]){
+  const d={radius:6,angle},zoom=draftZoom(d,width,height,tilt,.05);assert.equal(draftOutsideView(project(6*Math.cos(angle),6*Math.sin(angle),width,height,zoom,tilt),width,height),false);
+ }
+});
