@@ -16,3 +16,8 @@ export function writeNotebook(storage,entries){
  try{storage.setItem(KEY,text);}catch{throw new Error('Device storage could not save the notebook. Export the experiment to keep it.');}
 }
 export function compare(a,b){return METRICS.map(([key,label])=>({key,label,before:a.summary[key],after:b.summary[key],change:b.summary[key]-a.summary[key]}));}
+export function preserveOriginal(storage,entries,replay,state){
+ if(entries.some(item=>item.replay===replay))return entries;
+ const saved=entry(`Original · year ${state.status.years.toFixed(2)}`,replay,state);
+ const next=[...entries,saved];writeNotebook(storage,next);return next;
+}

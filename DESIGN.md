@@ -1108,3 +1108,21 @@ reconstruction; optional pause/slow event policies. Histories are absent from
 normal animation snapshots. The next delivery wires these capabilities into UI.
 Validation: clippy, 13 interaction/satellite/resonance regressions, two history
 conservation/replay/bounds tests, production build and 128 Node/WASM checks pass.
+
+
+### 113 — Encounter observatory, preserved branches and equal-age comparisons
+
+Review needs: expose the history engine through a usable observation flow; keep
+original runs before branching; make comparisons independent of endpoint age.
+Implemented: mobile Observe tab; orbital and resonance graphs with gaps for
+removed/transferred bodies and wrapped angles; before/after encounter navigation
+and orbit overlays; event pause/slow controls; automatic durable original saves;
+worker-reconstructed equal-age comparisons and edit differences. Unchanged
+history stamps avoid repeated large transfers. Starting-point recipes use current
+moon rules, and 24 current-version campaign fixtures supplement legacy coverage.
+Validation: full native suite and current campaign/recipe fixtures pass; production
+build, web contracts and 154 Node/WASM checks pass. Added a browser workflow that
+changes a burn before an impact, preserves the original and compares both runs.
+Actions for 111 found two old formatting expectations across seven viewports
+(153 browser checks passed); assertions now verify numeric eccentricity and the
+new precise mass format. Histories also work for restored older rule versions.

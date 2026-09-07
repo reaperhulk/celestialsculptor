@@ -3,7 +3,18 @@ use celestial_sim::*;
 #[test]
 fn every_authored_challenge_has_a_winning_and_losing_replay() {
     let scenarios = scenarios::campaign();
-    assert_eq!(scenarios.len(), MISSIONS.len() * 4 + 4);
+    for version in [1, 3, SAVE_VERSION] {
+        for mission in 0..MISSIONS.len() {
+            for won in [false, true] {
+                assert!(
+                    scenarios.iter().any(|s| s.replay.version == version
+                        && s.replay.config.mission == Some(mission)
+                        && s.completed == won),
+                    "missing version {version} mission {mission} outcome {won}"
+                );
+            }
+        }
+    }
     for scenario in scenarios {
         scenario.run().unwrap();
     }

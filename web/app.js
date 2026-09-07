@@ -16,9 +16,10 @@ import {goalMessage} from './guidance.js';
 import {diagnosticReport} from './report.js';
 import {diskCommand,diskIssue} from './disk.js';
 import {readViewSettings,writeViewSettings} from './preferences.js';
-import {entry,readNotebook,writeNotebook,compare} from './notebook.js';
+import {entry,readNotebook,writeNotebook,compare,summarize,preserveOriginal} from './notebook.js';
 import {moonRegion} from './moons.js';
 import {orbitReading} from './readings.js';
+import {Observatory} from './observatory.js';
 
 const $=id=>document.getElementById(id);
 let state=null, missions=[], mission=0, renderer, selectedBody=null, ready=false, toastTimer;
@@ -37,7 +38,12 @@ try { renderer=new Renderer($('universe'),toast); } catch(error){fail(error.mess
 let worker,startupError;
 try{worker=new Worker(new URL('./worker.js',import.meta.url),{type:'module'});}catch(error){startupError='The simulation worker could not start. Reload to try again. '+error.message;}
 const channel=new RequestChannel(message=>worker.postMessage(message));
-function send(type,data={}){return channel.send(type,data).then(reply=>{if(['command','undo','rewind','step'].includes(type)){clearTimeout(autosaveTimer);autosaveTimer=setTimeout(autosave,250);}return reply;});}
+async function send(type,data={}){
+ if(state?.reviewing&&(['command','step'].includes(type)||type==='play'&&data.value)){
+  const original=await channel.send('original');notebookEntries=preserveOriginal(storage,notebookEntries,original.replay,original.snapshot);
+ }
+ return channel.send(type,data).then(reply=>{if(['command','undo','rewind','step'].includes(type)){clearTimeout(autosaveTimer);autosaveTimer=setTimeout(autosave,250);}return reply;});
+}
 function workerFailed(message){ready=false;clearTimeout(startupTimer);worker?.terminate();channel.close(message);document.body.dataset.ready='error';for(const id of ['launch','step','undo','rewind'])$(id).disabled=true;fail(message);}
 const startupTimer=setTimeout(()=>workerFailed('The simulation is taking too long to load. Check your connection and reload.'),30000);
 if(startupError)workerFailed(startupError);
@@ -265,7 +271,7 @@ function updateDisk(){
 for(const id of ['disk-radius','disk-width','disk-count','disk-disorder'])$(id).oninput=updateDisk;
 $('disk-form').onsubmit=event=>{event.preventDefault();try{send('command',{command:diskDraft()}).then(()=>toast('Debris placed. Run the system to watch it evolve.')).catch(error=>toast(error.message));}catch(error){toast(error.message);}};
 $('kind').addEventListener('change',()=>{$('body-mass').value=String({rocky:1,ice:2,giant:state?.rules_version===1?50:318,dust:.25}[$('kind').value]);updateDraft();});
-for(const id of ['kind','radius','speed','angle','body-mass'])$(id).addEventListener('input',updateDraft);
+for(const id of ['kind','radius','speed','angle','body-mass','orbit-direction'])$(id).addEventListener('input',updateDraft);
 for(const id of ['radius','speed'])$(id+'-range').oninput=()=>{$(id).value=$(id+'-range').value;updateDraft();};
 $('play').onclick=()=>action('play',{value:!state?.playing});$('step').onclick=()=>action('step');$('rewind').onclick=()=>action('rewind');
 $('undo').onclick=()=>action('undo').then(()=>renderer?.trails.clear());
@@ -286,7 +292,7 @@ $('fit-view').onclick=()=>renderer?.fit();
 $('follow-body').onclick=()=>renderer?.focus(selectedBody);
 $('show-orbit').onclick=()=>{if(renderer)renderer.selected=selectedBody;toast('Blue: current orbit. Amber: the strongest neighboring gravitational pull.');};
 $('zoom-in').onclick=()=>{if(renderer)renderer.cameraTo(renderer.center,clampZoom(renderer.zoom*.8));};$('zoom-out').onclick=()=>{if(renderer)renderer.cameraTo(renderer.center,clampZoom(renderer.zoom/.8));};
-for(const button of document.querySelectorAll('[data-panel]'))if(button.tagName==='BUTTON')button.onclick=()=>{document.body.dataset.panel=button.dataset.panel;for(const other of document.querySelectorAll('.mobile-tabs button')){other.classList.toggle('active',other===button);other.setAttribute('aria-pressed',String(other===button));}};
+for(const button of document.querySelectorAll('[data-panel]'))if(button.tagName==='BUTTON')button.onclick=()=>{document.body.dataset.panel=button.dataset.panel;if(button.dataset.panel==='observe'){$('analysis-tools').open=true;document.querySelector('.sculpt-panel').scrollTop=0;}for(const other of document.querySelectorAll('.mobile-tabs button')){other.classList.toggle('active',other===button);other.setAttribute('aria-pressed',String(other===button));}};
 $('help').onclick=()=>$('help-dialog').showModal();for(const button of document.querySelectorAll('.dialog-close'))button.onclick=()=>$('help-dialog').close();
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&ready){action('play',{value:false});autosave();}});
 $('sound').onclick=async()=>{$('sound').disabled=true;try{const enabled=await sound.toggle();$('sound').setAttribute('aria-pressed',String(enabled));$('sound').setAttribute('aria-label',enabled?'Mute sound':'Enable sound');$('sound').classList.toggle('active',enabled);}catch(error){toast(error.message);}finally{$('sound').disabled=false;}};
@@ -332,7 +338,7 @@ $('recipes').onclick=async()=>{
   if(!recipes){const response=await fetch(new URL('./recipes.json',import.meta.url));if(!response.ok)throw new Error('Starting points could not load. Try again.');recipes=await response.json();}
   $('recipe-list').replaceChildren();
   for(const recipe of recipes){const button=document.createElement('button');button.className='recipe-choice';const title=document.createElement('strong'),description=document.createElement('span');title.textContent=recipe.name;description.textContent=recipe.description;button.append(title,description);
-   button.onclick=()=>{$('recipes-dialog').close();confirmReset(async()=>{try{saveEpoch++;const replay=JSON.stringify({version:recipe.version||3,config:{...recipe.config,seed:parseSeed($('seed').value)},commands:recipe.commands.map(command=>({tick:0,command})),end_tick:0});await send('import',{replay});await autosave();renderer?.fit();if(recipe.focus!==undefined){selectedBody=recipe.focus;renderer?.focus(recipe.focus);inspect();}if(recipe.speed)await send('speed',{value:recipe.speed});if(recipe.id.includes('resonan'))$('resonance-panel').open=true;toast(recipe.name+' is ready. Run it or make it your own.');}catch(error){toast(error.message);}});};
+   button.onclick=()=>{$('recipes-dialog').close();confirmReset(async()=>{try{saveEpoch++;const replay=JSON.stringify({version:recipe.version||4,config:{...recipe.config,seed:parseSeed($('seed').value)},commands:recipe.commands.map(command=>({tick:0,command})),end_tick:0});await send('import',{replay});await autosave();renderer?.fit();if(recipe.focus!==undefined){selectedBody=recipe.focus;renderer?.focus(recipe.focus);inspect();}if(recipe.speed)await send('speed',{value:recipe.speed});if(recipe.id.includes('resonan'))$('resonance-panel').open=true;toast(recipe.name+' is ready. Run it or make it your own.');}catch(error){toast(error.message);}});};
    $('recipe-list').append(button);
   }
   $('recipes-dialog').showModal();
@@ -387,17 +393,25 @@ function showNotebook(){
  }
  renderComparison();updateHistory();
 }
-function renderComparison(){
+let comparisonRequest=0;
+async function renderComparison(){
+ const request=++comparisonRequest;
  const selected=comparisonIds.map(id=>notebookEntries.find(item=>item.id===id));$('comparison-wrap').hidden=selected.length!==2;if(selected.length!==2)return;
  const [a,b]=selected,head=$('comparison').querySelector('thead'),body=$('comparison').querySelector('tbody');head.replaceChildren();body.replaceChildren();const row=document.createElement('tr');
  for(const title of ['Outcome',a.name,b.name,'Change']){const cell=document.createElement('th');cell.scope='col';cell.textContent=title;row.append(cell);}head.append(row);
  const number=value=>value.toLocaleString(undefined,{maximumFractionDigits:2});
- for(const metric of compare(a,b)){const row=document.createElement('tr');for(const [index,value] of [metric.label,number(metric.before),number(metric.after),(metric.change>0?'+':'')+number(metric.change)].entries()){const cell=document.createElement(index===0?'th':'td');if(index===0)cell.scope='row';cell.textContent=value;row.append(cell);}body.append(row);}
+ $('comparison-age').textContent='Reconstructing both experiments at the same age…';
+ try{const result=await send('compare',{replays:[a.replay,b.replay]});if(request!==comparisonRequest)return;
+  const left=parseReplay(a.replay),right=parseReplay(b.replay),changed=left.commands.filter((c,i)=>JSON.stringify(c)!==JSON.stringify(right.commands[i])).length+Math.max(0,right.commands.length-left.commands.length);
+  $('comparison-age').textContent=`Both at year ${(result.tick/512).toFixed(2)} · ${changed} differing recorded edits${JSON.stringify(left.config)!==JSON.stringify(right.config)?' · starting conditions differ':''}.`;
+  for(const metric of compare({summary:summarize(result.states[0])},{summary:summarize(result.states[1])})){const row=document.createElement('tr');for(const [index,value] of [metric.label,number(metric.before),number(metric.after),(metric.change>0?'+':'')+number(metric.change)].entries()){const cell=document.createElement(index===0?'th':'td');if(index===0)cell.scope='row';cell.textContent=value;row.append(cell);}body.append(row);}
+ }catch(error){if(request===comparisonRequest)$('comparison-age').textContent=error.message;}
 }
 $('notebook').onclick=async()=>{try{await send('play',{value:false});showNotebook();$('notebook-dialog').showModal();}catch(error){toast(error.message);}};
 $('close-notebook').onclick=()=>$('notebook-dialog').close();
 $('checkpoint-form').onsubmit=async event=>{event.preventDefault();$('save-checkpoint').disabled=true;try{await send('play',{value:false});const {replay}=await send('export');const next=[...notebookEntries,entry($('checkpoint-name').value,replay,state)];writeNotebook(storage,next);notebookEntries=next;showNotebook();$('notebook-status').textContent='Checkpoint saved. Open it later to branch without changing this original.';}catch(error){$('notebook-status').textContent=error.message;}finally{$('save-checkpoint').disabled=false;}};
 $('history-tick').oninput=()=>{$('history-time').textContent=`Year ${(Number($('history-tick').value)/512).toFixed(2)} of ${((state?.timeline_end||0)/512).toFixed(2)}`;};
-async function reviewHistory(tick){$('history-tick').disabled=true;try{await send('seek',{tick});$('history-tick').value=String(state.tick);$('history-note').textContent='Reviewing the recorded run. Return to latest to continue it, or run/edit here to start a branch. Save a checkpoint to keep either outcome.';}catch(error){$('notebook-status').textContent=error.message;}finally{updateHistory();}}
-$('history-tick').onchange=()=>reviewHistory(Number($('history-tick').value));
-$('history-latest').onclick=()=>reviewHistory(state.timeline_end);
+async function reviewHistory(tick){$('history-tick').disabled=true;try{await send('seek',{tick});$('history-tick').value=String(state.tick);$('history-note').textContent='Reviewing the recorded run. Return to latest to continue it. Running or editing saves the original automatically before branching.';}catch(error){$('notebook-status').textContent=error.message;throw error;}finally{updateHistory();}}
+$('history-tick').onchange=()=>reviewHistory(Number($('history-tick').value)).catch(()=>{});
+$('history-latest').onclick=()=>reviewHistory(state.timeline_end).catch(()=>{});
+const observatory=new Observatory({send,seek:reviewHistory,getState:()=>state,getSelected:()=>selectedBody,selectEvent:event=>{selectedBody=event.body;if(renderer){renderer.focusEvent(event);renderer.encounterOverlay=event.impact||null;}inspect();}});

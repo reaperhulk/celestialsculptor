@@ -15,6 +15,10 @@ pub fn campaign() -> Vec<Scenario> {
         serde_json::from_str::<Vec<Scenario>>(include_str!("../../../scenarios/campaign-v3.json"))
             .expect("valid formation scenarios"),
     );
+    cases.extend(
+        serde_json::from_str::<Vec<Scenario>>(include_str!("../../../scenarios/campaign-v4.json"))
+            .expect("valid current scenarios"),
+    );
     cases
 }
 impl Scenario {

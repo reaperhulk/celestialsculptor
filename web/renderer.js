@@ -95,9 +95,11 @@ export class Renderer {
   get selected(){return this._selected;}
   set draft(value){this._draft=value;this.previewPath=this.previewCache.update(value);}
   get draft(){return this._draft;}
+  set encounterOverlay(impact){this._encounterOverlay=impact?.anchor?{anchor:impact.anchor,paths:[orbitPath(impact.orbit_before),orbitPath(impact.orbit_after)]}:null;}
   setState(state){
     updateTrails(this.trails,this.state,state);updateTrails(this.moonTrails,this.state,state,true);
     const replaced=!this.state||state.generation!==this.state.generation||state.tick<this.state.tick;
+    if(replaced||state.playing)this._encounterOverlay=null;
     if(replaced){this.cameraTween=null;this.panVelocity=null;this.impacts=[];this.lastEvent=state.events.at(-1)?.id||0;this.follow=null;this.center={x:state.bodies[0].pos.x,y:state.bodies[0].pos.y};}
     else for(const event of state.events){if(event.id>this.lastEvent&&event.impact)this.impacts.push({...event.impact,body:event.body,time:performance.now()/1000});}
     this.lastEvent=state.events.at(-1)?.id||this.lastEvent;
@@ -153,6 +155,7 @@ export class Renderer {
     gl.uniform2f(this.location(this.background,'u_zone'),this.state.status.zone_inner,this.state.status.zone_outer);
     gl.uniform1f(this.location(this.background,'u_grid'),Number(this.showGrid));gl.drawArrays(gl.TRIANGLES,0,3);
     const lines=this.lineStream.reset(),tracked=this.state.bodies.find(b=>b.id===this.follow),reference=this.zoom<.5?(tracked?.parent??tracked?.id):null,localAnchor=this.displayPositions.get(reference);
+    if(this._encounterOverlay){const {anchor,paths}=this._encounterOverlay;for(const [index,path] of paths.entries())for(let i=1;i<path.length;i++)lines.line(path[i-1][0]+anchor.x,path[i-1][1]+anchor.y,path[i][0]+anchor.x,path[i][1]+anchor.y,index?[.35,.8,1]:[1,.76,.35],.65);}
 
     if(this.showTrails)for(const b of this.state.bodies){
       if(reference&&b.parent!==reference)continue;

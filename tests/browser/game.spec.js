@@ -39,8 +39,8 @@ test('an inspected world can be nudged and the edit undone',async({page})=>{
  await page.locator('#sandbox').click();await page.locator('#launch').click();
  await page.locator('#inspect-body').selectOption('1');
  await page.locator('[data-nudge="tangential"][data-amount="0.1"]').click();
- await expect(page.locator('#inspector')).toContainText('e = 0.210');
- await page.locator('#undo').click();await expect(page.locator('#inspector')).toContainText('e = 0.000');
+ await expect.poll(async()=>Number((await page.locator('#inspector').innerText()).match(/e = ([^\n]+)/)[1])).toBeCloseTo(.21,3);
+ await page.locator('#undo').click();await expect.poll(async()=>Number((await page.locator('#inspector').innerText()).match(/e = ([^\n]+)/)[1])).toBeLessThan(1e-6);
 });
 test('sandbox starting points create editable paused systems',async({page})=>{
  await page.locator('#sandbox').click();

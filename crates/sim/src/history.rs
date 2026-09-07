@@ -34,9 +34,6 @@ pub struct Frame {
 }
 impl World {
     pub(crate) fn observe_history(&mut self, edited: bool) {
-        if self.rules_version < 4 {
-            return;
-        }
         self.remember_events();
         self.history.stride = self.history.stride.max(64);
         if !edited && !self.tick.is_multiple_of(self.history.stride) {
@@ -90,9 +87,6 @@ impl World {
         self.history.frames.push(frame);
     }
     pub(crate) fn remember_events(&mut self) {
-        if self.rules_version < 4 {
-            return;
-        }
         for event in &self.events {
             if event.tick + 1 < self.tick {
                 continue;

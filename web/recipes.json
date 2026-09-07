@@ -30,7 +30,8 @@
       "seed": 719,
       "mission": null,
       "star_mass": 1
-    }
+    },
+    "version": 4
   },
   {
     "id": "crowded-nursery",
@@ -49,7 +50,8 @@
       "seed": 719,
       "mission": null,
       "star_mass": 1
-    }
+    },
+    "version": 4
   },
   {
     "id": "giant-shepherd",
@@ -96,7 +98,8 @@
       "seed": 719,
       "mission": null,
       "star_mass": 1
-    }
+    },
+    "version": 4
   },
   {
     "id": "wanderer",
@@ -122,13 +125,14 @@
       "seed": 719,
       "mission": null,
       "star_mass": 1
-    }
+    },
+    "version": 4
   },
   {
     "id": "gravity-assist",
     "name": "Borrow a giant's momentum",
     "description": "A bound world gains enough energy in a close flyby to escape. Select it to compare the changing orbit.",
-    "version": 3,
+    "version": 4,
     "config": {
       "seed": 42,
       "mission": null,
@@ -157,7 +161,7 @@
     "id": "opposing-worlds",
     "name": "When worlds collide",
     "description": "Counter-orbiting worlds meet head-on. Watch the larger survivor lose orbital momentum and fall inward.",
-    "version": 3,
+    "version": 4,
     "config": {
       "seed": 42,
       "mission": null,
@@ -186,7 +190,7 @@
     "id": "moon-family",
     "name": "A family of moons",
     "description": "A giant with prograde and retrograde satellites. Double tap the giant to inspect its moons.",
-    "version": 3,
+    "version": 4,
     "config": {
       "seed": 719,
       "mission": null,
@@ -206,7 +210,7 @@
     "id": "resonant-pair",
     "name": "Two worlds, one rhythm",
     "description": "Two giants exchange angular momentum near 2:1. Run for 20 years and watch the resonant angle librate.",
-    "version": 3,
+    "version": 4,
     "config": {
       "seed": 42,
       "mission": null,
@@ -236,7 +240,7 @@
     "id": "resonance-capture",
     "name": "A resonance takes shape",
     "description": "A gas disk nudges the outer giant inward. Over about 60 years the pair enters a 2:1 resonance.",
-    "version": 3,
+    "version": 4,
     "config": {
       "seed": 42,
       "mission": null,
@@ -256,7 +260,7 @@
     "id": "resonant-moons",
     "name": "Clockwork moons",
     "description": "Two moons share a 2:1 rhythm around their giant. Run for four years, then compare their bounded resonant angle in Orbital resonances.",
-    "version": 3,
+    "version": 4,
     "focus": 1,
     "speed": 4,
     "config": {

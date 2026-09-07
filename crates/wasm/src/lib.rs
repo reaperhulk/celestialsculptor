@@ -5,6 +5,7 @@ use serde::Serialize;
 struct Snapshot<'a> {
     rules_version: u32,
     burns_available: bool,
+    observation_stamp: (u64, usize, u32),
     mission_definition: Option<celestial_sim::Mission>,
     resonances: &'a [celestial_sim::resonance::Resonance],
     bodies: &'a [Body],
@@ -56,6 +57,11 @@ impl Simulation {
         serde_json::to_string(&Snapshot {
             rules_version: self.world.rules_version,
             burns_available: self.world.burns_available(),
+            observation_stamp: (
+                self.world.history.frames.last().map_or(0, |f| f.tick),
+                self.world.commands.len(),
+                self.world.history.events.last().map_or(0, |e| e.id),
+            ),
             mission_definition: self.world.mission(),
             resonances: &self.world.resonances,
             bodies: &self.world.bodies,

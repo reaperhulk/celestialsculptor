@@ -4,7 +4,7 @@ test('the real simulation remains usable when WebGL is unavailable',async({page}
  await page.goto('./');await expect(page.locator('body')).toHaveAttribute('data-ready','true');
  await expect(page.locator('#loading')).toContainText('You can still sculpt');
  await page.locator('#sandbox').click();await page.locator('#launch').click();
- await page.locator('#inspect-body').selectOption('1');await expect(page.locator('#inspector')).toContainText('1.00 Earth masses');
- await page.locator('[data-nudge="tangential"][data-amount="0.1"]').click();await expect(page.locator('#inspector')).toContainText('e = 0.210');
+ await page.locator('#inspect-body').selectOption('1');await expect(page.locator('#inspector')).toContainText('1 Earth masses');
+ await page.locator('[data-nudge="tangential"][data-amount="0.1"]').click();await expect.poll(async()=>Number((await page.locator('#inspector').innerText()).match(/e = ([^\n]+)/)[1])).toBeCloseTo(.21,3);
  await page.locator('#step').click();await expect(page.locator('#sim-years')).toHaveText('0.03');
 });
