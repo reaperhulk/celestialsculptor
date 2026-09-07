@@ -27,3 +27,9 @@ test('run followed immediately by pause stays paused even with delayed worker ac
  // Check settled worker state after multiple timer intervals, not just the optimistic label.
  await page.waitForTimeout(500);const tick=await page.locator('#universe').getAttribute('data-tick');await page.waitForTimeout(300);await expect(page.locator('#universe')).toHaveAttribute('data-tick',tick);await expect(page.locator('#play')).toHaveText('▶ Run');
 });
+
+test('live inspection preserves an open detail control and its keyboard focus',async({page})=>{
+ await page.goto('./');await expect(page.locator('#play')).toBeEnabled();await page.locator('#sandbox').click();await page.locator('#launch').click();await page.locator('#inspect-body').selectOption('1');
+ const summary=page.locator('#inspector details > summary');await summary.click();await page.locator('#play').click();await summary.focus();await summary.evaluate(node=>window.__inspectorSummary=node);
+ await expect.poll(async()=>Number(await page.locator('#sim-years').textContent())).toBeGreaterThan(.2);await expect(page.locator('#inspector details')).toHaveAttribute('open','');expect(await summary.evaluate(node=>node===window.__inspectorSummary&&document.activeElement===node)).toBe(true);await page.locator('#play').click();
+});

@@ -7,3 +7,7 @@ export class PreviewCache {
   return this.path;
  }
 }
+// Reveal a launch site only when the player changes its conditions, never while panning.
+export function draftOutsideView(point,width,height,margin=32){
+ return point[0]<margin||point[0]>width-margin||point[1]<margin||point[1]>height-margin;
+}

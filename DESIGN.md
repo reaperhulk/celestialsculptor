@@ -1518,3 +1518,16 @@ success. Pause cancels reconstruction; reset cannot be overwritten by stale work
 Validation: a real 48-fragment sandbox runs through 60 years at 16x, beyond the
 old work threshold, and reconstructs exactly. Timed edits, multiple chunk sizes,
 progress acknowledgements, cancellation and replacement have native/WASM coverage.
+
+### 146 — Continue the review with stable inspection and visible launch sites
+
+Review needs: live inspector refreshes still replaced disclosure nodes, losing
+keyboard focus. A launch preview could remain offscreen after navigating to moons.
+Implemented: an inspector controller keeps its DOM and open details, changes only
+updated readings, and uses consistent quantity formatting. Editing launch fields
+reveals an offscreen launch site; ordinary navigation keeps its camera position.
+New experiments leave placement mode.
+Validation: placement-boundary checks pass and browser coverage retains the same
+focused disclosure node while physics advances. Existing body-tap and closed-form
+render checks remain release gates. Next review: measure and remove unnecessary
+per-tick sandbox objective evaluation without changing outcomes.

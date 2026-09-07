@@ -1,3 +1,5 @@
+import {Inspector} from './inspector.js';
+import {draftOutsideView} from './preview.js';
 import {PlayControl} from './play-control.js';
 import {resonanceText} from './resonance-reading.js';
 import {experimentDifferences} from './comparison.js';
@@ -6,7 +8,6 @@ import { Renderer } from './renderer.js';
 import {clampZoom} from './camera.js';
 import {FrameMeter,fpsFlag} from './performance.js';
 import {DeviceRecording,deviceScenario} from './device-test.js';
-import {strongestPerturber} from './appearance.js';
 import { installInput } from './input.js';
 import { readProfile, writeProfile, canPlay, nextMission, award, normalizeProfile } from './progression.js';
 import {deviceStorage,parseReplay,saveExperiment,savedExperiments,archiveExperiment,parseArchive} from './storage.js';
@@ -23,7 +24,7 @@ import {diskCommand,diskIssue} from './disk.js';
 import {readViewSettings,writeViewSettings} from './preferences.js';
 import {entry,readNotebook,writeNotebook,compare,summarize,preserveOriginal} from './notebook.js';
 import {moonRegion} from './moons.js';
-import {orbitReading,spinReading,spinRate} from './readings.js';
+import {spinRate} from './readings.js';
 import {Observatory} from './observatory.js';
 import {ChallengeGuide} from './challenges.js';
 import {GeneratorControls} from './generation.js';
@@ -100,6 +101,7 @@ async function reset(next=mission,overrides={}){
 }
 let moonHost=null;
 let inspectorIds='';
+const bodyInspector=new Inspector($('inspector'));
 function inspect(){
   const ids=state?.bodies.map(b=>b.id).join(',')||'';
   if(ids!==inspectorIds){
@@ -117,21 +119,8 @@ function inspect(){
   $('watch-orbit').disabled=!body||body.id===0;$('follow-body').disabled=!body;$('show-orbit').disabled=!body||body.id===0;
   $('nudge-controls').hidden=!body||body.id===0||!state?.burns_available;
   if(body&&body.id!==0)$('nudge-controls').querySelector('p').textContent=`Adjust orbit around ${state.moon_orbits?.some(([id])=>id===body.id)?`World ${body.parent}`:'the star'} · 1 matter per burn. Boost follows the orbital direction; strength is a fraction of circular speed around this host.`;
-  const p=$('inspector'),expanded=p.querySelector('details')?.open;
-  p.replaceChildren();const label=document.createElement('span');label.className='eyebrow';label.textContent='OBSERVATION';p.append(label);
-  const text=document.createElement('p');
-  if(body){const summary=document.createElement('p');summary.className='body-summary';summary.textContent=body.id===0?`The star · ${body.mass.toFixed(2)} solar masses`:`World ${body.id} · ${body.kind}${body.parent!==null?` · Moon of ${body.parent}`:''}\nMass: ${(body.mass/3.003e-6).toLocaleString(undefined,{maximumSignificantDigits:4})} Earth masses`;p.append(summary);const rotation=document.createElement('p');rotation.className='body-rotation';rotation.textContent=spinReading(body,state.bodies.find(b=>b.id===(body.parent??0)));p.append(rotation);}
-  const details=document.createElement('details');details.open=Boolean(expanded);const title=document.createElement('summary');title.textContent='Orbit, size & composition';details.append(title);
-  if(!body)text.textContent='Select a world in the view or body list.';
-  else if(body.id===0)text.textContent=`${body.mass.toFixed(2)} solar masses. The potential habitable zone spans ${state.status.zone_inner.toFixed(2)}–${state.status.zone_outer.toFixed(2)} AU.`;
-  else{
-    const moonOrbit=state.moon_orbits?.find(([id])=>id===body.id)?.[1];const orbit=moonOrbit||state.orbits.find(([id])=>id===body.id)?.[1];
-    text.textContent=orbitReading(body,orbit,moonOrbit?state.bodies.find(b=>b.id===body.parent):state.bodies[0]);
-    text.style.whiteSpace='pre-line';
-  }
-  details.append(text);p.append(details);
+  bodyInspector.update(state,body);
   if(body)$('inspect-body').value=String(body.id);
-  if(body&&body.id!==0){const source=strongestPerturber(body,state.bodies,state.rules_version===1?.002:.0001),facts=document.createElement('p');facts.textContent=`Contact radius: ${body.radius.toFixed(4)} AU. Material: ${((body.material?.ice||0)/body.mass*100).toFixed(0)}% ice, ${((body.material?.gas||0)/body.mass*100).toFixed(0)}% gas.`;details.append(facts);if(source){const pull=document.createElement('p');pull.className='gravity-reading';pull.textContent=`Strongest neighbor: World ${source.body.id} · ${(source.ratio*100).toFixed(source.ratio<.01?2:1)}% of the star's pull. The blue outline is this world's current orbit; neighbors can bend it.`;details.append(pull);}}
 }
 function updateMoonRegion(body=state?.bodies.find(b=>b.id===selectedBody)){
  if(!body||body.id===0)return;const mass=Number($('moon-mass').value),distance=Number($('moon-distance').value),region=moonRegion(body,state.orbits.find(([id])=>id===body.id)?.[1],state.bodies[0].mass,mass);
@@ -147,7 +136,7 @@ let lastUI=0,lastEventSignature='',lastObjectives='';
 function renderState(next){
   const present=shouldPresent(state,next,lastUI,performance.now());
   if(deviceRecording&&!deviceRecording.done&&state&&next.speed!==state.speed)stopDeviceRecording('playback speed changed');
-  if(next.generation!==state?.generation)frameMeter.reset(performance.now(),next.tick);
+  if(next.generation!==state?.generation){frameMeter.reset(performance.now(),next.tick);setPlacement(false);}
   const changedMission=next.config.mission!==mission||next.rules_version!==state?.rules_version;
   if(changedMission){mission=next.config.mission;awardedThisRun=false;}
   $('star-mass').value=String(next.config.star_mass);
@@ -301,8 +290,8 @@ for(const [id,key] of [['show-grid','showGrid'],['show-trails','showTrails'],['s
 $('render-quality').value=String(viewSettings.maxDpr);if(renderer)renderer.maxDpr=viewSettings.maxDpr;
 $('render-quality').onchange=()=>{stopDeviceRecording('rendering quality changed');viewSettings.maxDpr=Number($('render-quality').value);if(renderer)renderer.maxDpr=viewSettings.maxDpr;writeViewSettings(storage,viewSettings);};
 $('reset-view').onclick=()=>{if(renderer){renderer.follow=null;renderer.cameraTo(state?.bodies[0].pos||{x:0,y:0},3.5);renderer.tilt=.62;$('view').textContent='Top view';}};
-function setPlacement(enabled){if(renderer)renderer.inputMode=enabled?'place':'navigate';$('place-mode').setAttribute('aria-pressed',String(enabled));$('place-mode').classList.toggle('active',enabled);$('scene-hint').textContent=enabled?'Tap or drag to choose a launch position · Place world to create it':'Drag to pan · Pinch to zoom · Tap a body for statistics';}
-$('place-mode').onclick=()=>{const enabled=renderer?.inputMode!=='place';setPlacement(enabled);if(enabled){document.querySelector('.mobile-tabs [data-panel="sculpt"]').click();const panel=document.querySelector('.sculpt-panel');panel.scrollTop=0;updateDraft();}};
+function setPlacement(enabled,reveal=false){if(renderer){renderer.inputMode=enabled?'place':'navigate';if(enabled&&reveal&&renderer.draft&&state){const d=renderer.draft,star=state.bodies[0],point=renderer.toScreen(star.pos.x+d.radius*Math.cos(d.angle),star.pos.y+d.radius*Math.sin(d.angle)),canvas=$('universe');if(draftOutsideView(point,canvas.clientWidth,canvas.clientHeight)){renderer.follow=null;renderer.cameraTo(star.pos,Math.max(renderer.zoom,d.radius*1.35));}}}$('place-mode').setAttribute('aria-pressed',String(enabled));$('place-mode').classList.toggle('active',enabled);$('scene-hint').textContent=enabled?'Tap or drag to choose a launch position · Place world to create it':'Drag to pan · Pinch to zoom · Tap a body for statistics';}
+$('place-mode').onclick=()=>{const enabled=renderer?.inputMode!=='place';setPlacement(enabled,true);if(enabled){document.querySelector('.mobile-tabs [data-panel="sculpt"]').click();const panel=document.querySelector('.sculpt-panel');panel.scrollTop=0;updateDraft();}};
 $('moon-form').onsubmit=event=>{event.preventDefault();send('command',{command:{type:'launch_moon',parent:selectedBody,kind:'rocky',mass:Number($('moon-mass').value),distance:Number($('moon-distance').value),angle:Number($('moon-angle').value)*Math.PI/180,speed:Number($('moon-direction').value)*Number($('moon-speed').value)/100}}).then(()=>{renderer?.focus(selectedBody);toast('Moon placed. Every body contributes to its orbit.');}).catch(error=>toast(error.message));};
 for(const [id,direction] of [['spin-forward',1],['spin-reverse',-1]])$(id).onclick=()=>{try{action('command',{command:{type:'spin',id:selectedBody,rate:spinRate($('spin-rate').value,direction)}});}catch(error){toast(error.message);}};
 $('spin-stop').onclick=()=>action('command',{command:{type:'spin',id:selectedBody,rate:0}});
@@ -463,5 +452,5 @@ $('download-device').onclick=()=>{if(deviceRecording)download(JSON.stringify(dev
 $('watch-orbit').onclick=async()=>{try{const orbit=(state.moon_orbits.find(([id])=>id===selectedBody)||state.orbits.find(([id])=>id===selectedBody))?.[1];const speed=orbitalWatchSpeed(orbit?.period_years);await send('speed',{value:speed});renderer?.focus(selectedBody);await send('play',{value:true});toast(`Following this orbit at ${speed}×. Use Time to adjust the pace.`);}catch(error){toast(error.message);}};
 
 // Editing a launch starts an explicit placement session; disclosure focus is irrelevant.
-$('launch-form').addEventListener('input',()=>setPlacement(true));
-$('launch-form').addEventListener('change',()=>setPlacement(true));
+$('launch-form').addEventListener('input',()=>setPlacement(true,true));
+$('launch-form').addEventListener('change',()=>setPlacement(true,true));

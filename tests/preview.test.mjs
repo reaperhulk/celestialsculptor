@@ -7,3 +7,9 @@ test('unchanged launch conditions reuse preview geometry across status updates',
  assert.notEqual(cache.update({...draft,radius:2}),path);assert.deepEqual(cache.update(null),[]);
  assert.notEqual(cache.update(draft),path);
 });
+
+test('launch sites outside the usable canvas are revealed without disturbing visible sites',async()=>{
+ const {draftOutsideView}=await import('../web/preview.js');
+ assert.equal(draftOutsideView([195,180],390,360),false);
+ for(const p of [[-20,180],[400,180],[195,-1],[195,360]])assert.equal(draftOutsideView(p,390,360),true);
+});
