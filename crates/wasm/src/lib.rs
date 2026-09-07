@@ -9,7 +9,8 @@ struct Snapshot<'a> {
     assessment: celestial_sim::assessment::Assessment,
     mission_definition: Option<celestial_sim::Mission>,
     resonances: &'a [celestial_sim::resonance::Resonance],
-    bodies: &'a [Body],
+    #[serde(skip_serializing_if = "Option::is_none")]
+    bodies: Option<&'a [Body]>,
     status: Status,
     events: &'a [Event],
     tick: u64,
@@ -67,39 +68,47 @@ impl Simulation {
         Ok(())
     }
     pub fn snapshot(&self) -> String {
-        let status = self.world.status();
-        let assessment = self.world.assessment(&status);
-        serde_json::to_string(&Snapshot {
-            assessment,
-            rules_version: self.world.rules_version,
-            burns_available: self.world.burns_available(),
-            observation_stamp: (
-                self.world.history.frames.last().map_or(0, |f| f.tick),
-                self.world.commands.len(),
-                self.world.history.events.last().map_or(0, |e| e.id),
-            ),
-            mission_definition: self.world.mission(),
-            resonances: &self.world.resonances,
-            bodies: &self.world.bodies,
-            status,
-            events: &self.world.events,
-            tick: self.world.tick,
-            config: &self.world.config,
-            moon_orbits: self
-                .world
-                .bodies
-                .iter()
-                .filter_map(|b| self.world.moon_orbit(b).map(|o| (b.id, o)))
-                .collect(),
-            orbits: self
-                .world
-                .bodies
-                .iter()
-                .skip(1)
-                .map(|body| (body.id, self.world.orbit(body)))
-                .collect(),
-        })
-        .expect("finite snapshot")
+        self.snapshot_selected(None)
+    }
+    pub fn compact_snapshot(&self, selected: u32) -> String {
+        self.snapshot_selected(Some(selected))
+    }
+    /// Version 1 display wire format: twenty exact f64 values per body.
+    pub fn body_frame(&self) -> Vec<f64> {
+        self.world
+            .bodies
+            .iter()
+            .flat_map(|b| {
+                [
+                    f64::from(b.id),
+                    match b.kind {
+                        celestial_sim::Kind::Star => 0.,
+                        celestial_sim::Kind::Rocky => 1.,
+                        celestial_sim::Kind::Ice => 2.,
+                        celestial_sim::Kind::Giant => 3.,
+                        celestial_sim::Kind::Dust => 4.,
+                    },
+                    b.mass,
+                    b.radius,
+                    b.pos.x,
+                    b.pos.y,
+                    b.vel.x,
+                    b.vel.y,
+                    b.spin,
+                    b.material.rock,
+                    b.material.ice,
+                    b.material.gas,
+                    b.birth_mass,
+                    f64::from(b.initially_bound),
+                    b.parent.map_or(-1., f64::from),
+                    b.origin_parent.map_or(-1., f64::from),
+                    b.rotation,
+                    f64::from(b.mergers),
+                    f64::from(b.debris_origin),
+                    b.migration_rate,
+                ]
+            })
+            .collect()
     }
     pub fn body_count(&self) -> u32 {
         self.world.bodies.len() as u32
@@ -237,5 +246,54 @@ impl GravityProbe {
     }
     pub fn statistics(&self) -> String {
         self.inner.statistics().to_string()
+    }
+}
+
+impl Simulation {
+    fn snapshot_selected(&self, selected: Option<u32>) -> String {
+        let host = selected
+            .and_then(|id| self.world.bodies.iter().find(|b| b.id == id))
+            .and_then(|b| b.parent);
+        let included = |b: &&Body| {
+            selected.is_none_or(|id| b.id == id || Some(b.id) == host || b.parent == Some(id))
+        };
+        let limit = if selected.is_some() { 65 } else { usize::MAX };
+        let status = self.world.status();
+        let assessment = self.world.assessment(&status);
+        serde_json::to_string(&Snapshot {
+            assessment,
+            rules_version: self.world.rules_version,
+            burns_available: self.world.burns_available(),
+            observation_stamp: (
+                self.world.history.frames.last().map_or(0, |f| f.tick),
+                self.world.commands.len(),
+                self.world.history.events.last().map_or(0, |e| e.id),
+            ),
+            mission_definition: self.world.mission(),
+            resonances: &self.world.resonances,
+            bodies: selected.is_none().then_some(self.world.bodies.as_slice()),
+            status,
+            events: &self.world.events,
+            tick: self.world.tick,
+            config: &self.world.config,
+            moon_orbits: self
+                .world
+                .bodies
+                .iter()
+                .filter(included)
+                .take(limit)
+                .filter_map(|b| self.world.moon_orbit(b).map(|o| (b.id, o)))
+                .collect(),
+            orbits: self
+                .world
+                .bodies
+                .iter()
+                .skip(1)
+                .filter(included)
+                .take(limit)
+                .map(|body| (body.id, self.world.orbit(body)))
+                .collect(),
+        })
+        .expect("finite snapshot")
     }
 }

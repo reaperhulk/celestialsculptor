@@ -1,3 +1,5 @@
+import {BodyFrames} from './body-frame.js';
+const bodyFrames=new BodyFrames();
 import {Inspector} from './inspector.js';
 import {draftOutsideView,draftZoom} from './preview.js';
 import {PlayControl} from './play-control.js';
@@ -131,7 +133,7 @@ function updateMoonRegion(body=state?.bodies.find(b=>b.id===selectedBody)){
  $('moon-guidance').textContent=region.available?`World ${body.id}. For this mass, start between ${region.min.toFixed(4)} and ${region.max.toFixed(4)} AU. Space moons apart; all bodies can perturb them.`:'This mass or host orbit has no supported starting region. Try a lighter moon or a calmer, more distant host.';
 }
 $('moon-mass').oninput=()=>updateMoonRegion();$('moon-distance').oninput=()=>updateMoonRegion();
-function selectBody(id,reveal=false){selectedBody=id;if(renderer)renderer.selected=id;inspect();if(reveal){setPlacement(false);document.querySelector('.mobile-tabs [data-panel="sculpt"]').click();const panel=document.querySelector('.sculpt-panel');panel.scrollTop+=$('inspector').getBoundingClientRect().top-panel.getBoundingClientRect().top-8;}}
+function selectBody(id,reveal=false){selectedBody=id;if(state?.bodies.length>256)send('inspect',{body:id}).catch(error=>toast(error.message));if(renderer)renderer.selected=id;inspect();if(reveal){setPlacement(false);document.querySelector('.mobile-tabs [data-panel="sculpt"]').click();const panel=document.querySelector('.sculpt-panel');panel.scrollTop+=$('inspector').getBoundingClientRect().top-panel.getBoundingClientRect().top-8;}}
 $('inspect-body').onchange=()=>selectBody(Number($('inspect-body').value));
 for(const button of document.querySelectorAll('[data-nudge]'))button.onclick=()=>{const command={type:'nudge',id:selectedBody,tangential:0,radial:0};command[button.dataset.nudge]=Number(button.dataset.amount);action('command',{command});};
 let lastUI=0,lastEventSignature='',lastObjectives='';
@@ -189,6 +191,7 @@ function renderState(next){
   inspect();
 }
 if(worker)worker.onmessage=async({data})=>{
+  if(data.type==='state'&&data.frame)data=bodyFrames.decode(data);
   if(data.type==='ready'){
     clearTimeout(startupTimer);missions=data.missions;ready=true;if(renderer)$('loading').hidden=true;
     document.body.dataset.ready='true';

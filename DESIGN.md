@@ -1743,3 +1743,20 @@ full energy differences within 1e-16. The existing collision matrix and conserva
 tests pass. The same 8,192-body disordered workload falls from 99.59 to 43.56 ms/tick
 (2.29x throughput), while collision/graze counts remain 2/1; 4,096 falls from
 23.91 to 20.27 ms. Snapshot transport remains the next measured bottleneck.
+
+### 160 — Transfer compact double-precision display frames
+
+Review needs: 8,192-body full snapshots serialize around 5.5 MB, consuming tens of
+milliseconds and allocating thousands of duplicated body/orbit objects per update.
+Implemented: large worlds transfer a packed f64 buffer containing all twenty body
+fields, with small metadata and selected-body/family orbital readings. Selection
+requests fresh orbit details without changing physics. Three reusable decoded
+physical frames preserve interpolation; repeated same-tick messages retain their
+frame. Full snapshots remain available for replay verification, exports and analysis.
+Validation: packed bodies, statuses, events and selected orbits exactly match full
+WASM snapshots, including retrograde moons, spin and material. Tests verify buffer
+transfer, read-only selection, malformed-format rejection, and old-frame integrity.
+On this host, 8,192-body encode/decode falls from 32.07 to 1.52 ms (21.1x), with
+1.31 MB transferred instead of 5.5 MB. At 1,024 it falls from 4.86 to 0.27 ms.
+The whole-engine harness now reports both formats; real browser timings follow
+through the large-swarm navigation and rendering gate.

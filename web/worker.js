@@ -3,7 +3,7 @@ import { Runtime } from './runtime.js';
 
 try {
   await init();
-  const runtime = new Runtime(Simulation, message => self.postMessage(message));
+  const runtime = new Runtime(Simulation, (message,transfer=[]) => self.postMessage(message,transfer));
   self.onmessage = event => runtime.receive(event.data);
   let previous = performance.now(), lastState = previous;
   setInterval(() => {

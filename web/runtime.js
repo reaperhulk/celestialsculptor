@@ -12,16 +12,18 @@ export class Runtime {
     this.debt = 0;
     this.generation = 0;
     this.timelineSource=null;this.timelineHistory=null;this.timelineEnd=0;
-    this.eventPolicy='off';
+    this.eventPolicy='off';this.selectedBody=0;
   }
   state(id) {
     if (!this.sim) return;
-    const snapshot = JSON.parse(this.sim.snapshot());
-    this.send({ type: 'state', id, ...snapshot, busy:this.operation?.type||null, timeline_end:this.timelineSource?this.timelineEnd:snapshot.tick, reviewing:Boolean(this.timelineSource), playing: this.playing, speed: this.speed, event_policy:this.eventPolicy, generation: this.generation });
+    const packed=(this.sim.body_count?.()||0)>256,frame=packed?this.sim.body_frame():null;
+    const snapshot = JSON.parse(packed?this.sim.compact_snapshot(this.selectedBody):this.sim.snapshot());
+    this.send({...(packed?{frame,frame_version:1}:{}), type: 'state', id, ...snapshot, busy:this.operation?.type||null, timeline_end:this.timelineSource?this.timelineEnd:snapshot.tick, reviewing:Boolean(this.timelineSource), playing: this.playing, speed: this.speed, event_policy:this.eventPolicy, generation: this.generation },frame?[frame.buffer]:[]);
   }
   // Production message entrypoint. Replays yield between small WASM slices so
   // Pause, reset and status requests never sit behind years of reconstruction.
   receive(message) {
+    if(message.type==='inspect'){if(Number.isInteger(message.body)&&message.body>=0)this.selectedBody=message.body;this.state(message.id);return;}
     const type=message?.type;
     if(['reset','import','seek','undo','rewind'].includes(type)||type==='play')this.operation=null;
     if(['import','seek','undo','rewind','compare','original'].includes(type)){
