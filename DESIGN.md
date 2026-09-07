@@ -1465,3 +1465,15 @@ delivered model. No additional game behavior changes in this record.
 Validation: the design audit confirms all 141 continuous iteration records.
 Native, WASM and focused presentation evidence is recorded in the cycle log; the
 combined CI must pass browser and public artifact checks before publication.
+
+### 142 — Land phone observation on the actual graph
+
+Review needs: the newly rendered phone capture opened Observe above the graph,
+showing inspector controls while the chart remained below the panel. The initial
+body selector also said The star while its inspector still requested a selection.
+Implemented: Observe scrolls its own panel to the analysis section, metric and
+subject selectors share a compact row, and the initial/removed selection resolves
+to the star. Desktop and phone capture checks require 95% chart visibility.
+Validation: production DOM/style/asset contracts pass; browser acceptance now
+checks the initial star reading and actual chart viewport coverage. No physics or
+replay changes; final combined CI validates this screenshot-driven correction.

@@ -149,7 +149,7 @@ function renderState(next){
   $('star-mass').value=String(next.config.star_mass);
   if(document.activeElement!==$('seed'))$('seed').value=String(next.config.seed);
   $('system-label').textContent=`EXPERIMENT ${String(next.config.seed).padStart(4,'0')}`;
-  if(!next.bodies.some(body=>body.id===selectedBody))selectedBody=null;
+  if(!next.bodies.some(body=>body.id===selectedBody))selectedBody=next.bodies[0]?.id??null;
   state=next;if(changedMission)setMissionUI();renderer?.setState(next);$('universe').dataset.tick=String(next.tick);
   if(!present)return;lastUI=performance.now();
   updateHistory();
@@ -304,7 +304,7 @@ $('fit-view').onclick=()=>renderer?.fit();
 $('follow-body').onclick=()=>renderer?.focus(selectedBody);
 $('show-orbit').onclick=()=>{if(renderer)renderer.selected=selectedBody;toast('Blue: current orbit. Amber: the strongest neighboring gravitational pull.');};
 $('zoom-in').onclick=()=>{if(renderer)renderer.cameraTo(renderer.center,clampZoom(renderer.zoom*.8));};$('zoom-out').onclick=()=>{if(renderer)renderer.cameraTo(renderer.center,clampZoom(renderer.zoom/.8));};
-for(const button of document.querySelectorAll('[data-panel]'))if(button.tagName==='BUTTON')button.onclick=()=>{document.body.dataset.panel=button.dataset.panel;if(button.dataset.panel==='observe'){$('analysis-tools').open=true;document.querySelector('.sculpt-panel').scrollTop=0;}for(const other of document.querySelectorAll('.mobile-tabs button')){other.classList.toggle('active',other===button);other.setAttribute('aria-pressed',String(other===button));}};
+for(const button of document.querySelectorAll('[data-panel]'))if(button.tagName==='BUTTON')button.onclick=()=>{document.body.dataset.panel=button.dataset.panel;if(button.dataset.panel==='observe'){$('analysis-tools').open=true;const panel=document.querySelector('.sculpt-panel');panel.scrollTop+=$('analysis-tools').getBoundingClientRect().top-panel.getBoundingClientRect().top-8;}for(const other of document.querySelectorAll('.mobile-tabs button')){other.classList.toggle('active',other===button);other.setAttribute('aria-pressed',String(other===button));}};
 $('help').onclick=()=>$('help-dialog').showModal();for(const button of document.querySelectorAll('.dialog-close'))button.onclick=()=>$('help-dialog').close();
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&ready){action('play',{value:false});autosave();}});
 $('sound').onclick=async()=>{$('sound').disabled=true;try{const enabled=await sound.toggle();$('sound').setAttribute('aria-pressed',String(enabled));$('sound').setAttribute('aria-label',enabled?'Mute sound':'Enable sound');$('sound').classList.toggle('active',enabled);}catch(error){toast(error.message);}finally{$('sound').disabled=false;}};

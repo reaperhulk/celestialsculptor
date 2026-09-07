@@ -16,7 +16,7 @@ test('FPS can be enabled with a URL flag and disabled in view settings',async({p
  await page.locator('#display').click();await page.locator('#show-fps').uncheck();await page.locator('#close-display').click();await expect(page.locator('#fps-overlay')).toBeHidden();
 });
 test('the star stays selectable while time advances',async({page})=>{
- await page.goto('./');await expect(page.locator('#play')).toBeEnabled();await page.locator('#launch').click();await page.locator('#inspect-body').selectOption('0');await page.locator('#step').click();await expect(page.locator('#inspector')).toContainText('solar masses');await expect(page.locator('#sim-years')).toHaveText('0.03');
+ await page.goto('./');await expect(page.locator('#play')).toBeEnabled();await expect(page.locator('#inspector')).toContainText('solar masses');await page.locator('#launch').click();await page.locator('#inspect-body').selectOption('0');await page.locator('#step').click();await expect(page.locator('#inspector')).toContainText('solar masses');await expect(page.locator('#sim-years')).toHaveText('0.03');
 });
 test('real two-finger touch input combines pan and zoom without placing worlds',async({page})=>{
  await page.goto('./?fps=1');await expect(page.locator('#play')).toBeEnabled();await expect.poll(()=>page.evaluate(()=>window.__celestialPerformance?.camera?.zoom||0)).toBeGreaterThan(0);const before=await page.evaluate(()=>window.__celestialPerformance.camera),r=await page.locator('#universe').boundingBox(),x=r.x+r.width*.5,y=r.y+r.height*.6;
