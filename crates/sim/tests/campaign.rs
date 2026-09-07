@@ -3,7 +3,7 @@ use celestial_sim::*;
 #[test]
 fn every_authored_challenge_has_a_winning_and_losing_replay() {
     let scenarios = scenarios::campaign();
-    for version in [1, 3, SAVE_VERSION] {
+    for version in [SAVE_VERSION] {
         for mission in 0..MISSIONS.len() {
             for won in [false, true] {
                 assert!(
@@ -192,30 +192,4 @@ fn formation_requires_orbital_encounters_and_slingshots_cannot_be_bought_with_sp
         })
         .is_err());
     assert_eq!(assist, before);
-}
-#[test]
-fn version_two_campaign_replays_keep_their_original_goals() {
-    let replay = Replay {
-        version: 2,
-        config: Config {
-            mission: Some(3),
-            ..Config::default()
-        },
-        commands: vec![
-            RecordedCommand {
-                tick: 0,
-                command: Command::Launch {
-                    kind: Kind::Rocky,
-                    radius: 1.0,
-                    angle: 0.0,
-                    speed: 1.0
-                }
-            };
-            2
-        ],
-        end_tick: 1,
-    };
-    let w = World::from_replay(replay).unwrap();
-    assert!(w.completed);
-    assert_eq!(w.replay().version, 2);
 }

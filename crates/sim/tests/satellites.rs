@@ -76,19 +76,3 @@ fn transferred_moons_are_classified_by_their_current_host() {
     assert_eq!(w.bodies[2].origin_parent, Some(1));
     assert!(w.events.iter().any(|e| e.kind == "satellite"));
 }
-#[test]
-fn legacy_moon_burns_retain_their_original_star_frame() {
-    let mut replay = moon(1., PI / 2.).replay();
-    replay.version = 3;
-    let mut w = World::from_replay(replay).unwrap();
-    let before = w.bodies[2].vel;
-    let relative = before.minus(w.bodies[1].vel).norm();
-    w.apply(Command::Nudge {
-        id: 2,
-        tangential: 0.1,
-        radial: 0.,
-    })
-    .unwrap();
-    assert!(w.bodies[2].vel.minus(before).norm() / relative > 0.4);
-    assert_eq!(w, World::from_replay(w.replay()).unwrap());
-}

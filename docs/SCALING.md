@@ -2,12 +2,11 @@
 
 ## Current live architecture
 
-Rules 7 supports up to **8,192 physical bodies** in the sandbox. Choose **Large
+The current simulation supports up to **8,192 physical bodies** in the sandbox. Choose **Large
 particle swarm** in the generator; begin with 1,024. All particles both feel and
-source gravity. Historical replays and missions retain the 64-body cap and exact
-solver. Current systems use exact f64 SIMD below 512 bodies and a symmetric mutual
-tree with second-order cell forces and tides above that, at opening 0.35. Saved
-rules-6 experiments retain opening 0.25. The star
+source gravity. Missions retain the 64-body cap and exact solver. Only the current replay
+format is accepted; there are no historical physics implementations. Current systems use exact f64 SIMD below 512 bodies and a symmetric mutual
+tree with second-order cell forces and tides above that, at opening 0.35.  The star
 and nearby leaves remain direct. Four integration substeps are unchanged.
 
 The first whole-engine host sweep sustained 269 ticks/s at 1,024 quiet bodies and
@@ -56,11 +55,10 @@ short CPU measurements aggregate calls to avoid zero-duration timer samples.
 Iteration 165 qualifies rules 7 at opening 0.35 and retains eight-body leaves.
 The disordered whole-tick comparison improves 1,024 bodies by 1.46x, 4,096 by
 1.59x, and 8,192 by 1.50x on the local host. Direct-reference orbit convergence,
-moon stability, conservation and a forty-year 1,024-body run pass. Existing rules-6
-files preserve their old physical trajectory, backed by reference hashes from
-the deployed engine. `npm run bench:tree-rules` reproduces the versioned comparison
-and records both CPU and wall samples in CI. Results across the two openings are
-qualified by physical invariants and convergence, rather than exact trajectory equality.
+moon stability, conservation and a forty-year 1,024-body run pass. The historical before/after measurements are retained below. Iteration 168 removes
+legacy rule paths and their runtime comparison harness. Use `bench:tuning` for
+candidate force/error curves and `compare:scaling` with two current-format builds
+for exact whole-engine comparisons.
 
 Apple M1 Actions run [34136539164](https://github.com/reaperhulk/celestialsculptor/actions/runs/34136539164)
 independently measured the disordered cases below. The ARM job passed; its full
@@ -91,14 +89,14 @@ including the historical 0.25 and current 0.35 production settings. It checks fo
 summation without the dominating star and measures momentum/torque residuals.
 The first sweep rejected smaller leaves as a universal improvement. Openings
 0.30–0.35 show a better speed/error tradeoff; the 0.35 candidate has now passed
-trajectory qualification and is selected only for new rules-7 worlds.
+trajectory qualification and is used for every current world.
 
 1. Use View → Device performance test to record the 1,024/4,096/8,192-body
    workloads at requested 1x for five active minutes on real iPhone and iPad.
    Judge FPS and achieved ticks/s together; inspect and navigate while recording.
 2. Profile the retained tree at the largest counts: tune leaf size, opening/error
    curves and construction cost with the existing exact force and orbit gates.
-   Keep replay rules explicit for changes that alter arithmetic or approximation.
+   Retest physical invariants whenever arithmetic or approximation changes.
 3. Qualify the resident GPU prototype (166), then implement GPU collision handling
    only if moving-orbit throughput and precision justify it. Include conservation,
    close encounters, resonance and replay portability in acceptance.
@@ -202,7 +200,7 @@ remove that growth. These are operation counts, not measured supported workloads
    capture outcomes over long runs. Sweep opening tolerances and require tighter
    tolerances to converge toward the reference. Separately assert deterministic
    replays, exact mass accounting, and finite states. Record solver version and
-   accuracy settings in replay rules; retain legacy reconstruction. Approximate
+   accuracy settings explicitly; use only the current reconstruction. Approximate
    chaotic trajectories are not expected to match direct trajectories bit for bit.
 
 5. **Keep transport and graphics within the device budget.** Transfer pooled
@@ -323,3 +321,14 @@ drift was −2.44e−6 (f64 reference 3.53e−12), and normalized momentum drift
 looser than production conservation requirements. The gain justifies further GPU
 collision/precision work; it does not qualify activation or promise these rates
 for complete gameplay on iPhone/iPad. Below the crossover, keep the f64 CPU path.
+
+
+## Current-only cleanup (168)
+
+The project now assumes there are no historical saves. World state no longer
+selects physics by a saved rule number. Format 7 is the accepted schema marker;
+other formats are rejected before rebuilding. Old softening/radius/math paths,
+contact behavior, star-relative moon burns, old mission definitions, old generator
+commands and the 0.25 live tree opening are removed. Built-in lessons, recipes and
+all 25 campaign cases run current physics. The exact scalar oracle and candidate
+tree settings remain diagnostic tools, not alternative gameplay engines.

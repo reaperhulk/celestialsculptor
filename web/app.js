@@ -66,10 +66,10 @@ function updateDraft(){
   if(renderer)renderer.draft={...d,speed:d.speed*Number($('orbit-direction').value)};
   $('radius-range').value=String(d.radius);$('speed-range').value=String(d.speed*100);
   const tool=state?.status.tools.find(t=>t.kind===d.kind);
-  $('body-mass').min=String(tool?.min_mass??.1);$('body-mass').max=String(tool?.max_mass??10);$('body-mass').disabled=state?.rules_version===1;
+  $('body-mass').min=String(tool?.min_mass??.1);$('body-mass').max=String(tool?.max_mass??10);
   $('mass-summary').textContent=`Mass & launch angle · ${d.mass} Earth${d.mass===1?'':'s'}`;
-  $('mass-help').textContent=state?.rules_version===1?'This restored experiment uses its original fixed masses. Start a fresh system for custom masses.':`Costs ${d.mass} matter. More mass means stronger gravity and a larger world.`;
-  const issue=placementIssue(state?.status,d.kind,state?.rules_version===1?undefined:d.mass);$('launch').disabled=!ready||Boolean(issue);$('launch').title=issue;
+  $('mass-help').textContent=`Costs ${d.mass} matter. More mass means stronger gravity and a larger world.`;
+  const issue=placementIssue(state?.status,d.kind,d.mass);$('launch').disabled=!ready||Boolean(issue);$('launch').title=issue;
   $('orbit-reading').textContent=issue||(d.speed>Math.SQRT2?'Escape trajectory · a world without a sun':Math.abs(d.speed-1)<.015?'Circular orbit · a quiet beginning':d.speed<.2?'Falling inward · likely stellar impact':'Elliptical orbit · watch the close approach');
 }
 function setMissionUI(){
@@ -81,12 +81,12 @@ function setMissionUI(){
   $('mission-brief').textContent=m?.brief||'No goal, no hurry. Follow an idea and see what gravity makes of it.';
   $('mission-hint').textContent=m?.hint||'Try a crowded belt, a giant on an eccentric orbit, or a system around a smaller star.';
   $('reward').textContent=m?.unlock||'Every tool is available';
-  const speedLimit=state?.rules_version>=3&&mission===6?135:220;$('speed').max=String(speedLimit);$('speed-range').max=String(speedLimit);if(Number($('speed').value)>speedLimit)$('speed').value=String(speedLimit);
-  $('launch-form').hidden=Boolean(state?.rules_version>=3&&mission!==null&&(mission>=3&&mission<=5||mission===7));
+  const speedLimit=mission===6?135:220;$('speed').max=String(speedLimit);$('speed-range').max=String(speedLimit);if(Number($('speed').value)>speedLimit)$('speed').value=String(speedLimit);
+  $('launch-form').hidden=Boolean(mission!==null&&(mission>=3&&mission<=5||mission===7));
   const dust=state?.status.tools.find(t=>t.kind==='dust');
   $('seed-belt').hidden=!dust?.unlocked;
   $('disk-tools').hidden=!dust?.unlocked;
-  if(mission!==null&&mission>=3&&mission<=5&&state?.rules_version>=3)$('disk-tools').open=true;
+  if(mission!==null&&mission>=3&&mission<=5)$('disk-tools').open=true;
   $('recipes').hidden=mission!==null;
   $('star-mass').disabled=mission!==null&&mission<2;
   $('next-mission').hidden=true;updateDraft();
@@ -96,7 +96,7 @@ async function reset(next=mission,overrides={}){
  if(next!==null&&!canPlay(profile,next)){toast('Complete the previous challenges first.');return false;}
  try{
   const config={seed:parseSeed($('seed').value),mission:next,star_mass:next!==null&&next<2?1:Number($('star-mass').value),...overrides};
-  saveEpoch++;await send('reset',{config});awardedThisRun=false;setMissionUI();if(next===7&&state.rules_version>=3){selectedBody=1;if(renderer){renderer.selected=1;renderer.focus(1);}inspect();$('moon-tools').open=true;}await autosave();return true;
+  saveEpoch++;await send('reset',{config});awardedThisRun=false;setMissionUI();if(next===7){selectedBody=1;if(renderer){renderer.selected=1;renderer.focus(1);}inspect();$('moon-tools').open=true;}await autosave();return true;
  }catch(error){
   if(state){mission=state.config.mission;$('star-mass').value=String(state.config.star_mass);$('seed').value=String(state.config.seed);setMissionUI();}
   toast(error.message);return false;
@@ -113,9 +113,9 @@ function inspect(){
     for(const b of listed){const option=document.createElement('option');option.value=String(b.id);option.textContent=b.id===0?'The star':`World ${b.id} · ${b.kind}`;$('inspect-body').append(option);}
   }
   const body=state?.bodies.find(b=>b.id===selectedBody);
-  $('migration-tools').hidden=mission!==null||!body||body.id===0||body.parent!==null||state?.rules_version<3;
-  $('spin-controls').hidden=!body||body.id===0||state?.rules_version===1;
-  $('moon-tools').hidden=!body||body.id===0||body.parent!==null||state?.rules_version===1||(mission!==null&&mission<4);
+  $('migration-tools').hidden=mission!==null||!body||body.id===0||body.parent!==null;
+  $('spin-controls').hidden=!body||body.id===0;
+  $('moon-tools').hidden=!body||body.id===0||body.parent!==null||(mission!==null&&mission<4);
   if(body&&!$('moon-tools').hidden){const hostKey=`${state.generation}:${body.id}`;
    if(hostKey!==moonHost){moonHost=hostKey;const mass=Math.max(.001,Math.min(.1,body.mass/3.003e-6*.01));$('moon-mass').value=String(Number(mass.toFixed(3)));const region=moonRegion(body,state.orbits.find(([id])=>id===body.id)?.[1],state.bodies[0].mass,mass);$('moon-distance').value=String(Number(Math.sqrt(region.min*region.max).toFixed(4)));}
    updateMoonRegion(body);
@@ -142,7 +142,7 @@ function renderState(next){
   const present=shouldPresent(state,next,lastUI,performance.now());
   if(deviceRecording&&!deviceRecording.done&&state&&next.speed!==state.speed)stopDeviceRecording('playback speed changed');
   if(next.generation!==state?.generation){frameMeter.reset(performance.now(),next.tick);setPlacement(false);}
-  const changedMission=next.config.mission!==mission||next.rules_version!==state?.rules_version;
+  const changedMission=next.config.mission!==mission;
   if(changedMission){mission=next.config.mission;awardedThisRun=false;}
   $('star-mass').value=String(next.config.star_mass);
   if(document.activeElement!==$('seed'))$('seed').value=String(next.config.seed);
@@ -274,7 +274,7 @@ $('next-mission').onclick=()=>reset(mission===9?null:mission+1);
 $('clear').onclick=()=>confirmReset(()=>reset());
 $('star-mass').onchange=()=>{const star_mass=Number($('star-mass').value);confirmReset(()=>reset(mission,{star_mass}),()=>{$('star-mass').value=String(state.config.star_mass);});};
 $('seed').onchange=()=>{try{const seed=parseSeed($('seed').value);confirmReset(()=>reset(mission,{seed}),()=>{$('seed').value=String(state.config.seed);});}catch(error){toast(error.message);$('seed').value=String(state?.config.seed??42);}};
-function launchCommand(){const d=draft();d.speed*=Number($('orbit-direction').value);return state?.rules_version===1?{type:'launch',kind:d.kind,radius:d.radius,angle:d.angle,speed:d.speed}:{type:'launch_mass',...d};}
+function launchCommand(){const d=draft();d.speed*=Number($('orbit-direction').value);return {type:'launch_mass',...d};}
 $('launch-form').onsubmit=event=>{event.preventDefault();if(ready)send('command',{command:launchCommand()}).then(()=>setPlacement(false)).catch(error=>toast(error.message));};
 $('seed-belt').onclick=()=>action('command',{command:{type:'seed_belt',radius:Number($('radius').value)}});
 function diskDraft(){return diskCommand({radius:$('disk-radius').value,spread:$('disk-width').value,count:$('disk-count').value,disorder:$('disk-disorder').value});}
@@ -284,7 +284,7 @@ function updateDisk(){
 }
 for(const id of ['disk-radius','disk-width','disk-count','disk-disorder'])$(id).oninput=updateDisk;
 $('disk-form').onsubmit=event=>{event.preventDefault();try{send('command',{command:diskDraft()}).then(()=>toast('Debris placed. Run the system to watch it evolve.')).catch(error=>toast(error.message));}catch(error){toast(error.message);}};
-$('kind').addEventListener('change',()=>{$('body-mass').value=String({rocky:1,ice:2,giant:state?.rules_version===1?50:318,dust:.25}[$('kind').value]);updateDraft();});
+$('kind').addEventListener('change',()=>{$('body-mass').value=String({rocky:1,ice:2,giant:318,dust:.25}[$('kind').value]);updateDraft();});
 for(const id of ['kind','radius','speed','angle','body-mass','orbit-direction'])$(id).addEventListener('input',updateDraft);
 for(const id of ['radius','speed'])$(id+'-range').oninput=()=>{$(id).value=$(id+'-range').value;updateDraft();};
 $('play').onclick=()=>send('play',{value:state?.busy?false:!playback.playing}).catch(error=>toast(error.message));$('step').onclick=()=>action('step');$('rewind').onclick=()=>action('rewind');
@@ -363,7 +363,7 @@ $('recipes').onclick=async()=>{
   if(!recipes){const response=await fetch(new URL('./recipes.json',import.meta.url));if(!response.ok)throw new Error('Starting points could not load. Try again.');recipes=await response.json();}
   $('recipe-list').replaceChildren();
   for(const recipe of recipes){const button=document.createElement('button');button.className='recipe-choice';const title=document.createElement('strong'),description=document.createElement('span');title.textContent=recipe.name;description.textContent=recipe.description;button.append(title,description);
-   button.onclick=()=>{$('recipes-dialog').close();confirmReset(async()=>{try{saveEpoch++;const replay=JSON.stringify({version:recipe.version||5,config:{...recipe.config,seed:parseSeed($('seed').value)},commands:recipe.commands.map(command=>({tick:0,command})),end_tick:0});await send('import',{replay});await autosave();renderer?.fit();if(recipe.focus!==undefined){selectedBody=recipe.focus;renderer?.focus(recipe.focus);inspect();}if(recipe.speed)await send('speed',{value:recipe.speed});if(recipe.id.includes('resonan'))$('resonance-panel').open=true;toast(recipe.name+' is ready. Run it or make it your own.');}catch(error){toast(error.message);}});};
+   button.onclick=()=>{$('recipes-dialog').close();confirmReset(async()=>{try{saveEpoch++;const replay=JSON.stringify({version:recipe.version||7,config:{...recipe.config,seed:parseSeed($('seed').value)},commands:recipe.commands.map(command=>({tick:0,command})),end_tick:0});await send('import',{replay});await autosave();renderer?.fit();if(recipe.focus!==undefined){selectedBody=recipe.focus;renderer?.focus(recipe.focus);inspect();}if(recipe.speed)await send('speed',{value:recipe.speed});if(recipe.id.includes('resonan'))$('resonance-panel').open=true;toast(recipe.name+' is ready. Run it or make it your own.');}catch(error){toast(error.message);}});};
    $('recipe-list').append(button);
   }
   $('recipes-dialog').showModal();

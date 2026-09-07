@@ -31,13 +31,13 @@ try {
   function pair(config, work) {
     const a = new scalar.Simulation(JSON.stringify(config));
     const b = new simd.Simulation(JSON.stringify(config));
-    try { for(const s of [a,b])s.import_replay(JSON.stringify({version:5,config,commands:[],end_tick:0})); return work(a, b); } finally { a.free(); b.free(); }
+    try { for(const s of [a,b])s.import_replay(JSON.stringify({version:7,config,commands:[],end_tick:0})); return work(a, b); } finally { a.free(); b.free(); }
   }
   const campaign = native('fixtures'), sweep = native('sweep');
   assert.equal(sweep.passed, true);
   for (const example of [...campaign, ...sweep.cases]) {
     pair(example.replay.config, (a, b) => {
-      for (const s of [a, b]) s.import_replay(JSON.stringify({...example.replay,version:Math.min(5,example.replay.version)}));
+      for (const s of [a, b]) s.import_replay(JSON.stringify({...example.replay,version:7}));
       equal(a, b, example.name || `${example.style}/${example.seed}`);
     });
   }
@@ -52,9 +52,9 @@ try {
       }
     });
   }
-  // Empty pair loops, single pairs, both vector tails, and all historical rules.
+  // Empty pair loops, single pairs, both vector tails under current rules.
   const config = {seed: 42, mission: null, star_mass: 1};
-  for (const count of [1, 2, 3, 4, 5, 31, 33, 63]) for (let version = 1; version <= 5; version++) {
+  for (const count of [1, 2, 3, 4, 5, 31, 33, 63]) for (const version of [7]) {
     const replay = {version, config, end_tick: 512, commands: Array.from({length: count - 1}, (_, i) => ({
       tick: 0, command: {type: 'launch', kind: 'rocky', radius: .5 + i * .08, angle: i * 2.399963229728653, speed: 1},
     }))};
@@ -72,7 +72,7 @@ try {
       pair(fixture.replay.config, (a, b) => {
         const worlds = [a, b];
         for (const index of round % 2 ? [1, 0] : [0, 1]) {
-          const s = worlds[index]; s.import_replay(JSON.stringify({...fixture.replay,version:5}));
+          const s = worlds[index]; s.import_replay(JSON.stringify({...fixture.replay,version:7}));
           const start = performance.now();
           for (let batch = 0; batch < 4; batch++) s.advance(512);
           if (round >= 3) samples[index].push(performance.now() - start);
@@ -89,7 +89,7 @@ try {
     dirty: run('git', ['status', '--porcelain', '--untracked-files=no']).trim() !== '',
     cpu: cpus()[0]?.model, node: process.version, rust: run('rustc', ['--version']).trim(),
     backend: simd.gravity_backend(), bitwiseEqualCheckpoints: checkpoints, cases,
-    scope: 'Whole simulation ticks for legacy-compatible 8/32/64-body fixtures; host CPU, not device FPS. Large rules-6 swarms use the separate scaling harness.',
+    scope: 'Whole simulation ticks for current 8/32/64-body fixtures; host CPU, not device FPS. Large swarms use the separate scaling harness.',
   };
   await writeFile('physics-comparison-results.json', JSON.stringify(report, null, 2) + '\n');
   console.log(JSON.stringify({...report, cases: cases.map(({samples, ...item}) => item)}, null, 2));

@@ -2,7 +2,7 @@ import {test,expect} from './fixtures.js';
 
 test('close giants have separated rendered surfaces and remain selectable',async({page},testInfo)=>{
  await page.addInitScript(()=>{
-  localStorage.setItem('celestial-sculptor.experiment.v1',JSON.stringify({version:5,config:{seed:42,mission:null,star_mass:1},commands:[3.2,3.8].map(radius=>({tick:0,command:{type:'launch_mass',kind:'giant',mass:318,radius,angle:2.2,speed:1}})),end_tick:0}));
+  localStorage.setItem('celestial-sculptor.experiment.v1',JSON.stringify({version:7,config:{seed:42,mission:null,star_mass:1},commands:[3.2,3.8].map(radius=>({tick:0,command:{type:'launch_mass',kind:'giant',mass:318,radius,angle:2.2,speed:1}})),end_tick:0}));
   const upload=WebGL2RenderingContext.prototype.bufferSubData,draw=WebGL2RenderingContext.prototype.drawArraysInstanced;let vertices;
   WebGL2RenderingContext.prototype.bufferSubData=function(...args){vertices=args[2];return upload.apply(this,args);};
   WebGL2RenderingContext.prototype.drawArraysInstanced=function(...args){window.__planetVertices=Array.from(vertices);return draw.apply(this,args);};

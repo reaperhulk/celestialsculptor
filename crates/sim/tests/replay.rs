@@ -50,9 +50,9 @@ fn malformed_replay_is_rejected_without_unbounded_work() {
 }
 
 #[test]
-fn legacy_body_limit_rejects_whole_belt_without_rng_or_budget_changes() {
+fn mission_body_limit_rejects_whole_belt_without_rng_or_budget_changes() {
     let mut w = world(42);
-    w.rules_version = 5;
+    w.config.mission = Some(9);
     for _ in 0..5 {
         w.apply(Command::SeedBelt { radius: 2.5 }).unwrap();
     }
@@ -73,7 +73,7 @@ fn experiment_stops_at_exportable_time_limit() {
 #[test]
 fn dense_experiments_keep_running_past_the_old_work_budget() {
     let mut w = celestial_sim::benchmark::system(64);
-    w.work_units = LEGACY_WORK_LIMIT;
+    w.work_units = 20_000_000;
     let before = w.clone();
     w.advance(10);
     assert_eq!(w.tick, before.tick + 10);
@@ -162,7 +162,7 @@ fn debris_system_survives_sixty_years_and_rebuilds_incrementally() {
     }
     w.advance(512 * 60);
     assert_eq!(w.tick, 512 * 60);
-    assert!(w.work_units > LEGACY_WORK_LIMIT);
+    assert!(w.work_units > 20_000_000);
     assert!(!w.exhausted());
     let mut rebuild = celestial_sim::replay::Reconstruction::new(w.replay()).unwrap();
     while !rebuild.advance(127).unwrap() {}

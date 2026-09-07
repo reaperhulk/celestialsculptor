@@ -22,7 +22,7 @@ export class Inspector {
   setText(this.orbitStatus,`${orbit.habitable?'Potentially habitable':orbit.calm?'Calm orbit':orbit.bound?'Eccentric orbit':'Escaping'} · e = ${quantity(orbit.eccentricity)}`);
   setText(this.orbit,orbitReading(body,orbit,moonOrbit?state.bodies.find(b=>b.id===body.parent):state.bodies[0]));
   setText(this.material,`Contact radius: ${quantity(body.radius)} AU. Material: ${((body.material?.ice||0)/body.mass*100).toFixed(0)}% ice, ${((body.material?.gas||0)/body.mass*100).toFixed(0)}% gas.`);
-  const source=strongestPerturber(body,state.bodies,state.rules_version===1?.002:.0001);
+  const source=strongestPerturber(body,state.bodies,.0001);
   if(source){this.pull.hidden=false;setText(this.pull,`Strongest neighbor: World ${source.body.id} · ${(source.ratio*100).toFixed(source.ratio<.01?2:1)}% of the star's pull. The blue outline is this world's current orbit; neighbors can bend it.`);}
  }
 }

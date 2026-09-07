@@ -49,6 +49,6 @@ impl World {
         !self
             .config
             .mission
-            .is_some_and(|m| m < 4 || (self.rules_version >= 3 && (m == 6 || m == 7)))
+            .is_some_and(|m| m < 4 || (m == 6 || m == 7))
     }
 }

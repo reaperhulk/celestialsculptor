@@ -42,9 +42,7 @@ impl World {
         } else {
             "Change one condition, run the system, and inspect what it changes.".into()
         };
-        if self.rules_version < 3 {
-            return result;
-        }
+
         let limits = match mission {
             4 => Some((6., 1)),
             6 => Some((1., 1)),

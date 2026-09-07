@@ -115,7 +115,7 @@ export class Renderer {
     if(!state.bodies.some(body=>body.id===this.selected))this.selected=null;
     this.previousState=this.motion.previous;this.previousReceived=this.motion.previousTime;this.receivedAt=this.motion.time;
     this.state=state;this.orbitById=new Map(state.orbits);this.moonOrbitById=new Map(state.moon_orbits||[]);this.sortedBodies=[...state.bodies].sort((a,b)=>a.pos.y-b.pos.y);this.previousBodies=new Map((this.previousState?.bodies||[]).map(b=>[b.id,b]));
-    const selected=state.bodies.find(b=>b.id===this.selected);this.selectedPath=selected?orbitPath(this.moonOrbitById.get(selected.id)||this.orbitById.get(selected.id)):[];this.perturber=strongestPerturber(selected,state.bodies,state.rules_version===1?.002:.0001);this.familyPaths=null;
+    const selected=state.bodies.find(b=>b.id===this.selected);this.selectedPath=selected?orbitPath(this.moonOrbitById.get(selected.id)||this.orbitById.get(selected.id)):[];this.perturber=strongestPerturber(selected,state.bodies,.0001);this.familyPaths=null;
   }
   toWorld(x,y){const r=this.canvas.getBoundingClientRect();const p=unproject(x-r.left,y-r.top,r.width,r.height,this.zoom,this.tilt);return [p[0]+this.center.x,p[1]+this.center.y];}
   toScreen(x,y){const r=this.canvas.getBoundingClientRect();return project(x-this.center.x,y-this.center.y,r.width,r.height,this.zoom,this.tilt);}

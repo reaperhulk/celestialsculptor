@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {parseReplay,saveExperiment,savedExperiments,SAVE_KEY,BACKUP_KEY,archiveExperiment,parseArchive} from '../web/storage.js';
-const replay=JSON.stringify({version:1,config:{seed:42,mission:null,star_mass:1},commands:[],end_tick:0});
+const replay=JSON.stringify({version:7,config:{seed:42,mission:null,star_mass:1},commands:[],end_tick:0});
 function memory(){const values=new Map();return {getItem:key=>values.get(key)||null,setItem:(key,value)=>values.set(key,value)};}
 test('autosave preserves a previous experiment and recovers corrupt primary',()=>{
  const s=memory(),next=replay.replace('"end_tick":0','"end_tick":8');
@@ -27,7 +27,12 @@ test('saving after recovery cannot replace the good backup with corrupt data',()
 });
 test('an untrusted primary with valid JSON cannot replace a known recovery snapshot',()=>{
  const s=memory();s.setItem(BACKUP_KEY,replay);
- s.setItem(SAVE_KEY,JSON.stringify({version:1,config:{seed:-1,mission:99,star_mass:0},commands:[],end_tick:0}));
+ s.setItem(SAVE_KEY,JSON.stringify({version:7,config:{seed:-1,mission:99,star_mass:0},commands:[],end_tick:0}));
  assert.ok(saveExperiment(s,replay));assert.equal(s.getItem(BACKUP_KEY),replay);
  const next=replay.replace('"end_tick":0','"end_tick":8');assert.ok(saveExperiment(s,next));assert.equal(s.getItem(BACKUP_KEY),replay);
+});
+
+test('only the current simulation format is accepted by browser storage',()=>{
+ for(const version of [1,2,3,4,5,6,8])assert.throws(()=>parseReplay(JSON.stringify({...JSON.parse(replay),version})));
+ assert.equal(parseReplay(replay).version,7);
 });

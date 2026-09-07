@@ -8,36 +8,8 @@ pub struct Scenario {
     pub completed: bool,
 }
 pub fn campaign() -> Vec<Scenario> {
-    let mut cases: Vec<Scenario> =
-        serde_json::from_str(include_str!("../../../scenarios/campaign.json"))
-            .expect("valid legacy scenarios");
-    cases.extend(
-        serde_json::from_str::<Vec<Scenario>>(include_str!("../../../scenarios/campaign-v3.json"))
-            .expect("valid formation scenarios"),
-    );
-    cases.extend(
-        serde_json::from_str::<Vec<Scenario>>(include_str!("../../../scenarios/campaign-v4.json"))
-            .expect("valid current scenarios"),
-    );
-    cases.extend(
-        serde_json::from_str::<Vec<Scenario>>(include_str!("../../../scenarios/campaign-v5.json"))
-            .expect("valid impact scenarios"),
-    );
-    for version in 6..=crate::SAVE_VERSION {
-        let current: Vec<Scenario> = serde_json::from_str::<Vec<Scenario>>(include_str!(
-            "../../../scenarios/campaign-v5.json"
-        ))
-        .expect("valid current scenarios")
-        .into_iter()
-        .map(|mut s| {
-            s.name = s.name.replacen("v5", &format!("v{version}"), 1);
-            s.replay.version = version;
-            s
-        })
-        .collect();
-        cases.extend(current);
-    }
-    cases
+    serde_json::from_str(include_str!("../../../scenarios/campaign.json"))
+        .expect("valid current campaign scenarios")
 }
 impl Scenario {
     pub fn run(&self) -> Result<World, String> {

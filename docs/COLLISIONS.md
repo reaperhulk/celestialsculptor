@@ -1,6 +1,6 @@
 # Collision model development
 
-Rules version 5 distinguishes gentle accretion, grazing survival and
+The current simulation distinguishes gentle accretion, grazing survival and
 disruptive impacts. This is a calibrated gameplay model, not a hydrodynamics
 solver. Impact speed, geometry and mass ratio should matter; the player must be
 able to inspect the outcome and rerun the encounter with a changed condition.
@@ -13,7 +13,7 @@ explicit simplifications, not a claim to implement their fitted scaling laws.
 
 Implementation requirements:
 
-- Preserve versions 1–4 contact behavior. Introduce new rules for the new default.
+- Use one current collision model for every simulation and authored setup.
 - Resolve the swept contact geometry, including fast crossings and near misses.
 - Keep stellar absorption and gentle accretion; allow solids to survive a graze.
 - Represent disruptive outcomes with at most three remnants. At the body cap,

@@ -55,3 +55,12 @@ test('the WASM boundary rejects fractional nonfinite and oversized arguments ato
   sim.advance(0);assert.equal(sim.snapshot(),before);sim.advance(1);assert.equal(JSON.parse(sim.snapshot()).tick,1);
  }finally{sim.free();}
 });
+
+
+test('unsupported physics formats cannot select a legacy engine or mutate a world',()=>{
+ const sim=new Simulation(JSON.stringify({seed:42,mission:null,star_mass:1}));try{
+  sim.command(JSON.stringify({type:'seed_swarm',count:511,disorder:.2}));sim.advance(8);
+  const replay=sim.export_replay(),state=sim.snapshot();
+  for(const version of [0,1,2,3,4,5,6,8,999]){const obsolete={...JSON.parse(replay),version};assert.throws(()=>sim.import_replay(JSON.stringify(obsolete)));assert.equal(sim.snapshot(),state);assert.equal(sim.export_replay(),replay);}
+ }finally{sim.free();}
+});

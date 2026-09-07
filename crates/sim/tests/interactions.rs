@@ -118,21 +118,3 @@ fn custom_masses_are_bounded_atomic_and_replayable() {
     assert!((w.spent - 318.0).abs() < 1e-10);
     assert_eq!(w, World::from_replay(w.replay()).unwrap());
 }
-
-#[test]
-fn legacy_replays_retain_the_original_physical_outcomes() {
-    let fixtures: serde_json::Value =
-        serde_json::from_str(include_str!("../../../scenarios/legacy-v1.json")).unwrap();
-    for fixture in fixtures.as_array().unwrap() {
-        let replay: Replay = serde_json::from_value(fixture["replay"].clone()).unwrap();
-        let w = World::from_replay(replay).unwrap();
-        assert_eq!(w.replay().version, 1);
-        for (actual, expected) in w.bodies.iter().zip(fixture["bodies"].as_array().unwrap()) {
-            assert_eq!(serde_json::to_value(actual.kind).unwrap(), expected["kind"]);
-            for (name, vector) in [("pos", actual.pos), ("vel", actual.vel)] {
-                assert!((vector.x - expected[name]["x"].as_f64().unwrap()).abs() < 1e-10);
-                assert!((vector.y - expected[name]["y"].as_f64().unwrap()).abs() < 1e-10);
-            }
-        }
-    }
-}

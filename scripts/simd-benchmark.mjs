@@ -57,9 +57,9 @@ try {
       }
     });
   }
-  // Empty pair loops, single pairs, both vector tails, and all historical rules.
+  // Empty pair loops, single pairs, both vector tails under current rules.
   const config = {seed: 42, mission: null, star_mass: 1};
-  for (const count of [1, 2, 3, 4, 5, 31, 33, 63]) for (let version = 1; version <= 7; version++) {
+  for (const count of [1, 2, 3, 4, 5, 31, 33, 63]) for (const version of [7]) {
     const replay = {version, config, end_tick: 512, commands: Array.from({length: count - 1}, (_, i) => ({
       tick: 0, command: {type: 'launch', kind: 'rocky', radius: .5 + i * .08, angle: i * 2.399963229728653, speed: 1},
     }))};

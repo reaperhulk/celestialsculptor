@@ -31,7 +31,7 @@ impl World {
             disk_transfer: self.disk_energy,
             escape_transfer: self.escaped_energy,
             energy_balance: energy + self.collision_energy + self.disk_energy + self.escaped_energy,
-            complete_contact_ledger: self.rules_version >= 5,
+            complete_contact_ledger: true,
         }
     }
 }

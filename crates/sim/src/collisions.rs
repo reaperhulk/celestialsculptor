@@ -137,7 +137,7 @@ impl World {
                     gas: material.gas * fraction,
                 };
                 part.kind = part.material.kind(part.mass);
-                part.radius = part.kind.radius_for(part.mass, self.rules_version);
+                part.radius = part.kind.radius_for(part.mass);
                 part.birth_mass = part.mass;
                 part.debris_origin = a.debris_origin && b.debris_origin;
                 part.mergers = a.mergers + b.mergers + 1;
@@ -241,8 +241,8 @@ mod tests {
             .unwrap();
         }
         if capacity {
-            w.rules_version = 5;
-            while w.bodies.len() < crate::LEGACY_MAX_BODIES {
+            w.config.mission = Some(9);
+            while w.bodies.len() < crate::MISSION_MAX_BODIES {
                 let mut b = w.bodies[1].clone();
                 b.id = w.next_id;
                 w.next_id += 1;
@@ -410,7 +410,7 @@ mod flyby_refinement {
     fn gravitational_assist_outcome_survives_timestep_refinement() {
         let example = scenarios::campaign()
             .into_iter()
-            .find(|s| s.name == "v5-6-trailing-flyby")
+            .find(|s| s.name == "6-trailing-flyby")
             .unwrap();
         let mut replay = example.replay;
         replay.end_tick = 0;

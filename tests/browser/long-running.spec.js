@@ -2,7 +2,7 @@ import {test,expect} from './fixtures.js';
 test('a dense restored system continues beyond year forty and pauses at 16x',async({page},testInfo)=>{
  test.skip(!['desktop','phone'].includes(testInfo.project.name),'Long reconstruction runs on representative desktop and touch viewports.');test.setTimeout(90000);
  await page.addInitScript(()=>{
-  localStorage.setItem('celestial-sculptor.experiment.v1',JSON.stringify({version:5,config:{seed:42,mission:null,star_mass:1},commands:[1.5,2.5,3.5,4.5].map(radius=>({tick:0,command:{type:'seed_belt',radius}})),end_tick:512*40}));
+  localStorage.setItem('celestial-sculptor.experiment.v1',JSON.stringify({version:7,config:{seed:42,mission:null,star_mass:1},commands:[1.5,2.5,3.5,4.5].map(radius=>({tick:0,command:{type:'seed_belt',radius}})),end_tick:512*40}));
   window.__savedTicks=[];const save=Storage.prototype.setItem;Storage.prototype.setItem=function(key,value){if(key==='celestial-sculptor.experiment.v1')window.__savedTicks.push(JSON.parse(value).end_tick);return save.call(this,key,value);};
   const interval=window.setInterval.bind(window);window.setInterval=(callback,delay,...args)=>interval(callback,delay===3000?50:delay,...args);
  });

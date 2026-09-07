@@ -16,7 +16,7 @@ fn generated_systems_are_seeded_bounded_replayable_and_finite() {
                 star_mass: 1.0,
             })
             .unwrap();
-            w.apply(Command::Generate {
+            w.apply(Command::GenerateSystem {
                 style,
                 count: 16,
                 chaos: 0.6,
@@ -43,14 +43,14 @@ fn invalid_generation_or_replacing_an_existing_world_is_atomic() {
     .unwrap();
     let before = w.clone();
     assert!(w
-        .apply(Command::Generate {
+        .apply(Command::GenerateSystem {
             style: SystemStyle::Chaos,
             count: 64,
             chaos: 1.0
         })
         .is_err());
     assert_eq!(w, before);
-    w.apply(Command::Generate {
+    w.apply(Command::GenerateSystem {
         style: SystemStyle::Calm,
         count: 8,
         chaos: 0.0,
@@ -58,7 +58,7 @@ fn invalid_generation_or_replacing_an_existing_world_is_atomic() {
     .unwrap();
     let before = w.clone();
     assert!(w
-        .apply(Command::Generate {
+        .apply(Command::GenerateSystem {
             style: SystemStyle::Chaos,
             count: 8,
             chaos: 0.5

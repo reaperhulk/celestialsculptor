@@ -1,8 +1,8 @@
 [
   {
-    "name": "first-light",
+    "name": "0-circular",
     "replay": {
-      "version": 1,
+      "version": 7,
       "config": {
         "seed": 42,
         "mission": 0,
@@ -12,22 +12,49 @@
         {
           "tick": 0,
           "command": {
-            "type": "launch",
+            "type": "launch_mass",
             "kind": "rocky",
+            "mass": 1,
             "radius": 1,
-            "angle": 0.0,
+            "angle": 0,
             "speed": 1
+          }
+        }
+      ],
+      "end_tick": 1024
+    },
+    "completed": true
+  },
+  {
+    "name": "0-infall",
+    "replay": {
+      "version": 7,
+      "config": {
+        "seed": 42,
+        "mission": 0,
+        "star_mass": 1
+      },
+      "commands": [
+        {
+          "tick": 0,
+          "command": {
+            "type": "launch_mass",
+            "kind": "rocky",
+            "mass": 1,
+            "radius": 1,
+            "angle": 0,
+            "speed": 0.1
           }
         }
       ],
       "end_tick": 6144
     },
-    "completed": true
+    "completed": false
   },
   {
-    "name": "a-place-for-life",
+    "name": "1-garden",
     "replay": {
-      "version": 1,
+      "version": 7,
       "config": {
         "seed": 42,
         "mission": 1,
@@ -37,22 +64,49 @@
         {
           "tick": 0,
           "command": {
-            "type": "launch",
+            "type": "launch_mass",
             "kind": "rocky",
+            "mass": 1,
             "radius": 1.1,
-            "angle": 0.0,
+            "angle": 0,
             "speed": 1
+          }
+        }
+      ],
+      "end_tick": 1536
+    },
+    "completed": true
+  },
+  {
+    "name": "1-crosses-band",
+    "replay": {
+      "version": 7,
+      "config": {
+        "seed": 42,
+        "mission": 1,
+        "star_mass": 1
+      },
+      "commands": [
+        {
+          "tick": 0,
+          "command": {
+            "type": "launch_mass",
+            "kind": "rocky",
+            "mass": 1,
+            "radius": 1,
+            "angle": 0,
+            "speed": 1.2
           }
         }
       ],
       "end_tick": 6144
     },
-    "completed": true
+    "completed": false
   },
   {
-    "name": "orbital-harmony",
+    "name": "2-spaced",
     "replay": {
-      "version": 1,
+      "version": 7,
       "config": {
         "seed": 42,
         "mission": 2,
@@ -62,77 +116,143 @@
         {
           "tick": 0,
           "command": {
-            "type": "launch",
+            "type": "launch_mass",
             "kind": "rocky",
-            "radius": 0.6,
-            "angle": 0.0,
+            "mass": 1,
+            "radius": 0.5,
+            "angle": 0,
             "speed": 1
           }
         },
         {
           "tick": 0,
           "command": {
-            "type": "launch",
+            "type": "launch_mass",
             "kind": "rocky",
+            "mass": 1,
+            "radius": 1,
+            "angle": 2,
+            "speed": 1
+          }
+        },
+        {
+          "tick": 0,
+          "command": {
+            "type": "launch_mass",
+            "kind": "rocky",
+            "mass": 1,
+            "radius": 4.8,
+            "angle": 4,
+            "speed": 1
+          }
+        }
+      ],
+      "end_tick": 4096
+    },
+    "completed": true
+  },
+  {
+    "name": "2-crowded",
+    "replay": {
+      "version": 7,
+      "config": {
+        "seed": 42,
+        "mission": 2,
+        "star_mass": 1
+      },
+      "commands": [
+        {
+          "tick": 0,
+          "command": {
+            "type": "launch_mass",
+            "kind": "rocky",
+            "mass": 1,
+            "radius": 2.5,
+            "angle": 0,
+            "speed": 1
+          }
+        },
+        {
+          "tick": 0,
+          "command": {
+            "type": "launch_mass",
+            "kind": "rocky",
+            "mass": 1,
+            "radius": 2.5,
+            "angle": 0.001,
+            "speed": 1
+          }
+        },
+        {
+          "tick": 0,
+          "command": {
+            "type": "launch_mass",
+            "kind": "rocky",
+            "mass": 1,
+            "radius": 2.5,
+            "angle": 0.002,
+            "speed": 1
+          }
+        }
+      ],
+      "end_tick": 15360
+    },
+    "completed": false
+  },
+  {
+    "name": "3-narrow-nursery",
+    "replay": {
+      "version": 7,
+      "config": {
+        "seed": 42,
+        "mission": 3,
+        "star_mass": 1
+      },
+      "commands": [
+        {
+          "tick": 0,
+          "command": {
+            "type": "seed_disk",
             "radius": 1.2,
-            "angle": 1.3,
-            "speed": 1
+            "spread": 0.08,
+            "disorder": 0.08,
+            "count": 24
           }
-        },
+        }
+      ],
+      "end_tick": 6144
+    },
+    "completed": true
+  },
+  {
+    "name": "3-quiet-dust",
+    "replay": {
+      "version": 7,
+      "config": {
+        "seed": 42,
+        "mission": 3,
+        "star_mass": 1
+      },
+      "commands": [
         {
           "tick": 0,
           "command": {
-            "type": "launch",
-            "kind": "rocky",
+            "type": "seed_disk",
             "radius": 2,
-            "angle": 2.6,
-            "speed": 1
+            "spread": 1,
+            "disorder": 0,
+            "count": 4
           }
         }
       ],
-      "end_tick": 6144
+      "end_tick": 20480
     },
-    "completed": true
+    "completed": false
   },
   {
-    "name": "worlds-from-worlds",
+    "name": "4-protected-garden",
     "replay": {
-      "version": 1,
-      "config": {
-        "seed": 42,
-        "mission": 3,
-        "star_mass": 1
-      },
-      "commands": [
-        {
-          "tick": 0,
-          "command": {
-            "type": "launch",
-            "kind": "rocky",
-            "radius": 1,
-            "angle": 0,
-            "speed": 1
-          }
-        },
-        {
-          "tick": 0,
-          "command": {
-            "type": "launch",
-            "kind": "rocky",
-            "radius": 1,
-            "angle": 0,
-            "speed": 1
-          }
-        }
-      ],
-      "end_tick": 6144
-    },
-    "completed": true
-  },
-  {
-    "name": "great-escape",
-    "replay": {
-      "version": 1,
+      "version": 7,
       "config": {
         "seed": 42,
         "mission": 4,
@@ -142,408 +262,505 @@
         {
           "tick": 0,
           "command": {
-            "type": "launch",
-            "kind": "rocky",
-            "radius": 1,
-            "angle": 0.0,
-            "speed": 1.8
-          }
-        }
-      ],
-      "end_tick": 6144
-    },
-    "completed": true
-  },
-  {
-    "name": "twin-gardens",
-    "replay": {
-      "version": 1,
-      "config": {
-        "seed": 42,
-        "mission": 5,
-        "star_mass": 1
-      },
-      "commands": [
-        {
-          "tick": 0,
-          "command": {
-            "type": "launch",
-            "kind": "rocky",
-            "radius": 1,
-            "angle": 0.0,
-            "speed": 1
-          }
-        },
-        {
-          "tick": 0,
-          "command": {
-            "type": "launch",
-            "kind": "rocky",
+            "type": "seed_disk",
             "radius": 1.35,
-            "angle": 1.3,
-            "speed": 1
+            "spread": 0.08,
+            "disorder": 0.08,
+            "count": 24
           }
         }
       ],
-      "end_tick": 6144
+      "end_tick": 4608
     },
     "completed": true
   },
   {
-    "name": "giant-among-us",
+    "name": "4-garden-swallowed",
     "replay": {
-      "version": 1,
-      "config": {
-        "seed": 42,
-        "mission": 6,
-        "star_mass": 1
-      },
-      "commands": [
-        {
-          "tick": 0,
-          "command": {
-            "type": "launch",
-            "kind": "rocky",
-            "radius": 0.6,
-            "angle": 0.0,
-            "speed": 1
-          }
-        },
-        {
-          "tick": 0,
-          "command": {
-            "type": "launch",
-            "kind": "rocky",
-            "radius": 1.1,
-            "angle": 1.3,
-            "speed": 1
-          }
-        },
-        {
-          "tick": 0,
-          "command": {
-            "type": "launch",
-            "kind": "rocky",
-            "radius": 1.9,
-            "angle": 2.6,
-            "speed": 1
-          }
-        },
-        {
-          "tick": 0,
-          "command": {
-            "type": "launch",
-            "kind": "giant",
-            "radius": 3.8,
-            "angle": 3.9000000000000004,
-            "speed": 1
-          }
-        }
-      ],
-      "end_tick": 6144
-    },
-    "completed": true
-  },
-  {
-    "name": "asteroid-atelier",
-    "replay": {
-      "version": 1,
-      "config": {
-        "seed": 42,
-        "mission": 7,
-        "star_mass": 1
-      },
-      "commands": [
-        {
-          "tick": 0,
-          "command": {
-            "type": "seed_belt",
-            "radius": 2.5
-          }
-        }
-      ],
-      "end_tick": 6144
-    },
-    "completed": true
-  },
-  {
-    "name": "celestial-clockwork",
-    "replay": {
-      "version": 1,
-      "config": {
-        "seed": 42,
-        "mission": 8,
-        "star_mass": 1
-      },
-      "commands": [
-        {
-          "tick": 0,
-          "command": {
-            "type": "launch",
-            "kind": "rocky",
-            "radius": 0.5,
-            "angle": 0.0,
-            "speed": 1
-          }
-        },
-        {
-          "tick": 0,
-          "command": {
-            "type": "launch",
-            "kind": "rocky",
-            "radius": 0.8,
-            "angle": 1.3,
-            "speed": 1
-          }
-        },
-        {
-          "tick": 0,
-          "command": {
-            "type": "launch",
-            "kind": "rocky",
-            "radius": 1.2,
-            "angle": 2.6,
-            "speed": 1
-          }
-        },
-        {
-          "tick": 0,
-          "command": {
-            "type": "launch",
-            "kind": "rocky",
-            "radius": 1.8,
-            "angle": 3.9000000000000004,
-            "speed": 1
-          }
-        },
-        {
-          "tick": 0,
-          "command": {
-            "type": "launch",
-            "kind": "rocky",
-            "radius": 2.7,
-            "angle": 5.2,
-            "speed": 1
-          }
-        },
-        {
-          "tick": 0,
-          "command": {
-            "type": "launch",
-            "kind": "rocky",
-            "radius": 4,
-            "angle": 6.5,
-            "speed": 1
-          }
-        }
-      ],
-      "end_tick": 6144
-    },
-    "completed": true
-  },
-  {
-    "name": "system-of-your-own",
-    "replay": {
-      "version": 1,
-      "config": {
-        "seed": 42,
-        "mission": 9,
-        "star_mass": 1
-      },
-      "commands": [
-        {
-          "tick": 0,
-          "command": {
-            "type": "launch",
-            "kind": "rocky",
-            "radius": 0.5,
-            "angle": 0.0,
-            "speed": 1
-          }
-        },
-        {
-          "tick": 0,
-          "command": {
-            "type": "launch",
-            "kind": "rocky",
-            "radius": 1.1,
-            "angle": 1.3,
-            "speed": 1
-          }
-        },
-        {
-          "tick": 0,
-          "command": {
-            "type": "launch",
-            "kind": "rocky",
-            "radius": 1.9,
-            "angle": 2.6,
-            "speed": 1
-          }
-        },
-        {
-          "tick": 0,
-          "command": {
-            "type": "launch",
-            "kind": "rocky",
-            "radius": 2.7,
-            "angle": 3.9000000000000004,
-            "speed": 1
-          }
-        },
-        {
-          "tick": 0,
-          "command": {
-            "type": "launch",
-            "kind": "giant",
-            "radius": 4.5,
-            "angle": 5.2,
-            "speed": 1
-          }
-        }
-      ],
-      "end_tick": 6144
-    },
-    "completed": true
-  },
-  {
-    "name": "empty-mission-0",
-    "replay": {
-      "version": 1,
-      "config": {
-        "seed": 42,
-        "mission": 0,
-        "star_mass": 1
-      },
-      "commands": [],
-      "end_tick": 6144
-    },
-    "completed": false
-  },
-  {
-    "name": "empty-mission-1",
-    "replay": {
-      "version": 1,
-      "config": {
-        "seed": 42,
-        "mission": 1,
-        "star_mass": 1
-      },
-      "commands": [],
-      "end_tick": 6144
-    },
-    "completed": false
-  },
-  {
-    "name": "empty-mission-2",
-    "replay": {
-      "version": 1,
-      "config": {
-        "seed": 42,
-        "mission": 2,
-        "star_mass": 1
-      },
-      "commands": [],
-      "end_tick": 6144
-    },
-    "completed": false
-  },
-  {
-    "name": "empty-mission-3",
-    "replay": {
-      "version": 1,
-      "config": {
-        "seed": 42,
-        "mission": 3,
-        "star_mass": 1
-      },
-      "commands": [],
-      "end_tick": 6144
-    },
-    "completed": false
-  },
-  {
-    "name": "empty-mission-4",
-    "replay": {
-      "version": 1,
+      "version": 7,
       "config": {
         "seed": 42,
         "mission": 4,
         "star_mass": 1
       },
-      "commands": [],
-      "end_tick": 6144
+      "commands": [
+        {
+          "tick": 0,
+          "command": {
+            "type": "launch_mass",
+            "kind": "dust",
+            "mass": 0.5,
+            "radius": 1.1,
+            "angle": 0.02,
+            "speed": 0.4
+          }
+        },
+        {
+          "tick": 0,
+          "command": {
+            "type": "seed_disk",
+            "radius": 1.35,
+            "spread": 0.08,
+            "disorder": 0.08,
+            "count": 24
+          }
+        }
+      ],
+      "end_tick": 25600
     },
     "completed": false
   },
   {
-    "name": "empty-mission-5",
+    "name": "5-inner-nursery",
     "replay": {
-      "version": 1,
+      "version": 7,
       "config": {
         "seed": 42,
         "mission": 5,
         "star_mass": 1
       },
-      "commands": [],
-      "end_tick": 6144
+      "commands": [
+        {
+          "tick": 0,
+          "command": {
+            "type": "seed_disk",
+            "radius": 1.2,
+            "spread": 0.08,
+            "disorder": 0.08,
+            "count": 24
+          }
+        }
+      ],
+      "end_tick": 8704
+    },
+    "completed": true
+  },
+  {
+    "name": "5-outer-nursery",
+    "replay": {
+      "version": 7,
+      "config": {
+        "seed": 42,
+        "mission": 5,
+        "star_mass": 1
+      },
+      "commands": [
+        {
+          "tick": 0,
+          "command": {
+            "type": "seed_disk",
+            "radius": 4.5,
+            "spread": 0.08,
+            "disorder": 0.08,
+            "count": 24
+          }
+        }
+      ],
+      "end_tick": 25600
     },
     "completed": false
   },
   {
-    "name": "empty-mission-6",
+    "name": "6-trailing-flyby",
     "replay": {
-      "version": 1,
+      "version": 7,
       "config": {
         "seed": 42,
         "mission": 6,
         "star_mass": 1
       },
-      "commands": [],
-      "end_tick": 6144
+      "commands": [
+        {
+          "tick": 0,
+          "command": {
+            "type": "launch_mass",
+            "kind": "rocky",
+            "mass": 1,
+            "radius": 1.8,
+            "angle": 5.988660995905543,
+            "speed": 1.35
+          }
+        }
+      ],
+      "end_tick": 1536
+    },
+    "completed": true
+  },
+  {
+    "name": "6-missed-flyby",
+    "replay": {
+      "version": 7,
+      "config": {
+        "seed": 42,
+        "mission": 6,
+        "star_mass": 1
+      },
+      "commands": [
+        {
+          "tick": 0,
+          "command": {
+            "type": "launch_mass",
+            "kind": "rocky",
+            "mass": 1,
+            "radius": 0.6,
+            "angle": 0,
+            "speed": 1.3
+          }
+        }
+      ],
+      "end_tick": 8192
     },
     "completed": false
   },
   {
-    "name": "empty-mission-7",
+    "name": "7-spaced-moons",
     "replay": {
-      "version": 1,
+      "version": 7,
       "config": {
         "seed": 42,
         "mission": 7,
         "star_mass": 1
       },
-      "commands": [],
-      "end_tick": 6144
+      "commands": [
+        {
+          "tick": 0,
+          "command": {
+            "type": "launch_moon",
+            "parent": 1,
+            "kind": "rocky",
+            "mass": 0.01,
+            "distance": 0.035,
+            "angle": 0,
+            "speed": 1
+          }
+        },
+        {
+          "tick": 0,
+          "command": {
+            "type": "launch_moon",
+            "parent": 1,
+            "kind": "rocky",
+            "mass": 0.01,
+            "distance": 0.065,
+            "angle": 0,
+            "speed": -1
+          }
+        }
+      ],
+      "end_tick": 5120
+    },
+    "completed": true
+  },
+  {
+    "name": "7-one-moon",
+    "replay": {
+      "version": 7,
+      "config": {
+        "seed": 42,
+        "mission": 7,
+        "star_mass": 1
+      },
+      "commands": [
+        {
+          "tick": 0,
+          "command": {
+            "type": "launch_moon",
+            "parent": 1,
+            "kind": "rocky",
+            "mass": 0.01,
+            "distance": 0.05,
+            "angle": 0,
+            "speed": 1
+          }
+        }
+      ],
+      "end_tick": 10240
     },
     "completed": false
   },
   {
-    "name": "empty-mission-8",
+    "name": "8-resonant-giants",
     "replay": {
-      "version": 1,
+      "version": 7,
       "config": {
         "seed": 42,
         "mission": 8,
         "star_mass": 1
       },
-      "commands": [],
-      "end_tick": 6144
+      "commands": [
+        {
+          "tick": 0,
+          "command": {
+            "type": "launch_mass",
+            "kind": "giant",
+            "mass": 318,
+            "radius": 1,
+            "angle": 3.141592653589793,
+            "speed": 0.9746794344808963
+          }
+        },
+        {
+          "tick": 0,
+          "command": {
+            "type": "launch_mass",
+            "kind": "giant",
+            "mass": 318,
+            "radius": 1.5,
+            "angle": 1.5707963267948966,
+            "speed": 1
+          }
+        }
+      ],
+      "end_tick": 9216
+    },
+    "completed": true
+  },
+  {
+    "name": "8-near-ratio-only",
+    "replay": {
+      "version": 7,
+      "config": {
+        "seed": 42,
+        "mission": 8,
+        "star_mass": 1
+      },
+      "commands": [
+        {
+          "tick": 0,
+          "command": {
+            "type": "launch_mass",
+            "kind": "rocky",
+            "mass": 1,
+            "radius": 1,
+            "angle": 0,
+            "speed": 1
+          }
+        },
+        {
+          "tick": 0,
+          "command": {
+            "type": "launch_mass",
+            "kind": "rocky",
+            "mass": 1,
+            "radius": 1.5874010519681994,
+            "angle": 1.5707963267948966,
+            "speed": 1
+          }
+        }
+      ],
+      "end_tick": 51200
     },
     "completed": false
   },
   {
-    "name": "empty-mission-9",
+    "name": "9-combined",
     "replay": {
-      "version": 1,
+      "version": 7,
       "config": {
         "seed": 42,
         "mission": 9,
         "star_mass": 1
       },
-      "commands": [],
-      "end_tick": 6144
+      "commands": [
+        {
+          "tick": 0,
+          "command": {
+            "type": "launch_mass",
+            "kind": "giant",
+            "mass": 318,
+            "radius": 3,
+            "angle": 0,
+            "speed": 1
+          }
+        },
+        {
+          "tick": 0,
+          "command": {
+            "type": "launch_moon",
+            "parent": 1,
+            "kind": "rocky",
+            "mass": 0.01,
+            "distance": 0.05,
+            "angle": 0,
+            "speed": 1
+          }
+        },
+        {
+          "tick": 0,
+          "command": {
+            "type": "seed_disk",
+            "radius": 1.2,
+            "spread": 0.08,
+            "disorder": 0.08,
+            "count": 24
+          }
+        }
+      ],
+      "end_tick": 9728
+    },
+    "completed": true
+  },
+  {
+    "name": "9-missing-moon",
+    "replay": {
+      "version": 7,
+      "config": {
+        "seed": 42,
+        "mission": 9,
+        "star_mass": 1
+      },
+      "commands": [
+        {
+          "tick": 0,
+          "command": {
+            "type": "seed_disk",
+            "radius": 1.2,
+            "spread": 0.08,
+            "disorder": 0.08,
+            "count": 24
+          }
+        }
+      ],
+      "end_tick": 30720
     },
     "completed": false
+  },
+  {
+    "name": "3-second-nursery",
+    "replay": {
+      "version": 7,
+      "config": {
+        "seed": 42,
+        "mission": 3,
+        "star_mass": 1
+      },
+      "commands": [
+        {
+          "tick": 0,
+          "command": {
+            "type": "seed_disk",
+            "radius": 1.2,
+            "spread": 0.08,
+            "disorder": 0.2,
+            "count": 24
+          }
+        }
+      ],
+      "end_tick": 5632
+    },
+    "completed": true
+  },
+  {
+    "name": "4-disordered-garden",
+    "replay": {
+      "version": 7,
+      "config": {
+        "seed": 42,
+        "mission": 4,
+        "star_mass": 1
+      },
+      "commands": [
+        {
+          "tick": 0,
+          "command": {
+            "type": "seed_disk",
+            "radius": 1.1,
+            "spread": 0.08,
+            "disorder": 0.5,
+            "count": 24
+          }
+        }
+      ],
+      "end_tick": 19968
+    },
+    "completed": false
+  },
+  {
+    "name": "6-second-flyby",
+    "replay": {
+      "version": 7,
+      "config": {
+        "seed": 42,
+        "mission": 6,
+        "star_mass": 1
+      },
+      "commands": [
+        {
+          "tick": 0,
+          "command": {
+            "type": "launch_mass",
+            "kind": "rocky",
+            "mass": 1,
+            "radius": 1.6,
+            "angle": 5.890486225480862,
+            "speed": 1.35
+          }
+        }
+      ],
+      "end_tick": 1024
+    },
+    "completed": true
+  },
+  {
+    "name": "8-lighter-resonance",
+    "replay": {
+      "version": 7,
+      "config": {
+        "seed": 42,
+        "mission": 8,
+        "star_mass": 1
+      },
+      "commands": [
+        {
+          "tick": 0,
+          "command": {
+            "type": "launch_mass",
+            "kind": "giant",
+            "mass": 100,
+            "radius": 1,
+            "angle": 3.141592653589793,
+            "speed": 0.9746794344808963
+          }
+        },
+        {
+          "tick": 0,
+          "command": {
+            "type": "launch_mass",
+            "kind": "giant",
+            "mass": 100,
+            "radius": 1.5,
+            "angle": 1.5707963267948966,
+            "speed": 1
+          }
+        }
+      ],
+      "end_tick": 39936
+    },
+    "completed": true
+  },
+  {
+    "name": "4-second-garden",
+    "replay": {
+      "version": 7,
+      "config": {
+        "seed": 7,
+        "mission": 4,
+        "star_mass": 1
+      },
+      "commands": [
+        {
+          "tick": 0,
+          "command": {
+            "type": "seed_disk",
+            "radius": 1.35,
+            "spread": 0.08,
+            "disorder": 0.08,
+            "count": 24
+          }
+        }
+      ],
+      "end_tick": 12800
+    },
+    "completed": true
   }
 ]

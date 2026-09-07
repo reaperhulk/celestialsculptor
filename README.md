@@ -22,7 +22,8 @@ The star responds to gravity. Current collisions conserve mass, material, linear
 Escape and disk-transfer ledgers support conservation checks between player edits.
 See [the collision model](docs/COLLISIONS.md) for its calibrated regimes and limits.
 
-Seed + versioned configuration + tick-stamped commands reproduce a run. Exact
+Seed + current configuration + tick-stamped commands reproduce a run.
+Only the current replay format is supported; the game has one physics implementation. Exact
 replays are guaranteed within the same executable/toolchain; native/WASM parity
 uses numerical tolerances, not a promise of bit-identical chaotic trajectories.
 Mission conditions and continuous hold timers are evaluated in Rust. The renderer

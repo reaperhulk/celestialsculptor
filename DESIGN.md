@@ -8,6 +8,12 @@ Rust → WebAssembly, WebGL 2, GitHub Actions, and GitHub Pages. Work is pushed 
 `main` continuously. The initial 100 iterations are followed by the development
 cycles recorded in [docs/DEVELOPMENT_CYCLES.md](docs/DEVELOPMENT_CYCLES.md).
 
+Current policy (iteration 168): assume no existing saves. Ship one current physics
+implementation. Remove historical rule branches and duplicated old-rule tests;
+all authored scenarios use the current format. Format 7 identifies the accepted
+replay schema, not a runtime physics selector. Earlier compatibility plans below
+are historical records and are superseded by this decision.
+
 ## Player loop
 
 Read a concrete goal → choose stellar and orbital conditions → launch worlds or
@@ -29,8 +35,8 @@ to the device, with explicit portable exports. No accounts or server are require
 The simulation never reads elapsed real time. A tick is 1/512 year, with four
 fixed kick-drift-kick substeps. UI speed changes tick throughput only. The star
 moves, collisions preserve mass and momenta, and escape accounting is explicit.
-Rules 7 supports 8,192 mutually gravitating sandbox bodies. Missions and older
-replays retain their 64-body limit. Below 512 bodies gravity is exact; larger
+The current simulation supports 8,192 mutually gravitating sandbox bodies.
+Missions use a 64-body capacity limit. Below 512 bodies gravity is exact; larger
 systems use a symmetric mutual tree. The WASM release uses double-precision SIMD
 with a scalar differential test build. [The scaling scorecard](docs/SCALING.md)
 records measured gains and remaining costs. Rendering is independent; losing a graphics context must never
@@ -1918,3 +1924,28 @@ case is 24.46 to 10.46 ms/tick against the f64 orbital oracle. One-year moon
 phase errors stay below 0.001 radians and split batching matches exactly. GPU
 energy drift (2.44e-6) and momentum drift (3.12e-6) remain greater than production
 f64 requirements; both precision and collision handling remain activation gates.
+
+
+### 168 — Consolidate on one current physics implementation
+
+Review needs: the user explicitly removed historical-save compatibility from
+scope. Legacy collision, softening, math, moon-control, mission and tree-opening
+branches increased code and test cost without serving the current game.
+Implemented: remove World rule selection and all historical physics branches,
+old generator command behavior, historical missions and duplicated campaign
+fixtures. Every authored recipe, lesson, device workload and scenario uses format
+7. The importer accepts only that format; all worlds use the same optimized
+physics. Keep 25 current campaign success/failure fixtures, scalar/SIMD parity,
+conservation, orbital convergence, swept contacts and replay reconstruction.
+Remove the rules-6/7 runtime comparison; tuning still measures algorithmic
+candidates without retaining old engines in the game.
+Validation: current-format rejection tests preserve the running world on malformed
+imports. Swept merger tests now use gas giants, which accrete under current rules;
+solid graze/disruption tests continue independently. Campaign and physics gates,
+current-build differential checks and payload verification pass. All 170 Node
+tests and 286 scalar/SIMD checkpoints pass. Fifty-six whole-system comparisons
+at 64/512/1,024/8,192 bodies match the previous current-format build exactly.
+The forty-year swarm gate also passes. A resonance-capture recipe now specifies
+its physical initial conditions explicitly instead of depending on the removed
+generator. WASM falls from 474,114 to approximately 448,000 bytes. Historical
+save preservation is intentionally no longer a gate.

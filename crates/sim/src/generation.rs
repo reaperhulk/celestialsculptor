@@ -1,4 +1,4 @@
-//! Versioned generator command: older Generate replays keep their old conditions.
+//! Seeded starting systems using the current physical rules.
 use crate::{generator::SystemStyle, Command, Kind};
 use std::f64::consts::{PI, TAU};
 struct Rng(u32);
@@ -98,7 +98,7 @@ pub fn commands(
                 });
             }
         }
-        SystemStyle::Calm => return crate::generator::commands(seed, style, count, chaos),
+        SystemStyle::Calm => return crate::generator::calm_commands(seed, count, chaos),
         SystemStyle::Chaos => {
             out.push(Command::LaunchMass {
                 kind: Kind::Giant,

@@ -16,6 +16,6 @@ export function deviceScenario(name){
  if(swarmCount)return {version:7,config,end_tick:0,commands:[{tick:0,command:{type:'seed_swarm',count:swarmCount-1,disorder:.8}}]};
  if(name==='stress')commands=Array.from({length:63},(_,i)=>({type:'launch',kind:'rocky',radius:.5+(i+1)*.08,angle:(i+1)*2.399963229728653,speed:1}));
  else commands=[{type:'generate_system',style:name==='moons'?'moons':'nursery',count:name==='moons'?9:32,chaos:name==='moons'?.3:.4}];
- return {version:5,config,end_tick:0,commands:commands.map(command=>({tick:0,command}))};
+ return {version:7,config,end_tick:0,commands:commands.map(command=>({tick:0,command}))};
 }
 export function deviceScenarioSpeed(name){return ['swarm1024','swarm4096','swarm8192'].includes(name)?1:.25;}

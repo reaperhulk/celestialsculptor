@@ -35,7 +35,7 @@ fn longitude(body: &Body, parent: &Body, orbit: &Orbit) -> f64 {
 }
 impl World {
     pub(crate) fn observe_resonances(&mut self) {
-        if self.rules_version < 3 || !self.tick.is_multiple_of(8) {
+        if !self.tick.is_multiple_of(8) {
             return;
         }
         let mut bodies: Vec<_> = self

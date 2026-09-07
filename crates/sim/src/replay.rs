@@ -10,7 +10,7 @@ pub struct Reconstruction {
 
 impl Reconstruction {
     pub fn new(replay: Replay) -> Result<Self, String> {
-        if !(1..=SAVE_VERSION).contains(&replay.version)
+        if replay.version != SAVE_VERSION
             || replay.end_tick > MAX_TICKS
             || replay.commands.len() > 2048
         {
@@ -24,7 +24,7 @@ impl Reconstruction {
             previous = action.tick;
         }
         Ok(Self {
-            world: World::with_rules(replay.config, replay.version)?,
+            world: World::new(replay.config)?,
             commands: replay.commands,
             next: 0,
             end: replay.end_tick,

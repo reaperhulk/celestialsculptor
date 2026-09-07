@@ -319,7 +319,7 @@ impl Simulation {
         let assessment = self.world.assessment(&status);
         serde_json::to_string(&Snapshot {
             assessment,
-            rules_version: self.world.rules_version,
+            rules_version: celestial_sim::SAVE_VERSION,
             burns_available: self.world.burns_available(),
             observation_stamp: (
                 self.world.history.frames.last().map_or(0, |f| f.tick),

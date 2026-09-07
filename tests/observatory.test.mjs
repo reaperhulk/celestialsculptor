@@ -6,7 +6,7 @@ test('orbital graphs keep true time spacing and gaps for removed or transferred 
  const angles=chartGeometry([{tick:0,value:179},{tick:64,value:-179},{tick:128,value:-160}],'angle');assert.equal(angles.paths.length,2);
 });
 test('automatic branching saves a durable original once and fails before a destructive change when storage is full',()=>{
- const replay=JSON.stringify({version:4,config:{seed:42,mission:null,star_mass:1},commands:[],end_tick:0}),state={status:{years:0},bodies:[]};let stored;
+ const replay=JSON.stringify({version:7,config:{seed:42,mission:null,star_mass:1},commands:[],end_tick:0}),state={status:{years:0},bodies:[]};let stored;
  const storage={setItem:(_,value)=>stored=value};const entries=preserveOriginal(storage,[],replay,state);assert.equal(entries.length,1);assert.ok(stored.includes('Original'));assert.equal(preserveOriginal(storage,entries,replay,state),entries);
  assert.throws(()=>preserveOriginal(null,[],replay,state),/storage/);
  const full=Array.from({length:12},(_,i)=>entry('x',replay+' ',state,String(i)));assert.throws(()=>preserveOriginal(storage,full,replay,state),/12 experiments/);
