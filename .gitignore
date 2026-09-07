@@ -14,3 +14,4 @@ scaling-benchmark-results.json
 scaling-comparison-results.json
 scaling.cpuprofile
 tree-tuning-results.json
+tree-rules-comparison.json

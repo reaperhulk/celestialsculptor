@@ -20,6 +20,11 @@ struct Snapshot<'a> {
 }
 use wasm_bindgen::prelude::*;
 
+#[wasm_bindgen]
+pub fn save_version() -> u32 {
+    celestial_sim::SAVE_VERSION
+}
+
 /// Build provenance for headless differential tests and performance reports.
 #[wasm_bindgen]
 pub fn gravity_backend() -> String {

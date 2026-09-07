@@ -2,11 +2,12 @@
 
 ## Current live architecture
 
-Rules 6 supports up to **8,192 physical bodies** in the sandbox. Choose **Large
+Rules 7 supports up to **8,192 physical bodies** in the sandbox. Choose **Large
 particle swarm** in the generator; begin with 1,024. All particles both feel and
 source gravity. Historical replays and missions retain the 64-body cap and exact
 solver. Current systems use exact f64 SIMD below 512 bodies and a symmetric mutual
-tree with second-order cell forces and tides above that, at opening 0.25. The star
+tree with second-order cell forces and tides above that, at opening 0.35. Saved
+rules-6 experiments retain opening 0.25. The star
 and nearby leaves remain direct. Four integration substeps are unchanged.
 
 The first whole-engine host sweep sustained 269 ticks/s at 1,024 quiet bodies and
@@ -52,6 +53,15 @@ short CPU measurements aggregate calls to avoid zero-duration timer samples.
 
 ## Next measured climbs
 
+Iteration 165 qualifies rules 7 at opening 0.35 and retains eight-body leaves.
+The disordered whole-tick comparison improves 1,024 bodies by 1.46x, 4,096 by
+1.59x, and 8,192 by 1.50x on the local host. Direct-reference orbit convergence,
+moon stability, conservation and a forty-year 1,024-body run pass. Existing rules-6
+files preserve their old physical trajectory, backed by reference hashes from
+the deployed engine. `npm run bench:tree-rules` reproduces the versioned comparison
+and records both CPU and wall samples in CI. Results across the two openings are
+qualified by physical invariants and convergence, rather than exact trajectory equality.
+
 The continuation starts with a repeatable profile: `npm run build && npm run
 profile:scaling -- 8192 256` writes `scaling.cpuprofile` using the matching named
 WASM artifact. Sampled timings include profiler overhead. The iteration-163
@@ -65,10 +75,11 @@ state, balances, observations and replay exactly. CPU and wall time are both
 recorded; these comparisons measure simulation throughput, not FPS.
 
 `npm run bench:tuning` sweeps compile-time leaf sizes and opening tolerances,
-including the actual 0.25 production setting. It checks forces against exact
+including the historical 0.25 and current 0.35 production settings. It checks forces against exact
 summation without the dominating star and measures momentum/torque residuals.
 The first sweep rejected smaller leaves as a universal improvement. Openings
-0.30–0.35 show a better speed/error tradeoff, subject to trajectory qualification.
+0.30–0.35 show a better speed/error tradeoff; the 0.35 candidate has now passed
+trajectory qualification and is selected only for new rules-7 worlds.
 
 1. Use View → Device performance test to record the 1,024/4,096/8,192-body
    workloads at requested 1x for five active minutes on real iPhone and iPad.

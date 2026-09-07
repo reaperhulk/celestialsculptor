@@ -25,7 +25,7 @@ pub const DT: f64 = 1.0 / 512.0;
 pub const MAX_BODIES: usize = 8192;
 pub const LEGACY_MAX_BODIES: usize = 64;
 pub const SOFTENING: f64 = 0.002;
-pub const SAVE_VERSION: u32 = 6;
+pub const SAVE_VERSION: u32 = 7;
 pub const MAX_TICKS: u64 = 512 * 600;
 pub const LEGACY_WORK_LIMIT: u64 = 20_000_000;
 
@@ -1088,6 +1088,7 @@ impl World {
             &self.bodies,
             self.softening().powi(2),
             tree_allowed && self.rules_version >= 6,
+            if self.rules_version >= 7 { 0.35 } else { 0.25 },
         );
     }
     /// Each tick always runs four kick-drift-kick substeps. Speed never changes dt.

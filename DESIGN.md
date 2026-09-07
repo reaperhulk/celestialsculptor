@@ -29,7 +29,7 @@ to the device, with explicit portable exports. No accounts or server are require
 The simulation never reads elapsed real time. A tick is 1/512 year, with four
 fixed kick-drift-kick substeps. UI speed changes tick throughput only. The star
 moves, collisions preserve mass and momenta, and escape accounting is explicit.
-Rules 6 supports 8,192 mutually gravitating sandbox bodies. Missions and older
+Rules 7 supports 8,192 mutually gravitating sandbox bodies. Missions and older
 replays retain their 64-body limit. Below 512 bodies gravity is exact; larger
 systems use a symmetric mutual tree. The WASM release uses double-precision SIMD
 with a scalar differential test build. [The scaling scorecard](docs/SCALING.md)
@@ -1844,3 +1844,23 @@ The collision-order candidate passes 256-body randomized swept-contact checks
 and fourteen exact 8,192-body comparisons over 128 ticks each. The longer warmed
 whole-engine sample improves quiet swarms by 5.7% and disordered swarms by 0.7%
 on this noisy host; report this as a modest gain, not a change in scaling order.
+
+### 165 — Qualify a faster tree opening with versioned replay behavior
+
+Review needs: the tree still spends most of its time on direct leaf pairs. A wider
+opening wins the tuning sweep but must pass physical accuracy gates and preserve
+already saved trajectories. Published build metadata also hard-coded save version 3.
+Implemented: new rules 7 use opening 0.35 with eight-body leaves; rules 6 retains
+0.25 and older systems retain their original behavior. Timestep and exact stellar
+and near-leaf interactions are unchanged. Add alternating whole-tick rules 6/7
+benchmarks with conservation checks to both CI architectures. Derive release
+metadata from the WASM save-version export. Generation/device tools recognize 7.
+Validation: direct-gravity trajectory convergence, energy/momentum, prograde and
+retrograde moons, replay reconstruction, and forty-year 1,024-body stability pass.
+Fixed reference hashes captured from deployed a633c3d protect rules-6 physical
+fields, ledgers and histories at 512/513/1,024/8,192 bodies. Forty-two additional
+complete before/after legacy checkpoints pass. The local disordered-swarm sweep
+improves complete ticks by 1.46x at 1,024, 1.59x at 4,096, and 1.50x at 8,192;
+the last case is 55.99 to 37.42 ms/tick with the same four early collisions.
+Approximation error increases within the independent force/orbit gates; this is
+explicitly a versioned speed/accuracy tradeoff, not bitwise new/old trajectory parity.

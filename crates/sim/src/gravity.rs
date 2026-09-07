@@ -8,6 +8,7 @@ pub(crate) struct Forces {
     pub output: Vec<V2>,
     softening2: f64,
     use_tree: bool,
+    opening: f64,
     tree: crate::gravity_tree::Tree,
 }
 // Cache contents do not change the meaning of a physical state.
@@ -17,9 +18,10 @@ impl PartialEq for Forces {
     }
 }
 impl Forces {
-    pub fn update(&mut self, bodies: &[Body], softening2: f64, tree_allowed: bool) {
+    pub fn update(&mut self, bodies: &[Body], softening2: f64, tree_allowed: bool, opening: f64) {
         let use_tree = tree_allowed && bodies.len() >= 512;
         if self.use_tree == use_tree
+            && self.opening.to_bits() == opening.to_bits()
             && self.x.len() == bodies.len()
             && self.softening2.to_bits() == softening2.to_bits()
             && bodies.iter().enumerate().all(|(i, b)| {
@@ -32,6 +34,7 @@ impl Forces {
         }
         self.softening2 = softening2;
         self.use_tree = use_tree;
+        self.opening = opening;
         self.x.clear();
         self.y.clear();
         self.mass.clear();
@@ -48,7 +51,7 @@ impl Forces {
                 &self.y,
                 &self.mass,
                 softening2,
-                0.25,
+                opening,
                 &mut self.output,
             );
             return;
@@ -95,12 +98,35 @@ mod tests {
                 _ => (),
             }
             let softening2 = if change == 5 { 0.001 } else { 1e-8 };
-            cache.update(&w.bodies, softening2, false);
+            cache.update(&w.bodies, softening2, false, 0.25);
             let mut expected = vec![V2::default(); w.bodies.len()];
             direct(&cache.x, &cache.y, &cache.mass, softening2, &mut expected);
             assert_eq!(cache.output, expected);
-            cache.update(&w.bodies, softening2, false);
+            cache.update(&w.bodies, softening2, false, 0.25);
             assert_eq!(cache.output, expected);
         }
+    }
+    #[test]
+    fn replay_opening_changes_invalidate_the_force_cache() {
+        let mut w = crate::World::new(crate::Config {
+            mission: None,
+            ..crate::Config::default()
+        })
+        .unwrap();
+        w.apply(crate::Command::SeedSwarm {
+            count: 511,
+            disorder: 0.,
+        })
+        .unwrap();
+        let mut cache = Forces::default();
+        cache.update(&w.bodies, 1e-8, true, 0.25);
+        let legacy = cache.output.clone();
+        cache.update(&w.bodies, 1e-8, true, 0.35);
+        assert_ne!(cache.output, legacy);
+        let mut fresh = Forces::default();
+        fresh.update(&w.bodies, 1e-8, true, 0.35);
+        assert_eq!(cache.output, fresh.output);
+        cache.update(&w.bodies, 1e-8, true, 0.25);
+        assert_eq!(cache.output, legacy);
     }
 }

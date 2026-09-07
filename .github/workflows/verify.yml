@@ -74,6 +74,7 @@ jobs:
         run: npm run bench:simd
       - run: npm run bench:gravity
       - run: npm run bench:tuning
+      - run: npm run bench:tree-rules
       - run: npm run bench:scaling
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -82,6 +83,7 @@ jobs:
             benchmark-results.json
             gravity-benchmark-results.json
             tree-tuning-results.json
+            tree-rules-comparison.json
             scaling-benchmark-results.json
             simd-benchmark-results.json
           retention-days: 14
@@ -150,6 +152,7 @@ jobs:
         run: npm run bench:simd
       - run: npm run bench:gravity
       - run: npm run bench:tuning
+      - run: npm run bench:tree-rules
       - run: npm run bench:scaling
       - run: npx playwright install webkit chromium
       - name: Probe hardware WebGPU when the ARM64 runner exposes an adapter
@@ -164,6 +167,7 @@ jobs:
             simd-benchmark-results.json
             gravity-benchmark-results.json
             tree-tuning-results.json
+            tree-rules-comparison.json
             scaling-benchmark-results.json
             test-results
             test-results-gpu

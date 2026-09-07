@@ -12,6 +12,6 @@ test('a changed workload finishes an immutable partial measurement',()=>{
  const r=new DeviceRecording({revision:'abc',speed:.25,scenario:'current'});r.record(0,2,0,true);r.record(16,2,1,true);r.stop('rendering quality changed');const before=r.report();r.record(1000,30,100,true);assert.deepEqual(r.report(),before);assert.equal(before.reason,'rendering quality changed');assert.equal(before.revision,'abc');assert.equal(before.frames,1);
 });
 test('large device workloads instantiate the requested physical population at 1x',()=>{
- for(const count of [1024,4096,8192]){const name=`swarm${count}`,replay=deviceScenario(name),sim=new Simulation(JSON.stringify(replay.config));try{sim.import_replay(JSON.stringify(replay));assert.equal(sim.body_count(),count);assert.equal(deviceScenarioSpeed(name),1);assert.equal(replay.version,6);}finally{sim.free();}}
+ for(const count of [1024,4096,8192]){const name=`swarm${count}`,replay=deviceScenario(name),sim=new Simulation(JSON.stringify(replay.config));try{sim.import_replay(JSON.stringify(replay));assert.equal(sim.body_count(),count);assert.equal(deviceScenarioSpeed(name),1);assert.equal(replay.version,7);}finally{sim.free();}}
  assert.equal(deviceScenarioSpeed('stress'),.25);
 });
