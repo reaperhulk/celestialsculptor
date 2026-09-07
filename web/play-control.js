@@ -4,10 +4,10 @@ export class PlayControl {
   observe(state) { this.confirmed=state.playing;if(!this.pending){this.playing=state.playing;this.update(this.playing);} }
   set(value) {
     const sequence=++this.sequence;this.pending=sequence;this.playing=value;this.update(value);
-    return this.send('play',{value}).then(reply=>{
+    return this.send('play',{value},()=>this.pending===sequence).then(reply=>{
       if(this.pending===sequence){this.pending=0;this.playing=reply.playing;this.update(this.playing);}
       return reply;
-    },error=>{if(this.pending===sequence){this.pending=0;this.playing=this.confirmed??false;this.update(this.playing);}throw error;});
+    },error=>{if(this.pending!==sequence)return {playing:this.playing};this.pending=0;this.playing=this.confirmed??false;this.update(this.playing);throw error;});
   }
   toggle() { return this.set(!this.playing); }
 }

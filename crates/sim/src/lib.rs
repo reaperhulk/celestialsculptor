@@ -1089,6 +1089,11 @@ impl World {
         }
         self.observe_resonances();
         for i in (1..self.bodies.len()).rev() {
+            // Bodies inside the escape boundary cannot be removed. Avoid a full
+            // osculating orbit (angles, period and habitability) for this common case.
+            if self.bodies[i].pos.minus(self.bodies[0].pos).norm2() <= 64.0 {
+                continue;
+            }
             let orbit = self.orbit(&self.bodies[i]);
             if orbit.distance > 8.0 && !orbit.bound {
                 let before_energy = self.energy();
@@ -1112,7 +1117,7 @@ impl World {
                 }
             }
         }
-        if !self.completed {
+        if !self.completed && self.config.mission.is_some() {
             let condition = self.status().condition;
             self.held_ticks = if condition { self.held_ticks + 1 } else { 0 };
             if self.config.mission.is_some_and(|_| {

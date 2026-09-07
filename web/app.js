@@ -46,13 +46,14 @@ try { renderer=new Renderer($('universe'),toast); } catch(error){fail(error.mess
 let worker,startupError;
 try{worker=new Worker(new URL('./worker.js',import.meta.url),{type:'module'});}catch(error){startupError='The simulation worker could not start. Reload to try again. '+error.message;}
 const channel=new RequestChannel(message=>worker.postMessage(message));
-const playback=new PlayControl((type,data)=>channel.send(type,data),playing=>{$('play').textContent=state?.busy?'Cancel replay':playing?'Ⅱ Pause':'▶ Run';$('play').setAttribute('aria-pressed',String(playing));});
-async function send(type,data={}){
+const playback=new PlayControl((type,data,current)=>sendRequest(type,data,current),playing=>{$('play').textContent=state?.busy?'Cancel replay':playing?'Ⅱ Pause':'▶ Run';$('play').setAttribute('aria-pressed',String(playing));});
+async function sendRequest(type,data={},current=null){
  if(state?.reviewing&&(['command','step','undo','rewind'].includes(type)||type==='play'&&data.value)){
-  const original=await channel.send('original');notebookEntries=preserveOriginal(storage,notebookEntries,original.replay,original.snapshot);
+  const original=await channel.send('original');if(current&&!current())return {playing:playback.playing};notebookEntries=preserveOriginal(storage,notebookEntries,original.replay,original.snapshot);
  }
- return (type==='play'?playback.set(data.value):channel.send(type,data)).then(reply=>{if(['command','undo','rewind','step'].includes(type)){clearTimeout(autosaveTimer);autosaveTimer=setTimeout(autosave,250);}return reply;});
+ return channel.send(type,data).then(reply=>{if(['command','undo','rewind','step'].includes(type)){clearTimeout(autosaveTimer);autosaveTimer=setTimeout(autosave,250);}return reply;});
 }
+function send(type,data={}){return type==='play'?playback.set(data.value):sendRequest(type,data);}
 function workerFailed(message){ready=false;clearTimeout(startupTimer);worker?.terminate();channel.close(message);document.body.dataset.ready='error';for(const id of ['launch','step','undo','rewind'])$(id).disabled=true;fail(message);}
 const startupTimer=setTimeout(()=>workerFailed('The simulation is taking too long to load. Check your connection and reload.'),30000);
 if(startupError)workerFailed(startupError);

@@ -17,7 +17,7 @@ test('tapping a planet reveals mass and axial rotation without scrolling or open
  const camera=await page.evaluate(()=>window.__celestialPerformance.camera),r=await page.locator('#universe').boundingBox();
  await page.mouse.click(r.x+r.width/2+(1-camera.x)*r.height/(2*camera.zoom),r.y+r.height/2+camera.y*r.height*.62/(2*camera.zoom));
  await expect(page.locator('#inspect-body')).toHaveValue('1');await expect(page.locator('.body-summary')).toContainText('Mass: 1 Earth masses');await expect(page.locator('.body-summary')).toBeInViewport({ratio:1});await expect(page.locator('.body-rotation')).toBeInViewport({ratio:1});
- if(['desktop','phone'].includes(testInfo.project.name))await page.screenshot({path:testInfo.outputPath(`review-inspect-${testInfo.project.name}.png`)});
+ if(['desktop','phone','small-phone'].includes(testInfo.project.name))await page.screenshot({path:testInfo.outputPath(`review-inspect-${testInfo.project.name}.png`)});
 });
 
 test('run followed immediately by pause stays paused even with delayed worker acknowledgements',async({page})=>{

@@ -1504,8 +1504,8 @@ planet statistics in the viewport, and settled pause behavior with delayed repli
 
 - [x] Reveal body statistics, independent placement previews and reliable pause intent (144).
 - [x] Remove the dense-system lifetime cap; retain bounded, responsive replay reconstruction (145).
-- [ ] Re-review navigation and long experiments after the fixes, implement the resulting list.
-- [ ] Verify native/WASM regressions, browser screenshots and the published revision.
+- [x] Re-review navigation and long experiments; stable controls, visible launch sites and less wasted simulation work (146–147).
+- Release gate: native/WASM regressions, browser screenshots and published asset hashes must pass in [Actions](https://github.com/reaperhulk/celestialsculptor/actions/workflows/verify.yml) before publication.
 
 ### 145 — Keep dense systems alive and reconstruct them responsively
 
@@ -1531,3 +1531,21 @@ Validation: placement-boundary checks pass and browser coverage retains the same
 focused disclosure node while physics advances. Existing body-tap and closed-form
 render checks remain release gates. Next review: measure and remove unnecessary
 per-tick sandbox objective evaluation without changing outcomes.
+
+### 147 — Close interaction regressions and reduce unnecessary simulation work
+
+Review needs: browser run 144 found eccentricity hidden inside the new details and
+a camera toolbar overlapping the initial planet on the smallest phone. A reviewed
+timeline also delayed playback intent until after original preservation. Sandbox
+steps evaluated nonexistent challenge goals and full orbits inside the escape boundary.
+Implemented: eccentricity stays visible, short-phone camera tools sit above the
+planet, and playback intent is immediate even while preserving a reviewed branch.
+Superseded playback preparation cannot resume the simulation. Sandbox objective
+evaluation is skipped and only bodies beyond the escape boundary need escape-orbit
+calculations; physical integration and challenge rules remain unchanged.
+Validation: native/WASM parity, conservation, generated systems, long debris runs,
+replay cancellation and stale-intent regressions are included in the full headless
+gate. Local WASM medians for 2,048 ticks changed from 5.32/55.89/210.47 ms to
+4.85/50.25/201.80 ms at 8/32/64 bodies; these are host CPU timings, not device FPS.
+The browser gate retains real planet picking, visible statistics, draw-instance
+checks, delayed pause acknowledgements and long dense restores.
