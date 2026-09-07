@@ -10,9 +10,9 @@ five minutes, pan/pinch/follow bodies, and open Observe while the simulation run
 - Nursery: observe impacts and charts while bodies merge, graze or fragment.
 
 Download the timing report. It includes exact replay conditions, browser,
-viewport, DPR, rendering settings, active duration, frame percentiles, slowest
+viewport, DPR, rendering settings, build revision, playback speed, active duration, frame percentiles, slowest
 frame, draw CPU and simulation tick throughput. Hidden and paused intervals are
-excluded. A changed system ends the recording; an early download is a partial
+excluded. A changed system, speed, rendering setting or viewport ends the recording; an early download is a partial
 report. Histograms have fixed memory; delays over 250 ms have a separate overflow
 count and the actual maximum is retained. Draw CPU is not GPU time.
 

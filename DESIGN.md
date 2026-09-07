@@ -5,7 +5,8 @@
 Grounded but forgiving orbital physics. Ten authored challenges plus sandbox.
 2.5D orbital plane with a tiltable view. Desktop, tablet, and phone controls.
 Rust → WebAssembly, WebGL 2, GitHub Actions, and GitHub Pages. Work is pushed to
-`main` in 100 completed review / implement / verify / commit iterations.
+`main` continuously. The initial 100 iterations are followed by the development
+cycles recorded in [docs/DEVELOPMENT_CYCLES.md](docs/DEVELOPMENT_CYCLES.md).
 
 ## Player loop
 
@@ -34,7 +35,8 @@ corrupt the experiment. No SharedArrayBuffer or cross-origin isolation required.
 
 ## Testing contract
 
-Native tests cover conservation (only between collisions/escapes), analytic orbital
+Native tests cover conservation between external edits, including collision,
+escape and disk-transfer ledgers, plus analytic orbital
 behavior, commands, budgets, unlocks, progress hold timers, seeded generation,
 replay/save validation, and authored winning/losing scenarios. Property tests
 exercise bounded random systems and malformed inputs. A CLI exposes machine-readable
@@ -46,9 +48,11 @@ Screenshots cannot prove the rules correct; passing headless scenarios is mandat
 ## Scope and scientific limits
 
 Newtonian gravity in AU / years / solar masses, softened at 0.0001 AU in current rules (0.002 AU for version 1 replays). Contact
-radii are enlarged to make formation visible on game timescales. Perfectly
-inelastic mergers represent accretion; unresolved spin accounts for angular
-momentum. Habitability checks entire osculating orbits against a stellar-mass
+radii are enlarged to make formation visible on game timescales. Rules version 5
+distinguishes gentle accretion, grazing survival and bounded disruption of solids;
+stars and giants accrete. Unresolved spin accounts for angular momentum.
+[Collision thresholds and limits](docs/COLLISIONS.md) are explicit gameplay
+simplifications. Earlier replay versions retain their original contact behavior. Habitability checks entire osculating orbits against a stellar-mass
 scaled zone, without simulating atmospheres or life. Fixed steps limit close-pass
 accuracy; tests and explicit limits constrain the supported range. Native and
 WASM results are tolerance-compared, not assumed bit-identical across platforms.
@@ -65,12 +69,12 @@ analytic launch previews. A missing GPU does not prevent form-driven experiments
 Players can launch four body kinds, seed belts or configurable disks, apply
 budgeted radial/tangential burns, adjust stellar mass and seed, inspect orbital
 periods and extrema, and undo or rewind. Ten sequential discoveries coexist with
-an always-open sandbox, ten editable starting points and five seeded generator styles. Outcomes and saves are
+an always-open sandbox, eleven editable starting points and five seeded generator styles. Outcomes and saves are
 local. Backups and bug reports are portable, importable, and directly reproducible
 with the native CLI. Matter is a gameplay budget; burns are external interventions
 and are excluded from conservation claims across edits.
 
-A replay is versioned configuration plus ordered tick-stamped commands. Versions 1–4
+A replay is versioned configuration plus ordered tick-stamped commands. Versions 1–5
 support 2,048 edits, 600 years and 20 million pair-tick work units. Reconstruction
 never trusts serialized scores or body state. Exact reproduction is scoped to the
 same executable; cross-target comparisons use tolerances. Future physics changes
@@ -84,7 +88,10 @@ artifacts. CI pins toolchains/actions, uploads one tested artifact, and verifies
 its public byte hashes after Pages deployment. Timing is reported, while payload
 size and correctness are deterministic gates.
 
-## Review after iteration 110 — next release plan
+## Review after iteration 110 — historical release plan
+
+Implemented by development cycle 1 (iterations 111–119); the review below retains
+its original findings and acceptance criteria as historical context.
 
 Reviewed 2026-09-07 against `ff3b125`, which matches `origin/main`. Its GitHub
 Actions run 34044553308 passed. The player reports 30 fps at rest and up to 60
@@ -1397,3 +1404,16 @@ both quote styles and direct getElementById calls, and names the offending modul
 Duplicate IDs and accessible label references remain required gates.
 Validation: mutation cases with a missing separate-controller element fail as
 expected; the actual production DOM and all controller references pass.
+
+### 137 — Synchronize the public guide and release design
+
+Review needs: README, in-game help and the design overview still described only
+mergers and manual original preservation, despite the completed feature work.
+Implemented: documentation now covers current collision regimes and limits,
+automatic branching, histories, shared-age comparisons, playable lessons, mastery,
+moon/spin navigation, device recording and strengthened headless validation. The
+old iteration-110 plan is explicitly retained as historical review evidence.
+Validation: the complete verification command passes 79 native and 198 Node/WASM
+tests, including the 120-system outcome/parity sweep, formatting, clippy and web
+contracts. Actions browser acceptance, screenshot review and published hash
+verification remain final release gates.
