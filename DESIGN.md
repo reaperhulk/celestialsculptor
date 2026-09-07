@@ -1365,3 +1365,14 @@ or Before/After availability change. Event detail changes still invalidate it.
 Validation: signature regressions cover time progression, boundary availability
 and changed impact details. Added a browser DOM-identity check spanning the real
 refresh interval; observation tests and production contracts pass.
+
+### 134 — Separate creation previews from observation
+
+Review needs: the rendered chart view showed a creation ghost beside one actual
+world, while three narrow inspector buttons wrapped into crowded columns.
+Implemented: launch ghosts and dashed paths appear while placing or editing launch
+fields. Observation views show actual bodies. Inspector actions use readable
+labels in two columns, retain explicit accessible names and disable unavailable
+actions until an appropriate body is selected.
+Validation: build/DOM/style contracts and existing input/preview tests pass.
+Representative chart screenshots will verify the resulting composition in CI.

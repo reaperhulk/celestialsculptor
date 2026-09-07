@@ -95,6 +95,7 @@ export class Renderer {
   get selected(){return this._selected;}
   set draft(value){this._draft=value;this.previewPath=this.previewCache.update(value);}
   get draft(){return this._draft;}
+  get previewVisible(){return this.showPreview&&(this.inputMode==='place'||this.previewEditing);}
   set encounterOverlay(impact){this._encounterOverlay=impact?.anchor?{anchor:impact.anchor,paths:[orbitPath(impact.orbit_before),orbitPath(impact.orbit_after)]}:null;}
   setState(state){
     updateTrails(this.trails,this.state,state);updateTrails(this.moonTrails,this.state,state,true);
@@ -165,7 +166,7 @@ export class Renderer {
         lines.line(trail[i-1][0]+ox,trail[i-1][1]+oy,trail[i][0]+ox,trail[i][1]+oy,c,i/trail.length*.4);
       }
     }
-    if(this.draft&&this.showPreview){
+    if(this.draft&&this.previewVisible){
       const path=this.previewPath;
       for(let i=1;i<path.length;i++)if(i%4<2){
         lines.line(path[i-1][0]+star.pos.x,path[i-1][1]+star.pos.y,path[i][0]+star.pos.x,path[i][1]+star.pos.y,[.94,.76,.4],.5);
@@ -205,7 +206,7 @@ export class Renderer {
       points.point(position.x,position.y,size,c,KINDS[b.kind],Number(this.selected===b.id),[(b.id*.6180339)%1,(b.material?.ice||0)/b.mass,Number(o?.habitable||false),position.rotation],[dx/dist,dy/dist,.45],heat);
 
     }
-    if(this.draft&&this.showPreview)points.point(star.pos.x+this.draft.radius*Math.cos(this.draft.angle),star.pos.y+this.draft.radius*Math.sin(this.draft.angle),bodyDiameter({kind:this.draft.kind,mass:(this.draft.mass||1)*3.003e-6},r.height,this.zoom),[.96,.76,.4],1,1);
+    if(this.draft&&this.previewVisible)points.point(star.pos.x+this.draft.radius*Math.cos(this.draft.angle),star.pos.y+this.draft.radius*Math.sin(this.draft.angle),bodyDiameter({kind:this.draft.kind,mass:(this.draft.mass||1)*3.003e-6},r.height,this.zoom),[.96,.76,.4],1,1);
     this.uniforms(this.points,animationTime);gl.bindVertexArray(this.pointVAO);gl.bindBuffer(gl.ARRAY_BUFFER,this.pointBuffer);
     gl.bufferSubData(gl.ARRAY_BUFFER,0,points.view());gl.drawArraysInstanced(gl.TRIANGLES,0,6,points.length/16);return true;
   }

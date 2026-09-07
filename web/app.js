@@ -112,7 +112,7 @@ function inspect(){
    if(hostKey!==moonHost){moonHost=hostKey;const mass=Math.max(.001,Math.min(.1,body.mass/3.003e-6*.01));$('moon-mass').value=String(Number(mass.toFixed(3)));const region=moonRegion(body,state.orbits.find(([id])=>id===body.id)?.[1],state.bodies[0].mass,mass);$('moon-distance').value=String(Number(Math.sqrt(region.min*region.max).toFixed(4)));}
    updateMoonRegion(body);
   }
-  $('watch-orbit').disabled=!body||body.id===0;
+  $('watch-orbit').disabled=!body||body.id===0;$('follow-body').disabled=!body;$('show-orbit').disabled=!body||body.id===0;
   $('nudge-controls').hidden=!body||body.id===0||!state?.burns_available;
   if(body&&body.id!==0)$('nudge-controls').querySelector('p').textContent=`Adjust orbit around ${state.moon_orbits?.some(([id])=>id===body.id)?`World ${body.parent}`:'the star'} · 1 matter per burn. Boost follows the orbital direction; strength is a fraction of circular speed around this host.`;
   const p=$('inspector');
@@ -455,3 +455,6 @@ $('record-device').onclick=async()=>{try{const response=await fetch(new URL('./b
 $('download-device').onclick=()=>{if(deviceRecording)download(JSON.stringify(deviceRecording.report(),null,2),'celestial-device-performance.json');};
 
 $('watch-orbit').onclick=async()=>{try{const orbit=(state.moon_orbits.find(([id])=>id===selectedBody)||state.orbits.find(([id])=>id===selectedBody))?.[1];const speed=orbitalWatchSpeed(orbit?.period_years);await send('speed',{value:speed});renderer?.focus(selectedBody);await send('play',{value:true});toast(`Following this orbit at ${speed}×. Use Time to adjust the pace.`);}catch(error){toast(error.message);}};
+
+$('launch-form').addEventListener('focusin',()=>{if(renderer)renderer.previewEditing=true;});
+$('launch-form').addEventListener('focusout',event=>{if(renderer)renderer.previewEditing=$('launch-form').contains(event.relatedTarget);});
