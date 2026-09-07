@@ -1266,3 +1266,14 @@ and the validation of their existing fields.
 Validation: portable checkpoint round-trips, old-summary migration and impact
 comparison regressions pass; browser row expectations and production contracts
 match the eleven displayed metrics.
+
+### 125 — Compare branches at a chosen shared age
+
+Review needs: endpoint-only comparisons obscure the onset of divergence and a
+bare edit count does not explain which conditions changed.
+Implemented: a shared-age slider reconstructs both experiments at the requested
+tick. A readable difference list shows starting conditions and recorded edits up
+to that age, with bounded output. Stale replies remain guarded by request order.
+Validation: real WASM comparisons omit future placements, reject invalid ages and
+leave the active experiment unchanged. Difference-list tests, build and web
+contracts pass alongside the existing observation and notebook checks.

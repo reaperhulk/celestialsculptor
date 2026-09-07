@@ -19,3 +19,10 @@ test('equal-age comparisons reconstruct both runs and leave the active experimen
   r.handle({type:'seek',tick:0});r.handle({type:'original'});assert.equal(messages.at(-1).replay,b);assert.equal(messages.at(-1).snapshot.tick,200);
  }finally{r.sim.free();}
 });
+test('comparison at an earlier shared age excludes later edits and rejects out-of-range ages',()=>{
+ const messages=[],r=new Runtime(Simulation,m=>messages.push(m));r.handle({type:'reset',config:{mission:null,seed:42,star_mass:1}});try{
+ r.sim.command(JSON.stringify({type:'launch',kind:'rocky',radius:1,angle:0,speed:1}));r.sim.advance(64);const a=r.sim.export_replay();r.sim.command(JSON.stringify({type:'launch',kind:'rocky',radius:2,angle:1,speed:1}));r.sim.advance(64);const b=r.sim.export_replay(),before=r.sim.snapshot();
+ r.handle({type:'compare',replays:[a,b],tick:32});assert.ok(messages.at(-1).states.every(s=>s.tick===32&&s.bodies.length===2));
+ for(const tick of [-1,65,1.5]){r.handle({type:'compare',replays:[a,b],tick});assert.equal(messages.at(-1).type,'error');}assert.equal(r.sim.snapshot(),before);
+ }finally{r.sim.free();}
+});

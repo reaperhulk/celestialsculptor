@@ -83,3 +83,16 @@ Include new impact outcomes while migrating existing notebook summaries safely.
 Allow an explicit shared comparison age and explain differing starting/edit
 conditions in readable terms. Test nonmutating equal-age reconstruction and
 existing notebook compatibility.
+
+Cycle 4 implemented in 124–125. Legacy notebook migration and real nonmutating
+shared-age comparisons pass. The first collision release (116) has now passed
+all browser checks and deployed successfully. Review of orbital diagnostics found
+that the resonance panel hides its detector requirements and does not explain
+why clockwise orbits are absent; axial spin is editable but lacks a reading.
+
+## Cycle 5 — explain orbital and rotational evidence
+
+Expose resonance observation duration, reversal/eccentricity requirements and the
+supported prograde first-order scope. Add signed axial spin/period readings so
+opposite orbital motion and opposite rotation can be inspected independently.
+Keep diagnostic improvements separate from changes to the saved physics rules.

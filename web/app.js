@@ -1,3 +1,4 @@
+import {experimentDifferences} from './comparison.js';
 import {orbitalWatchSpeed} from './playback.js';
 import { Renderer } from './renderer.js';
 import {clampZoom} from './camera.js';
@@ -403,7 +404,8 @@ function showNotebook(){
  }
  renderComparison();updateHistory();
 }
-let comparisonRequest=0;
+let comparisonRequest=0,comparisonSelection='';
+$('comparison-tick').onchange=()=>renderComparison();
 async function renderComparison(){
  const request=++comparisonRequest;
  const selected=comparisonIds.map(id=>notebookEntries.find(item=>item.id===id));$('comparison-wrap').hidden=selected.length!==2;if(selected.length!==2)return;
@@ -411,9 +413,11 @@ async function renderComparison(){
  for(const title of ['Outcome',a.name,b.name,'Change']){const cell=document.createElement('th');cell.scope='col';cell.textContent=title;row.append(cell);}head.append(row);
  const number=value=>value.toLocaleString(undefined,{maximumFractionDigits:2});
  $('comparison-age').textContent='Reconstructing both experiments at the same age…';
- try{const result=await send('compare',{replays:[a.replay,b.replay]});if(request!==comparisonRequest)return;
+ const key=comparisonIds.join(':');const end=Math.min(parseReplay(a.replay).end_tick,parseReplay(b.replay).end_tick);$('comparison-tick').max=String(end);if(key!==comparisonSelection){comparisonSelection=key;$('comparison-tick').value=String(end);}
+ try{const result=await send('compare',{replays:[a.replay,b.replay],tick:Number($('comparison-tick').value)});if(request!==comparisonRequest)return;
   const left=parseReplay(a.replay),right=parseReplay(b.replay),changed=left.commands.filter((c,i)=>JSON.stringify(c)!==JSON.stringify(right.commands[i])).length+Math.max(0,right.commands.length-left.commands.length);
   $('comparison-age').textContent=`Both at year ${(result.tick/512).toFixed(2)} · ${changed} differing recorded edits${JSON.stringify(left.config)!==JSON.stringify(right.config)?' · starting conditions differ':''}.`;
+  const differences=experimentDifferences(left,right,result.tick);$('comparison-edits').replaceChildren(...(differences.length?differences:['No recorded conditions differ by this age.']).map(text=>{const li=document.createElement('li');li.textContent=text;return li;}));
   for(const metric of compare({summary:summarize(result.states[0])},{summary:summarize(result.states[1])})){const row=document.createElement('tr');for(const [index,value] of [metric.label,number(metric.before),number(metric.after),(metric.change>0?'+':'')+number(metric.change)].entries()){const cell=document.createElement(index===0?'th':'td');if(index===0)cell.scope='row';cell.textContent=value;row.append(cell);}body.append(row);}
  }catch(error){if(request===comparisonRequest)$('comparison-age').textContent=error.message;}
 }

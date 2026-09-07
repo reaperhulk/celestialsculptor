@@ -56,7 +56,7 @@ export class Runtime {
           }
           case 'compare': {
             if(!Array.isArray(message.replays)||message.replays.length!==2||message.replays.some(r=>typeof r!=='string'||r.length>512000))throw new Error('Choose two valid experiments');
-            const replays=message.replays.map(r=>JSON.parse(r));const tick=Math.min(...replays.map(r=>r.end_tick));
+            const replays=message.replays.map(r=>JSON.parse(r));const end=Math.min(...replays.map(r=>r.end_tick)),tick=message.tick??end;if(!Number.isInteger(tick)||tick<0||tick>end)throw new Error('Choose an age inside both recorded experiments');
             const histories=[];
             const states=replays.map(replay=>{const temp=new this.Simulation(JSON.stringify(replay.config));try{temp.import_replay(JSON.stringify({...replay,end_tick:tick,commands:replay.commands.filter(c=>c.tick<=tick)}));if(message.include_history)histories.push(JSON.parse(temp.observations()));return JSON.parse(temp.snapshot());}finally{temp.free();}});
             this.send({type:'comparison',id,tick,states,...(message.include_history?{histories}:{})});return;
