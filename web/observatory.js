@@ -32,20 +32,20 @@ export class Observatory {
  constructor({send,seek,getState,getSelected,selectEvent}){
   this.send=send;this.seek=seek;this.getState=getState;this.getSelected=getSelected;this.selectEvent=selectEvent;this.history={frames:[],events:[]};this.busy=false;this.previousBody=null;
   this.$=id=>document.getElementById(id);
-  for(const id of ['history-body','history-metric','history-pair'])this.$(id).onchange=()=>this.draw();
+  for(const id of ['history-body','history-metric','history-pair'])this.$(id).onchange=()=>{this.stamp=null;this.refresh(this.previousBody);};
   this.$('analysis-tools').ontoggle=()=>{if(this.$('analysis-tools').open)this.refresh();};
   this.$('encounter-policy').onchange=()=>this.send('event_policy',{value:this.$('encounter-policy').value}).catch(e=>this.$('history-caption').textContent=e.message);
   setInterval(()=>{if(this.$('analysis-tools').open&&!document.hidden)this.refresh();},1000);
  }
  async refresh(selected=this.getSelected()){
   if(this.busy||!this.getState())return;const current=this.getState(),stamp=`${current.generation}:${current.observation_stamp}`;if(stamp===this.stamp&&selected===this.previousBody)return;this.busy=true;
-  try{const generation=this.getState().generation;const {history}=await this.send('observations');if(generation!==this.getState().generation)return;this.history=history;
-   const ids=[...new Set(history.frames.flatMap(f=>f.bodies.map(b=>b.id)))];const pairs=[...new Set(history.frames.flatMap(f=>f.resonances.map(r=>`${r.inner}:${r.outer}`)))].slice(-64);
+  try{const generation=this.getState().generation;const [inner,outer]=this.$('history-pair').value.split(':').map(Number);const body=selected!==this.previousBody&&selected?selected:Number(this.$('history-body').value);const {history}=await this.send('observations',{filter:{body,inner,outer}});if(generation!==this.getState().generation)return;this.history=history;
+   const ids=history.body_ids;const pairs=history.pairs;
    for(const [id,values,label] of [['history-body',ids,v=>`World ${v}`],['history-pair',pairs,v=>`Worlds ${v.replace(':',' & ')}`]]){
     const element=this.$(id),value=element.value;if([...element.options].map(o=>o.value).join(',')!==values.join(',')){element.replaceChildren(...values.map(v=>new Option(label(v),String(v))));if(values.map(String).includes(value))element.value=value;}
    }
    if(selected&&selected!==this.previousBody&&ids.includes(selected)){this.$('history-body').value=String(selected);this.previousBody=selected;}
-   this.stamp=stamp;this.draw();this.events();
+   this.previousBody=selected;this.stamp=stamp;this.draw();this.events();
   }catch(error){this.$('history-caption').textContent=error.message;}finally{this.busy=false;}
  }
  draw(){

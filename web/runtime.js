@@ -1,3 +1,4 @@
+import {historyView} from './history-view.js';
 // Worker-owned controller. Its protocol is tested with real WASM without graphics.
 export class Runtime {
   constructor(Simulation, send) {
@@ -46,7 +47,7 @@ export class Runtime {
           case 'event_policy':
             if(!['off','pause','slow'].includes(message.value))throw new Error('Choose how to watch major events');
             this.eventPolicy=message.value;break;
-          case 'observations': this.send({type:'observations',id,history:this.timelineSource?this.timelineHistory:JSON.parse(this.sim.observations())});return;
+          case 'observations': {const filter=message.filter;const history=filter?(this.timelineSource?historyView(this.timelineHistory,filter):JSON.parse(this.sim.observation_view(filter.body||0,filter.inner||0,filter.outer||0))):(this.timelineSource?this.timelineHistory:JSON.parse(this.sim.observations()));this.send({type:'observations',id,history});return;}
           case 'original': {
             const replay=this.timelineSource||this.sim.export_replay();
             const temp=new this.Simulation(JSON.stringify(JSON.parse(replay).config));

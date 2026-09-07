@@ -109,3 +109,61 @@ impl World {
         }
     }
 }
+
+#[derive(Serialize)]
+pub struct HistoryView<'a> {
+    body_ids: Vec<u32>,
+    pairs: Vec<String>,
+    frames: Vec<ViewFrame<'a>>,
+    events: &'a [Event],
+    stride: u64,
+}
+#[derive(Serialize)]
+struct ViewFrame<'a> {
+    tick: u64,
+    bodies: Vec<&'a Reading>,
+    resonances: Vec<&'a ResonanceReading>,
+}
+impl History {
+    pub fn view(&self, body: u32, inner: u32, outer: u32) -> HistoryView<'_> {
+        let ids: std::collections::BTreeSet<_> = self
+            .frames
+            .iter()
+            .flat_map(|f| f.bodies.iter().map(|b| b.id))
+            .collect();
+        let pairs: std::collections::BTreeSet<_> = self
+            .frames
+            .iter()
+            .flat_map(|f| f.resonances.iter().map(|r| (r.inner, r.outer)))
+            .collect();
+        let body = if ids.contains(&body) {
+            body
+        } else {
+            ids.first().copied().unwrap_or(0)
+        };
+        let pair = if pairs.contains(&(inner, outer)) {
+            (inner, outer)
+        } else {
+            pairs.first().copied().unwrap_or((0, 0))
+        };
+        HistoryView {
+            body_ids: ids.into_iter().collect(),
+            pairs: pairs.into_iter().map(|(i, o)| format!("{i}:{o}")).collect(),
+            frames: self
+                .frames
+                .iter()
+                .map(|f| ViewFrame {
+                    tick: f.tick,
+                    bodies: f.bodies.iter().filter(|b| b.id == body).collect(),
+                    resonances: f
+                        .resonances
+                        .iter()
+                        .filter(|r| (r.inner, r.outer) == pair)
+                        .collect(),
+                })
+                .collect(),
+            events: &self.events,
+            stride: self.stride,
+        }
+    }
+}

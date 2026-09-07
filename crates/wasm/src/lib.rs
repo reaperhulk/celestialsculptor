@@ -96,6 +96,9 @@ impl Simulation {
     pub fn observations(&self) -> String {
         serde_json::to_string(&self.world.history).expect("finite observations")
     }
+    pub fn observation_view(&self, body: u32, inner: u32, outer: u32) -> String {
+        serde_json::to_string(&self.world.history.view(body, inner, outer)).expect("finite view")
+    }
     pub fn event_serial(&self) -> u32 {
         self.world
             .events

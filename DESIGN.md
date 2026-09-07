@@ -1188,3 +1188,15 @@ reconstructs the recipe's declared version instead of silently using the default
 Validation: every recipe produces its advertised result and replays exactly;
 grazing survival agrees at four, eight and sixteen substeps. Native collision
 checks, focused WASM/challenge tests, production build and web contracts pass.
+
+### 118 — Filter history before crossing the worker boundary
+
+Review needs: opening one chart copied every body's historical readings, creating
+avoidable serialization and main-thread allocation at the 64-body limit.
+Implemented: Rust emits only the selected body/pair series, with a catalogue for
+switching subjects. Immutable timeline review uses the equivalent bounded view.
+Selection changes request the appropriate series; ordinary snapshots stay small.
+Validation: a real 64-body WASM history matches the cached-review projection for
+valid, default and missing subjects; each frame contains at most one body/pair,
+the message stays below 350 KB and below one fifth of the full history. Clippy,
+build/contracts and eleven focused history/runtime tests pass.
