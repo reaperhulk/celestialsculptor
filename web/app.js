@@ -58,10 +58,9 @@ function updateDraft(){
   $('radius-range').value=String(d.radius);$('speed-range').value=String(d.speed*100);
   const tool=state?.status.tools.find(t=>t.kind===d.kind);
   $('body-mass').min=String(tool?.min_mass??.1);$('body-mass').max=String(tool?.max_mass??10);$('body-mass').disabled=state?.rules_version===1;
-  const massIssue=!Number.isFinite(d.mass)||d.mass<Number($('body-mass').min)||d.mass>Number($('body-mass').max)?'Choose a mass within the range for this world type.':d.mass>(state?.status.remaining??Infinity)?'Not enough matter for this mass.':'';
   $('mass-summary').textContent=`Mass & launch angle · ${d.mass} Earth${d.mass===1?'':'s'}`;
   $('mass-help').textContent=state?.rules_version===1?'This restored experiment uses its original fixed masses. Start a fresh system for custom masses.':`Costs ${d.mass} matter. More mass means stronger gravity and a larger world.`;
-  const issue=massIssue||placementIssue(state?.status,d.kind);$('launch').disabled=!ready||Boolean(issue);$('launch').title=issue;
+  const issue=placementIssue(state?.status,d.kind,state?.rules_version===1?undefined:d.mass);$('launch').disabled=!ready||Boolean(issue);$('launch').title=issue;
   $('orbit-reading').textContent=issue||(d.speed>Math.SQRT2?'Escape trajectory · a world without a sun':Math.abs(d.speed-1)<.015?'Circular orbit · a quiet beginning':d.speed<.2?'Falling inward · likely stellar impact':'Elliptical orbit · watch the close approach');
 }
 function setMissionUI(){

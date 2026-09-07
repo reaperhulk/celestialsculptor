@@ -1215,3 +1215,12 @@ Validation: recorder tests cover five active minutes, hidden gaps, bounded stora
 and long-frame overflow. Production build, contracts and the complete Node/WASM
 suite pass, including all 120 generated systems. Physical iPhone/iPad sustained
 60 FPS remains a device measurement; software CI does not claim to prove it.
+
+### 120 — Actual-mass placement affordability
+
+Review needs: a low-mass world could be rejected by the browser because the
+kind's default mass cost exceeded the remaining matter, although Rust accepts it.
+Implemented: placement validation uses the chosen mass, authoritative mass limits
+and remaining budget. Restored fixed-mass rules retain their original cost path.
+Validation: range, actual-cost and legacy-cost regressions pass alongside existing
+launch-field tests; production build and web contracts pass.

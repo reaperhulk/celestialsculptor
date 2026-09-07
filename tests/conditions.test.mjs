@@ -19,3 +19,7 @@ test('placement guidance follows Rust availability and explains exhausted resour
  assert.match(placementIssue({...status,actions_remaining:0},'rocky'),/edit limit/);
  assert.match(placementIssue({...status,tools:[{...status.tools[0],affordable:false}]},'rocky'),/1 matter/);
 });
+test('custom masses use their actual cost and range instead of the kind default',()=>{
+ const status={remaining:.15,available_slots:3,actions_remaining:7,tools:[{kind:'rocky',cost:1,min_mass:.1,max_mass:10,unlocked:true,affordable:false}]};
+ assert.equal(placementIssue(status,'rocky',.1),'');assert.match(placementIssue(status,'rocky',1),/1 matter/);assert.match(placementIssue(status,'rocky',.05),/range/);assert.match(placementIssue(status,'rocky'),/1 matter/);
+});

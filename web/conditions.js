@@ -9,12 +9,15 @@ export function parseLaunchFields({kind,radius,speed,angle}){
  if(!['rocky','ice','giant','dust'].includes(kind))throw new Error('Choose a world type.');
  return {kind,radius:Number(radius),speed:Number(speed)/100,angle:Number(angle)*Math.PI/180};
 }
-export function placementIssue(status,kind){
+export function placementIssue(status,kind,mass){
  if(!status)return 'The simulation is loading.';
  const tool=status.tools.find(tool=>tool.kind===kind);
  if(!tool?.unlocked)return 'This world type unlocks in a later challenge.';
  if(status.actions_remaining===0)return 'This experiment has reached its edit limit. Undo an edit or begin again.';
  if(status.available_slots===0)return 'This system is full. Let worlds merge, or undo an edit.';
- if(!tool.affordable)return `This world needs ${tool.cost} matter. Undo an edit or begin again.`;
+ if(mass!==undefined){
+  if(!Number.isFinite(mass)||mass<tool.min_mass||mass>tool.max_mass)return 'Choose a mass within the range for this world type.';
+  if(mass>status.remaining)return `This world needs ${mass} matter. Undo an edit or begin again.`;
+ }else if(!tool.affordable)return `This world needs ${tool.cost} matter. Undo an edit or begin again.`;
  return '';
 }
