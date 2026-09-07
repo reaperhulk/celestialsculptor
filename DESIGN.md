@@ -1126,3 +1126,17 @@ changes a burn before an impact, preserves the original and compares both runs.
 Actions for 111 found two old formatting expectations across seven viewports
 (153 browser checks passed); assertions now verify numeric eccentricity and the
 new precise mass format. Histories also work for restored older rule versions.
+
+
+### 114 — Challenge reasoning, comparative lessons and optional mastery
+
+Review needs: show why a challenge is not progressing, teach resonance evidence
+before an empty-system puzzle, and reward deliberate efficient solutions.
+Implemented: authoritative recovery/observation feedback and optional economy /
+restraint mastery for garden, assist, moon and resonance challenges; three staged
+hints; real WASM comparisons of winning/near-miss garden, flyby and resonance
+examples with graphs and readable starting conditions. Examples preserve the
+active challenge. Mastery persists through discoveries and portable backups.
+Validation: clippy, both native assessment tests against actual campaign outcomes,
+production build, web contracts and 155 Node/WASM checks pass; focused progression
+and backup checks also pass after integration. Added a browser example-study flow.

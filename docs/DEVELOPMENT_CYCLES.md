@@ -10,7 +10,7 @@ Status: in progress.
 
 - [x] Host-relative moon controls, accurate readings, membership, resonance and touch fixes.
 - [x] Encounter timeline, bounded histories, automatic branch preservation and equal-age comparisons.
-- [ ] Garden, gravity-assist and resonance challenge decisions, hints and mastery.
+- [x] Garden, gravity-assist and resonance challenge decisions, hints and mastery.
 - [ ] Varied generators with measured outcome and timing expectations.
 - [ ] Bounded collision outcomes with headless conservation and convergence checks.
 - [ ] Sustained device scenarios and native/WASM/browser release gates.
@@ -36,3 +36,7 @@ UI portion of the experiment-loop item remains in progress.
 Iteration 113 completes the observation UI, automatic original preservation,
 equal-age comparisons and current-version campaign parity fixtures. Browser
 acceptance and screenshot review remain gates before cycle completion.
+
+Iteration 114 adds challenge-specific recovery/evidence, optional mastery and
+three comparative lessons from actual winning and near-miss replays. Current
+version fixtures include multiple solutions for garden, assist and resonance.

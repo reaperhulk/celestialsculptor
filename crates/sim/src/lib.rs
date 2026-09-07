@@ -1,6 +1,7 @@
 //! Deterministic orbital game rules. No clock, browser, GPU, or operating-system RNG.
 use serde::{Deserialize, Serialize};
 use std::f64::consts::TAU;
+pub mod assessment;
 pub mod benchmark;
 pub mod generator;
 pub mod history;

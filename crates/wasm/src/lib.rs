@@ -6,6 +6,7 @@ struct Snapshot<'a> {
     rules_version: u32,
     burns_available: bool,
     observation_stamp: (u64, usize, u32),
+    assessment: celestial_sim::assessment::Assessment,
     mission_definition: Option<celestial_sim::Mission>,
     resonances: &'a [celestial_sim::resonance::Resonance],
     bodies: &'a [Body],
@@ -54,7 +55,10 @@ impl Simulation {
         Ok(())
     }
     pub fn snapshot(&self) -> String {
+        let status = self.world.status();
+        let assessment = self.world.assessment(&status);
         serde_json::to_string(&Snapshot {
+            assessment,
             rules_version: self.world.rules_version,
             burns_available: self.world.burns_available(),
             observation_stamp: (
@@ -65,7 +69,7 @@ impl Simulation {
             mission_definition: self.world.mission(),
             resonances: &self.world.resonances,
             bodies: &self.world.bodies,
-            status: self.world.status(),
+            status,
             events: &self.world.events,
             tick: self.world.tick,
             config: &self.world.config,

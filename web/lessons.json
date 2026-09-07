@@ -1,0 +1,211 @@
+[
+  {
+    "mission": 4,
+    "title": "A garden needs room",
+    "metric": "axis",
+    "body": 1,
+    "description": "Compare the same garden with two different neighboring nurseries. A missing line means the original body was consumed.",
+    "cases": [
+      {
+        "name": "Separated nursery",
+        "replay": {
+          "version": 4,
+          "config": {
+            "seed": 42,
+            "mission": 4,
+            "star_mass": 1
+          },
+          "commands": [
+            {
+              "tick": 0,
+              "command": {
+                "type": "seed_disk",
+                "radius": 1.35,
+                "spread": 0.08,
+                "disorder": 0.08,
+                "count": 24
+              }
+            }
+          ],
+          "end_tick": 4608
+        }
+      },
+      {
+        "name": "A crossing fragment",
+        "replay": {
+          "version": 4,
+          "config": {
+            "seed": 42,
+            "mission": 4,
+            "star_mass": 1
+          },
+          "commands": [
+            {
+              "tick": 0,
+              "command": {
+                "type": "launch_mass",
+                "kind": "dust",
+                "mass": 0.5,
+                "radius": 1.1,
+                "angle": 0.02,
+                "speed": 0.4
+              }
+            },
+            {
+              "tick": 0,
+              "command": {
+                "type": "seed_disk",
+                "radius": 1.35,
+                "spread": 0.08,
+                "disorder": 0.08,
+                "count": 24
+              }
+            }
+          ],
+          "end_tick": 25600
+        }
+      }
+    ]
+  },
+  {
+    "mission": 6,
+    "title": "Timing a gravity assist",
+    "metric": "axis",
+    "body": 2,
+    "description": "The giant can exchange orbital energy with a passing world. An unbound orbit has no finite orbital size; compare the escape result as well as the graph.",
+    "cases": [
+      {
+        "name": "A trailing flyby",
+        "replay": {
+          "version": 4,
+          "config": {
+            "seed": 42,
+            "mission": 6,
+            "star_mass": 1
+          },
+          "commands": [
+            {
+              "tick": 0,
+              "command": {
+                "type": "launch_mass",
+                "kind": "rocky",
+                "mass": 1,
+                "radius": 1.8,
+                "angle": 5.988660995905543,
+                "speed": 1.35
+              }
+            }
+          ],
+          "end_tick": 1536
+        }
+      },
+      {
+        "name": "A missed encounter",
+        "replay": {
+          "version": 4,
+          "config": {
+            "seed": 42,
+            "mission": 6,
+            "star_mass": 1
+          },
+          "commands": [
+            {
+              "tick": 0,
+              "command": {
+                "type": "launch_mass",
+                "kind": "rocky",
+                "mass": 1,
+                "radius": 0.6,
+                "angle": 0,
+                "speed": 1.3
+              }
+            }
+          ],
+          "end_tick": 8192
+        }
+      }
+    ]
+  },
+  {
+    "mission": 8,
+    "title": "A ratio is the beginning",
+    "metric": "angle",
+    "body": 1,
+    "pair": "1:2",
+    "description": "The massive pair has a bounded reversing resonant angle. Two nearly circular small worlds can have a similar period ratio without meeting the resonance evidence requirements.",
+    "cases": [
+      {
+        "name": "Resonant giants",
+        "replay": {
+          "version": 4,
+          "config": {
+            "seed": 42,
+            "mission": 8,
+            "star_mass": 1
+          },
+          "commands": [
+            {
+              "tick": 0,
+              "command": {
+                "type": "launch_mass",
+                "kind": "giant",
+                "mass": 318,
+                "radius": 1,
+                "angle": 3.141592653589793,
+                "speed": 0.9746794344808963
+              }
+            },
+            {
+              "tick": 0,
+              "command": {
+                "type": "launch_mass",
+                "kind": "giant",
+                "mass": 318,
+                "radius": 1.5,
+                "angle": 1.5707963267948966,
+                "speed": 1
+              }
+            }
+          ],
+          "end_tick": 9216
+        }
+      },
+      {
+        "name": "Near ratio only",
+        "replay": {
+          "version": 4,
+          "config": {
+            "seed": 42,
+            "mission": 8,
+            "star_mass": 1
+          },
+          "commands": [
+            {
+              "tick": 0,
+              "command": {
+                "type": "launch_mass",
+                "kind": "rocky",
+                "mass": 1,
+                "radius": 1,
+                "angle": 0,
+                "speed": 1
+              }
+            },
+            {
+              "tick": 0,
+              "command": {
+                "type": "launch_mass",
+                "kind": "rocky",
+                "mass": 1,
+                "radius": 1.5874010519681994,
+                "angle": 1.5707963267948966,
+                "speed": 1
+              }
+            }
+          ],
+          "end_tick": 51200
+        }
+      }
+    ]
+  }
+]

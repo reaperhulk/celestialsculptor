@@ -55,8 +55,9 @@ export class Runtime {
           case 'compare': {
             if(!Array.isArray(message.replays)||message.replays.length!==2||message.replays.some(r=>typeof r!=='string'||r.length>512000))throw new Error('Choose two valid experiments');
             const replays=message.replays.map(r=>JSON.parse(r));const tick=Math.min(...replays.map(r=>r.end_tick));
-            const states=replays.map(replay=>{const temp=new this.Simulation(JSON.stringify(replay.config));try{temp.import_replay(JSON.stringify({...replay,end_tick:tick,commands:replay.commands.filter(c=>c.tick<=tick)}));return JSON.parse(temp.snapshot());}finally{temp.free();}});
-            this.send({type:'comparison',id,tick,states});return;
+            const histories=[];
+            const states=replays.map(replay=>{const temp=new this.Simulation(JSON.stringify(replay.config));try{temp.import_replay(JSON.stringify({...replay,end_tick:tick,commands:replay.commands.filter(c=>c.tick<=tick)}));if(message.include_history)histories.push(JSON.parse(temp.observations()));return JSON.parse(temp.snapshot());}finally{temp.free();}});
+            this.send({type:'comparison',id,tick,states,...(message.include_history?{histories}:{})});return;
           }
           default: throw new Error('Unknown simulation command');
         }

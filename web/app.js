@@ -20,6 +20,7 @@ import {entry,readNotebook,writeNotebook,compare,summarize,preserveOriginal} fro
 import {moonRegion} from './moons.js';
 import {orbitReading} from './readings.js';
 import {Observatory} from './observatory.js';
+import {ChallengeGuide} from './challenges.js';
 
 const $=id=>document.getElementById(id);
 let state=null, missions=[], mission=0, renderer, selectedBody=null, ready=false, toastTimer;
@@ -153,7 +154,7 @@ function renderState(next){
   const objectives=JSON.stringify(s.objectives);
   if(objectives!==lastObjectives){lastObjectives=objectives;$('objectives').replaceChildren();for(const goal of s.objectives.filter(Boolean)){const li=document.createElement('li'),label=document.createElement('span'),value=document.createElement('strong');label.textContent=goal.label;value.textContent=`${goal.current} / ${goal.target}`;li.classList.toggle('met',goal.current>=goal.target);li.append(label,value);$('objectives').append(li);}}
   if(s.completed&&mission!==null&&!awardedThisRun){
-    awardedThisRun=true;profile=award(profile,mission);
+    awardedThisRun=true;profile=award(profile,mission,next.assessment?.mastery.filter(goal=>goal.earned).map(goal=>goal.code)||[]);
     if(!writeProfile(storage,profile))toast('Discovery earned. Device storage is unavailable, so progress will last for this session.');
     else toast(`Discovery: ${m.unlock}`);
   }
@@ -167,6 +168,8 @@ function renderState(next){
   $('planet-count').textContent=String(s.planets);$('calm-count').textContent=String(s.calm);$('habitable-count').textContent=String(s.habitable);
   $('goal-progress').value=s.progress;$('goal-time').textContent=m?(m.hold_years?`${s.held_years.toFixed(1)} / ${m.hold_years} yr`:s.completed?'Complete':'Discovery'):'Free play';
   $('goal-state').textContent=goalMessage(s,mission,next.bodies.length,next);
+  if([4,6,8].includes(mission)&&!s.exhausted&&next.assessment)$('goal-state').textContent=next.assessment.message;
+  challengeGuide.update(next);
   $('goal-label').textContent=m?(m.hold_years?'Maintain conditions':'Make a discovery'):'Open exploration';$('goal-progress').hidden=mission===null;
   $('outcome-totals').textContent=`${s.collisions} mergers · ${s.ejections} escapes · ${s.absorbed} stellar impacts`;
   $('play').textContent=next.playing?'Ⅱ Pause':'▶ Run';$('play').disabled=!ready||s.exhausted;
@@ -236,9 +239,9 @@ $('import-file').onchange=async()=>{
   try{
     if(file.size>600_000)throw new Error('Choose an experiment or backup smaller than 600 KB.');
     const archive=parseArchive(await file.text()),replay=archive.replay,data=parseReplay(replay);
-    const merged=normalizeProfile({version:1,completed:[...profile.completed,...(archive.profile?.completed||[])]});
+    const merged=normalizeProfile({version:1,completed:[...profile.completed,...(archive.profile?.completed||[])],mastery:[...(profile.mastery||[]),...(archive.profile?.mastery||[])]});
     if(data.config.mission!==null&&!canPlay(merged,data.config.mission))throw new Error('Complete earlier challenges before importing this challenge.');
-    confirmReset(async()=>{try{saveEpoch++;await send('import',{replay});profile=merged;if(state.status.completed&&mission!==null)profile=award(profile,mission);writeProfile(storage,profile);renderState(state);renderer?.trails.clear();await autosave();toast('Experiment imported, paused.');}catch(error){toast(error.message);}});
+    confirmReset(async()=>{try{saveEpoch++;await send('import',{replay});profile=merged;if(state.status.completed&&mission!==null)profile=award(profile,mission,state.assessment?.mastery.filter(goal=>goal.earned).map(goal=>goal.code)||[]);writeProfile(storage,profile);renderState(state);renderer?.trails.clear();await autosave();toast('Experiment imported, paused.');}catch(error){toast(error.message);}});
   }catch(error){toast(error.message);}
 };
 $('confirm-cancel').onclick=()=>$('confirm-dialog').close();
@@ -415,3 +418,4 @@ async function reviewHistory(tick){$('history-tick').disabled=true;try{await sen
 $('history-tick').onchange=()=>reviewHistory(Number($('history-tick').value)).catch(()=>{});
 $('history-latest').onclick=()=>reviewHistory(state.timeline_end).catch(()=>{});
 const observatory=new Observatory({send,seek:reviewHistory,getState:()=>state,getSelected:()=>selectedBody,selectEvent:event=>{selectedBody=event.body;if(renderer){renderer.focusEvent(event);renderer.encounterOverlay=event.impact||null;}inspect();}});
+const challengeGuide=new ChallengeGuide({send,getState:()=>state});
