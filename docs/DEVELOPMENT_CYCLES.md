@@ -6,7 +6,9 @@ smaller delivery units and do not count as cycles.
 
 ## Cycle 1 — implement the existing review
 
-Status: implementation complete; final combined browser/deployment gate pending.
+Status: all ten review lists implemented. The combined release is validated by
+[GitHub Actions](https://github.com/reaperhulk/celestialsculptor/actions/workflows/verify.yml?query=branch%3Amain)
+and publishes only after its native, WASM and browser gates pass.
 
 - [x] Host-relative moon controls, accurate readings, membership, resonance and touch fixes.
 - [x] Encounter timeline, bounded histories, automatic branch preservation and equal-age comparisons.
@@ -158,13 +160,14 @@ instructions and living architecture to the delivered game, run the complete
 native/WASM/browser release gates, inspect new screenshots and verify the deployed
 artifact. Resolve failures before marking the ten-cycle request complete.
 
-Cycle 10 delivery: 136–140 close controller-contract, documentation, reviewed
+Cycle 10 delivery: 136–141 close controller-contract, documentation, reviewed
 history-cache/preservation and mobile lesson-handoff gaps. The final full local
 verification passes 79 native tests; the subsequent corrected runtime passes all
 199 Node/WASM tests, including the 120 generated-system matrix. Browser run 123
 passed 196 checks with one screenshot navigation failure; run 129 passed 208 with
 that known fixture issue and mobile lesson handoff failures. Their fixes are in
-130 and 139. Final combined browser and Pages verification is pending.
+130 and 139. The combined browser and Pages result is recorded in the linked Actions release
+checks; failed runs do not publish.
 
 | Cycle | Implementation iterations | Completed review list |
 |---|---|---|
@@ -177,9 +180,32 @@ that known fixture issue and mobile lesson handoff failures. Their fixes are in
 | 7 | 130–131 | Open-system conservation and encounter convergence |
 | 8 | 132–133 | Consistent device workloads and stable encounter controls |
 | 9 | 134–135 | Observation composition and accessible charts |
-| 10 | 136–140 | Whole-controller validation, documentation and final release corrections |
+| 10 | 136–141 | Whole-controller validation, documentation and final release corrections |
 
 Final timing review in 140 also preserves distinct interpolation samples during
 slow playback and invalidates orbit caches immediately on selection. Its focused
 presentation regressions pass; the current release contains 30 implementation
 commits across the ten review cycles.
+
+## Final review
+
+The ten lists are implemented in 30 implementation commits plus this closing
+review record. The complete local gate passed 79 native and 199 Node/WASM tests;
+a further focused regression verifies distinct slow-playback interpolation samples.
+The final CI reruns the whole suite, seven Chromium viewport flows, Firefox/WebKit
+recipe execution, screenshots and public asset-hash verification. Its exact result
+and revision are available in Actions rather than frozen into a stale status here.
+
+The local 64-body benchmark measured about 9,821 WASM ticks/second and a 42,913-byte
+snapshot. These are host CPU measurements, not an iPhone/iPad GPU FPS claim.
+Current uncompressed payload is about 663 KB, including 458 KB of WASM, within
+the existing release budgets. History frames, encounters, chart transport,
+render streams and device-recording histograms remain bounded.
+
+Next milestone candidates are sustained physical-device recordings using the new
+protocol, tidal spin/orbit exchange with explicit balance accounting, and a
+versioned investigation of late resonance capture after an earlier circulating
+angle. The present detector intentionally assesses neighboring prograde first-order
+pairs; collision interiors, fine debris and three-dimensional dynamics remain
+outside the current model. These are future extensions, not promises of measured
+hardware performance or additional physics already implemented.
