@@ -14,3 +14,6 @@ test('advancing an unchanged encounter list preserves its actual button elements
  // Cross the real one-second observation refresh, then check DOM identity.
  await page.waitForTimeout(1200);expect(await page.evaluate(()=>window.savedEncounterButton===document.querySelector('#encounter-list button'))).toBe(true);
 });
+test('empty history has an honest accessible description before observations exist',async({page})=>{
+ await page.goto('./');await expect(page.locator('#play')).toBeEnabled();if(await page.locator('.mobile-tabs').isVisible())await page.locator('[data-panel=observe]').click();else await page.locator('#analysis-tools > summary').click();await expect(page.locator('#history-chart')).toHaveAttribute('aria-label',/no observations yet/);await expect(page.locator('#history-chart')).toContainText('Waiting for observations');
+});

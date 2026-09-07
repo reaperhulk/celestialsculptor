@@ -16,16 +16,18 @@ export function chartGeometry(samples,metric){
  const paths=[];let current=[],previous=null;
  for(const p of samples){
   if(p.value===null||previous&&(p.parent!==previous.parent||(metric==='angle'&&Math.abs(p.value-previous.value)>180))){if(current.length)paths.push(current.join(' '));current=[];}
-  if(p.value!==null){const x=48+(p.tick-first)/(last-first)*282,y=12+(max-p.value)/(max-min)*84;current.push(`${current.length?'L':'M'}${x.toFixed(2)},${y.toFixed(2)}`);previous=p;}else previous=null;
+  if(p.value!==null){const x=64+(p.tick-first)/(last-first)*266,y=30+(max-p.value)/(max-min)*80;current.push(`${current.length?'L':'M'}${x.toFixed(2)},${y.toFixed(2)}`);previous=p;}else previous=null;
  }
  if(current.length)paths.push(current.join(' '));return {paths,min,max,first,last,latest:values.at(-1).value};
 }
 function svgNode(name,attributes,text){const node=document.createElementNS(NS,name);for(const [key,value] of Object.entries(attributes))node.setAttribute(key,String(value));if(text!==undefined)node.textContent=text;return node;}
 export function drawChart(svg,geometry,unit){
- svg.replaceChildren();if(!geometry)return;
- for(const [y,value] of [[12,geometry.max],[96,geometry.min]]){svg.append(svgNode('line',{x1:48,x2:330,y1:y,y2:y,stroke:'#35475a'}),svgNode('text',{x:44,y:y+4,'text-anchor':'end',fill:'#b1c1d1','font-size':10},quantity(value)));}
+ svg.replaceChildren();svg.setAttribute('viewBox','0 0 340 146');svg.setAttribute('aria-label',`${unit}: no observations yet`);
+ if(!geometry){svg.append(svgNode('text',{x:170,y:72,'text-anchor':'middle',fill:'#b1c1d1','font-size':16},'Waiting for observations'));return;}
+ svg.append(svgNode('text',{x:64,y:16,fill:'#d6e2ed','font-size':16},unit));
+ for(const [y,value] of [[30,geometry.max],[110,geometry.min]]){svg.append(svgNode('line',{x1:64,x2:330,y1:y,y2:y,stroke:'#35475a'}),svgNode('text',{x:60,y:y+5,'text-anchor':'end',fill:'#b1c1d1','font-size':16},quantity(value)));}
  for(const d of geometry.paths)svg.append(svgNode('path',{d,fill:'none',stroke:'#91dcca','stroke-width':2}));
- svg.append(svgNode('text',{x:48,y:116,fill:'#b1c1d1','font-size':10},`${quantity(geometry.first/512)} yr`),svgNode('text',{x:330,y:116,'text-anchor':'end',fill:'#b1c1d1','font-size':10},`${quantity(geometry.last/512)} yr`));
+ svg.append(svgNode('text',{x:64,y:136,fill:'#b1c1d1','font-size':16},`${quantity(geometry.first/512)} yr`),svgNode('text',{x:330,y:136,'text-anchor':'end',fill:'#b1c1d1','font-size':16},`${quantity(geometry.last/512)} yr`));
  svg.setAttribute('aria-label',`${unit} over time, latest ${quantity(geometry.latest)}, range ${quantity(geometry.min)} to ${quantity(geometry.max)}`);
 }
 export function encounterSignature(state,events){return JSON.stringify([state.generation,events,events.map(e=>e.tick+(e.impact?1:0)>state.timeline_end)]);}

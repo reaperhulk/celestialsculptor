@@ -1376,3 +1376,14 @@ labels in two columns, retain explicit accessible names and disable unavailable
 actions until an appropriate body is selected.
 Validation: build/DOM/style contracts and existing input/preview tests pass.
 Representative chart screenshots will verify the resulting composition in CI.
+
+### 135 — Readable chart units and honest empty states
+
+Review needs: the screenshot review found tiny axis labels and no visible metric
+title; clearing a graph left its previous accessible range description in place.
+Implemented: larger labels, a visible metric/unit title and additional chart
+padding improve small-panel reading. Empty charts display an observation prompt
+and replace the accessible description instead of retaining stale measurements.
+Validation: graph geometry/continuity tests and production contracts pass. Browser
+checks now cover empty accessible descriptions and populated chart metric labels;
+CI captures both desktop and phone scientific-reading layouts.

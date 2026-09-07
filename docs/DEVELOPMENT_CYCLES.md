@@ -144,3 +144,16 @@ an extra world while observing, and small chart axes lack a visible metric title
 Make inspector actions readable, show the creation ghost only while placing or
 editing a launch, and improve chart labels plus empty-state accessibility. Retain
 real screenshot review and browser acceptance for the new presentation states.
+
+Cycle 9 implemented in 134–135. Preview/input and graph tests pass, and the revised
+composition is included in CI screenshots. Final source review found that DOM
+contracts inspect app.js alone despite new UI controllers in separate modules;
+README, help and the design overview still describe merger-only collisions and
+manual original preservation.
+
+## Cycle 10 — close validation and documentation gaps
+
+Validate static DOM references across every web controller, update the public
+instructions and living architecture to the delivered game, run the complete
+native/WASM/browser release gates, inspect new screenshots and verify the deployed
+artifact. Resolve failures before marking the ten-cycle request complete.
