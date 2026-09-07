@@ -5,6 +5,7 @@ pub mod assessment;
 pub mod balances;
 pub mod benchmark;
 pub mod collisions;
+mod contact_search;
 pub mod generation;
 pub mod generator;
 #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
@@ -298,6 +299,8 @@ pub struct Event {
 }
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct World {
+    #[serde(skip)]
+    contact_search: contact_search::ContactSearch,
     pub rules_version: u32,
     pub history: history::History,
     pub resonances: Vec<resonance::Resonance>,
@@ -457,6 +460,7 @@ impl World {
             migration_rate: 0.0,
         };
         let mut world = Self {
+            contact_search: contact_search::ContactSearch::default(),
             rules_version,
             history: history::History::default(),
             resonances: vec![],
@@ -1151,12 +1155,22 @@ impl World {
         }
     }
     fn merge_contacts(&mut self, sweep: f64) {
+        let indexed = self.bodies.len() > 8;
+        if indexed {
+            self.contact_search.rebuild(&self.bodies, sweep);
+        }
         loop {
             let previous_count = self.bodies.len();
             let mut i = 0;
             while i < self.bodies.len() {
                 let mut j = i + 1;
                 while j < self.bodies.len() {
+                    if indexed {
+                        let Some(candidate) = self.contact_search.next(i, j) else {
+                            break;
+                        };
+                        j = candidate;
+                    }
                     let a = &self.bodies[i];
                     let b = &self.bodies[j];
                     // Closest point on the relative drift segment catches fast bodies
@@ -1172,6 +1186,9 @@ impl World {
                     let closest = separation.minus(drift.scale(fraction));
                     if closest.norm2() <= (a.radius + b.radius).powi(2) {
                         if self.rules_version >= 5 && self.resolve_solid_contact(i, j, sweep) {
+                            if indexed {
+                                self.contact_search.rebuild(&self.bodies, sweep);
+                            }
                             j += 1;
                             continue;
                         }
@@ -1289,6 +1306,9 @@ impl World {
                         }
                         if let Some(before) = energy_before {
                             self.collision_energy += before - self.energy();
+                        }
+                        if indexed {
+                            self.contact_search.rebuild(&self.bodies, sweep);
                         }
                         // A growing contact radius can overlap bodies tested earlier.
                         j = i + 1;

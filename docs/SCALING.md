@@ -147,3 +147,13 @@ readback, compatibility and reproducibility evaluated before choosing it over Ru
 - [REBOUND swept and spatial collision searches](https://rebound.hanno-rein.de/collisions/).
 - [Dehnen: symmetric, momentum-conserving tree interactions](https://arxiv.org/abs/astro-ph/0003209).
 - [Shared WASM memory requirements](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer).
+
+## Measured climb: swept collision search
+
+Iteration 153 replaces exhaustive collision narrow-phase work with sorted swept
+AABB candidates, retaining collision order and bitwise replay results. The whole
+64-body WASM workload improved from 170.29 to 88.89 ms / 2,048 ticks on the local
+x64 host. Reproduce a before/after comparison by preserving the older `dist/pkg`
+directory and running `node scripts/compare-physics.mjs /absolute/reference/pkg`
+after building the candidate. The report includes raw warmed alternating samples
+and checks 380 exact state/history/ledger/replay checkpoints.

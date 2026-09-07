@@ -1627,3 +1627,19 @@ assertions unchanged.
 Validation: release 151 passed all native/ARM64/WASM checks and 275 browser tests;
 its only failure was this wheel assertion. The corrected test runs in the full
 Actions release gate, including phone and tablet viewports.
+
+### 153 — Cull separated swept collision paths
+
+Review needs: phase profiling at 64 bodies found collision search cost 47 µs per
+tick versus 29 µs for SIMD gravity. Exhaustive narrow-phase work dominated.
+Implemented: reusable swept AABBs and a deterministic plane sweep produce sorted
+candidate pairs. Narrow-phase arithmetic and resolution order stay unchanged;
+contacts rebuild the index after every mutation. Small systems retain direct
+search. Derived scratch storage is excluded from saves and physical equality.
+A reusable package comparison script checks exact results against an older WASM.
+Validation: release native suite passed; 300 randomized swept candidate sets omit
+no true narrow-phase contacts. 380 complete WASM checkpoints match iteration 151
+exactly. Alternating warmed medians on this x64 host improve 32 bodies from
+44.15 to 28.30 ms and 64 from 170.29 to 88.89 ms per 2,048 ticks (1.56x/1.92x).
+Eight-body timings remain essentially unchanged. Device and CI timings follow
+separately; this is not an iPhone FPS claim.
