@@ -84,6 +84,154 @@ artifacts. CI pins toolchains/actions, uploads one tested artifact, and verifies
 its public byte hashes after Pages deployment. Timing is reported, while payload
 size and correctness are deterministic gates.
 
+## Review after iteration 110 — next release plan
+
+Reviewed 2026-09-07 against `ff3b125`, which matches `origin/main`. Its GitHub
+Actions run 34044553308 passed. The player reports 30 fps at rest and up to 60
+while navigating; the supplied overlay shows a paused one-body system at DPR 2.
+This supports keeping the present frame cadence and Rust / WASM / WebGL 2 stack.
+The next release should help players understand an outcome, make a deliberate
+change, and compare the result. This section is a plan, not completed work.
+
+### Findings from source review and headless experiments
+
+- Moon orbit controls mix reference frames. `Nudge` always uses the star's mass,
+  position and velocity, even when the inspector shows an orbit around a planet.
+  In the real WASM engine, a 0.003-Earth moon at 0.05 AU around a 318-Earth giant
+  at 3 AU receives an impulse equal to about 41.8% of its moon orbital speed
+  from the button labeled Boost 10%. The direction is also star-relative.
+- The same nearly circular moon has eccentricity about 0.000006, but the shared
+  `calm` predicate requires periapsis above 0.18 AU. The inspector consequently
+  calls it eccentric and rounds its mass to 0.00 Earths. Moon orbital stability
+  and stellar habitability need separate readings with appropriate units.
+- Every successful command clears resonance observations. A WASM experiment
+  with almost 160 years of measured libration loses its entire resonance track
+  after changing only axial spin, which currently leaves orbital dynamics alone.
+- Moon membership depends on its assigned `parent`. An unbound satellite is no
+  longer counted as a moon, but its parent metadata continues to block planet
+  tools. Captures by another planet are not classified. History and current
+  orbital membership need distinct representations.
+- The touch handler ends the entire gesture when one finger leaves a pinch;
+  continuing with the remaining finger requires another touch. Mission 8's UI
+  can also offer burns that the simulation rejects. These deserve focused
+  interaction regressions, beyond viewport fit and successful button clicks.
+- The 32-case native generator sweep still passes its finite-state checks.
+  At 12 requested bodies, disorder 0.6 and 24 years, 3 of 8 nursery seeds have no
+  mergers or ejections; the others yield at most two mergers and one calm formed
+  world. Chaos produces zero to three mergers and no ejections in this sample.
+  Calm systems remain calm and moon families retain all eight moons, as desired.
+  These are measurements of one bounded sample, not universal generator claims.
+- Resonance generation uses the same two planet masses, radii, phases and disk
+  torque regardless of seed or disorder; seed changes their spin. Its current
+  value is an authored demonstration, with limited variation.
+- The notebook compares endpoint totals and requires manually saving the old
+  run before branching. The resonance panel reports current values without a
+  graph. The journal displays five recent events from a 24-event simulation
+  buffer. The pieces exist, but following cause and effect takes too much work.
+- Contacts always merge. More impact outcomes could add depth, but their value
+  depends on players being able to see and compare what happened.
+
+### Recommended delivery order
+
+1. **Make moon observations and interventions trustworthy.** Introduce explicit
+   host-relative burns for bound moons, with direction following their actual
+   orbital motion. Show the reference body, burn strength and prograde/retrograde
+   state. Separate moon orbit labels from stellar habitability, retain useful
+   precision for small masses, and use days or local distances where clearer.
+   Define loss, transfer and recovery of satellite membership without erasing
+   origin history. Preserve resonance observations on purely rotational edits.
+   Finish pinch-to-one-finger continuation and align visible controls with
+   authoritative mission capabilities.
+
+   Acceptance: renderer-independent prograde and retrograde moon burn cases at
+   several phases; a circular moon never mislabeled solely due to small radius;
+   escaped and transferred satellite cases; spin preserves an existing resonance
+   track; browser checks for control availability and continuous touch gestures.
+   Any change to command semantics or recorded outcomes requires a new replay
+   rules version, with versions 1–3 retaining their existing behavior.
+
+2. **Make encounters understandable and experiments easy to compare.** Add a
+   compact event timeline with jump-to-before/after and optional pause or slow
+   playback at major encounters. Preserve an original run automatically before
+   branching. Show a selected body's mass, orbital size and eccentricity over
+   time; add period-ratio and resonant-angle histories for a selected pair.
+   Overlay the pre-encounter and post-encounter orbits in the appropriate frame.
+   Compare branches at the same simulated age, with the changed conditions
+   visible. On phones, use a compact inspector sheet so these additions leave
+   enough room to watch and navigate.
+
+   Acceptance: a player can inspect an impact, return to before it, change one
+   condition and compare two preserved runs. Headless tests verify history across
+   mergers, removed bodies, seeking and replay import. Histories have explicit
+   sample and byte caps; analysis uses the worker and updates charts only when
+   needed. Explain measured changes without claiming a definitive cause from
+   just the strongest instantaneous gravitational pull.
+
+3. **Build three strong challenge experiences around those tools.** Refine
+   protecting a garden during accretion, timing a gravity assist, and keeping a
+   moon family or resonant pair together. Give each a visible tradeoff, readable
+   failure feedback, staged hints and optional mastery goals such as less matter
+   or fewer interventions. Teach period ratio, observation time and libration
+   before asking players to discover a resonance from an empty system. Keep the
+   first two challenges short introductions.
+
+   Acceptance: each revised challenge has multiple materially different winning
+   command sequences, a plausible near miss, and regressions for cheap shortcuts.
+   Measure time to first decision, first meaningful event and completion in
+   simulated and playback time. Headless solvability is required; it does not by
+   itself establish that the experience is understandable or fun.
+
+4. **Make random systems produce varied, watchable stories.** Tune nursery and
+   encounter generators using measured outcome distributions. Offer clear calm,
+   active-formation and close-encounter choices, with a brief explanation of what
+   to watch. Vary resonance starting conditions within tested families and show
+   only settings that affect each style. Provide easy same-seed restart, change
+   one parameter and save-this-system actions. Optional event-following should
+   be interruptible immediately by manual camera input.
+
+   Acceptance: expand the native sweep across star mass, body count, disorder,
+   all five styles and longer observation windows. Report event timing, retained
+   worlds, formation, escapes and resonance outcomes. Enforce explicit per-style
+   expectations on a fixed validation set, with separate seeds to detect tuning
+   that only works on the authored examples. Export every failing replay. Calm
+   systems should not be forced to have destructive events.
+
+5. **Expand collision outcomes after the observation loop works.** Prototype
+   merging, grazing survival and a bounded debris-producing outcome, driven by
+   encounter parameters. Begin with isolated headless collisions and tune the
+   gameplay model before changing campaign rules. Track mass, material, linear
+   and angular momentum, and the energy assigned to heat or dispersal. Define
+   what happens at the body cap so fragmentation cannot erase unaccounted mass
+   or create unbounded work. Surface the chosen outcome in the event inspector.
+
+   Acceptance: tests cover head-on and grazing encounters, unequal masses,
+   opposite orbital directions, replay parity and body-cap saturation. Add
+   timestep-convergence checks for close passes and tight moons before extending
+   the supported numerical range. Tidal locking and spin-orbit evolution are a
+   later, separately tested physics milestone; current spin controls already
+   support reversed rotation, but tides would change orbital dynamics and their
+   momentum accounting.
+
+### Performance and release requirements throughout
+
+Keep the existing native → WASM → browser → exact-artifact Pages release path.
+Add outcome and history checks to native/Node gates, preserving graphics-independent
+verification. Grow browser coverage around real touch sequences and the complete
+inspect / branch / compare workflow. Retain bounded all-pairs gravity at the
+current system size; profile before changing the solver or renderer architecture.
+
+Add reproducible on-device performance scenarios for a 64-body running system,
+close moon tracking, simultaneous charts and navigation, and collision bursts.
+Record frame-time percentiles and simulation throughput over sustained sessions,
+with quality level, viewport, device and scenario seed. The target remains smooth
+60 fps at High on modern iPhone/iPad hardware. Software-rendered CI timings should
+not become a hardware-FPS gate; use deterministic payload, allocation, body and
+history bounds in CI and device traces for frame pacing and thermal behavior.
+
+The immediate implementation slice is item 1, followed by item 2 demonstrated
+through one polished garden/encounter challenge. That gives the next changes a
+concrete player journey and makes later generator and physics tuning reviewable.
+
 ## Iteration log
 
 ### 01 — Authoritative simulation foundation
