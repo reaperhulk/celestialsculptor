@@ -9,7 +9,7 @@ import {orbitalWatchSpeed} from './playback.js';
 import { Renderer } from './renderer.js';
 import {clampZoom} from './camera.js';
 import {FrameMeter,fpsFlag} from './performance.js';
-import {DeviceRecording,deviceScenario} from './device-test.js';
+import {DeviceRecording,deviceScenario,deviceScenarioSpeed} from './device-test.js';
 import { installInput } from './input.js';
 import { readProfile, writeProfile, canPlay, nextMission, award, normalizeProfile } from './progression.js';
 import {deviceStorage,parseReplay,saveExperiment,savedExperiments,archiveExperiment,parseArchive} from './storage.js';
@@ -48,7 +48,7 @@ try { renderer=new Renderer($('universe'),toast); } catch(error){fail(error.mess
 let worker,startupError;
 try{worker=new Worker(new URL('./worker.js',import.meta.url),{type:'module'});}catch(error){startupError='The simulation worker could not start. Reload to try again. '+error.message;}
 const channel=new RequestChannel(message=>worker.postMessage(message));
-const playback=new PlayControl((type,data,current)=>sendRequest(type,data,current),playing=>{$('play').textContent=state?.busy?'Cancel replay':playing?'Ⅱ Pause':'▶ Run';$('play').setAttribute('aria-pressed',String(playing));});
+const playback=new PlayControl((type,data,current)=>sendRequest(type,data,current),(playing,pending=false)=>{$('play').textContent=state?.busy?'Cancel replay':pending?(playing?'Starting…':'Pausing…'):playing?'Ⅱ Pause':'▶ Run';$('play').setAttribute('aria-pressed',String(playing));$('play').setAttribute('aria-busy',String(pending));});
 async function sendRequest(type,data={},current=null){
  if(state?.reviewing&&(['command','step','undo','rewind'].includes(type)||type==='play'&&data.value)){
   const original=await channel.send('original');if(current&&!current())return {playing:playback.playing};notebookEntries=preserveOriginal(storage,notebookEntries,original.replay,original.snapshot);
@@ -147,7 +147,7 @@ function renderState(next){
   if(document.activeElement!==$('seed'))$('seed').value=String(next.config.seed);
   $('system-label').textContent=`EXPERIMENT ${String(next.config.seed).padStart(4,'0')}`;
   if(!next.bodies.some(body=>body.id===selectedBody))selectedBody=next.bodies[0]?.id??null;
-  state=next;if(changedMission)setMissionUI();renderer?.setState(next);$('universe').dataset.tick=String(next.tick);
+  state=next;if(changedMission)setMissionUI();renderer?.setState(next);$('universe').dataset.tick=String(next.tick);$('universe').dataset.playing=String(next.playing);
   if(!present)return;lastUI=performance.now();
   updateHistory();
   const s=next.status,m=next.mission_definition||(mission===null?null:missions[mission]);
@@ -447,7 +447,7 @@ const generatorControls=new GeneratorControls({storage,getState:()=>state,
 
 $('prepare-device').onclick=async()=>{try{
  await send('play',{value:false});const original=await send('original');notebookEntries=preserveOriginal(storage,notebookEntries,original.replay,original.snapshot);
- deviceScenarioName=$('device-scenario').value;saveEpoch++;await send('import',{replay:JSON.stringify(deviceScenario(deviceScenarioName))});await send('speed',{value:.25});await send('event_policy',{value:'off'});preparedGeneration=state.generation;renderer?.fit();
+ deviceScenarioName=$('device-scenario').value;saveEpoch++;await send('import',{replay:JSON.stringify(deviceScenario(deviceScenarioName))});await send('speed',{value:deviceScenarioSpeed(deviceScenarioName)});await send('event_policy',{value:'off'});preparedGeneration=state.generation;renderer?.fit();
  if(deviceScenarioName==='moons'){selectedBody=1;renderer?.focus(1);inspect();}
  $('device-status').textContent='Scenario ready at ¼ speed. Your original is in the notebook. Start recording, then pan, zoom and open Observe while it runs.';await autosave();
  }catch(error){$('device-status').textContent=error.message;}};

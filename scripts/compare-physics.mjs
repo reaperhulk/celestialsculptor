@@ -89,7 +89,7 @@ try {
     dirty: run('git', ['status', '--porcelain', '--untracked-files=no']).trim() !== '',
     cpu: cpus()[0]?.model, node: process.version, rust: run('rustc', ['--version']).trim(),
     backend: simd.gravity_backend(), bitwiseEqualCheckpoints: checkpoints, cases,
-    scope: 'Whole simulation ticks at the current 64-body cap; host CPU, not device FPS or thousand-body support.',
+    scope: 'Whole simulation ticks for legacy-compatible 8/32/64-body fixtures; host CPU, not device FPS. Large rules-6 swarms use the separate scaling harness.',
   };
   await writeFile('physics-comparison-results.json', JSON.stringify(report, null, 2) + '\n');
   console.log(JSON.stringify({...report, cases: cases.map(({samples, ...item}) => item)}, null, 2));

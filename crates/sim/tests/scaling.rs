@@ -100,3 +100,39 @@ fn moons_and_retrograde_orbits_survive_with_a_gravitating_swarm() {
         .moon_orbit(w.bodies.iter().find(|b| b.id == 3).unwrap())
         .is_some());
 }
+
+#[test]
+fn thousand_body_swarm_runs_past_forty_years_with_bounded_history() {
+    let mut w = swarm(1024);
+    let mass = w.bodies.iter().map(|b| b.mass).sum::<f64>();
+    let momentum = w.momentum();
+    let angular = w.angular_momentum();
+    for year in 1..=40 {
+        w.advance(512);
+        assert_eq!(w.tick, year * 512, "simulation stalled at year {year}");
+        assert!(
+            w.bodies.len() > 512,
+            "fixture must exercise the tree solver"
+        );
+        assert!(w.bodies.iter().all(|b| b.mass.is_finite()
+            && b.mass > 0.
+            && b.pos.norm2().is_finite()
+            && b.vel.norm2().is_finite()
+            && b.spin.is_finite()));
+        let accounted_mass = w.bodies.iter().map(|b| b.mass).sum::<f64>() + w.escaped_mass;
+        assert!((accounted_mass - mass).abs() < 1e-12);
+        assert!(w.momentum().plus(w.escaped_momentum).minus(momentum).norm() < 1e-12);
+        assert!((w.angular_momentum() + w.escaped_angular_momentum - angular).abs() < 1e-12);
+        assert!(w.energy().is_finite() && w.collision_energy.is_finite());
+        assert!(w.history.frames.len() <= 256);
+        assert!(w.history.events.len() <= 256);
+        assert!(
+            w.history
+                .frames
+                .iter()
+                .map(|f| f.bodies.len())
+                .sum::<usize>()
+                <= 65_536
+        );
+    }
+}

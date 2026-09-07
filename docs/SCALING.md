@@ -13,8 +13,57 @@ The first whole-engine host sweep sustained 269 ticks/s at 1,024 quiet bodies an
 108 at 2,048; 1x requests 102.4 ticks/s. Larger systems slow simulated time. Worker
 batches yield at tick boundaries, display cadence is independent, and histories,
 trails and menus have memory/work limits. Physical iPhone/iPad FPS is not established
-by these host measurements. Ongoing needs are impact-ledger work and snapshot
-transport, followed by GPU compute qualification.
+by these host measurements. Impact-ledger updates now touch only affected bodies;
+large display frames use packed transferable f64 arrays with pooled decoding.
+The optional GPU comparison measures real compute without changing live physics.
+
+## Hill-climb results through iteration 163
+
+Keep candidates based on complete workloads and independent correctness checks.
+The following x64 host comparisons describe different stages and must not be
+multiplied together as one claimed speedup:
+
+| Change | Measured workload | Before → after | Decision |
+|---|---|---|---|
+| Swept collision candidates | 64 bodies, 2,048 complete ticks | 170.29 → 88.89 ms | Ship |
+| SoA and unchanged-force reuse | Same 64-body tick workload | 89.87 → 84.69 ms | Ship |
+| Local impact-energy accounting | 8,192 disordered bodies, ms/tick | 99.59 → 43.56 ms | Ship; same impacts |
+| Packed display transport | 8,192 bodies, encode/decode | 32.07 → 1.52 ms | Ship |
+| Extra vector output accumulation | 8,192 bodies, tree force only | 10.61 → 10.65 ms | Reject; whole-engine gains inconsistent |
+
+The rejected output-accumulation candidate improved the 1,024-body force-only
+probe by 14%, but whole-engine samples stayed around 3.7 ms/tick and the larger
+force workloads did not improve consistently. Retain the existing tested SIMD
+kernel without that additional unsafe output layout. All 419 scalar/SIMD and
+405 legacy comparison checkpoints passed, so this rejection is about benefit.
+
+Apple Silicon Actions run [34096762676](https://github.com/reaperhulk/celestialsculptor/actions/runs/34096762676)
+measured the production solver on an M1 hosted runner: approximately 180 ticks/s
+at 1,024 bodies, 72–82 at 2,048, 32–34 at 4,096, and 15 at 8,192.
+These short full-physics sweeps include both quiet and disordered swarms. The
+1x demand is 102.4 ticks/s; supporting 8,192 bodies does **not** mean sustaining
+1x at that population. Rendering and simulated time have separate budgets.
+
+That runner exposed an Apple WebGPU adapter. The 1,024-body GPU round trip took
+9.4 ms versus 2.5 ms for the CPU tree in that browser, with RMS relative force
+error 3.8e-6. This straightforward readback design loses at that count. GPU
+integration stays experimental. The next sweep includes 4,096 and 8,192 on Metal;
+short CPU measurements aggregate calls to avoid zero-duration timer samples.
+
+## Next measured climbs
+
+1. Use View → Device performance test to record the 1,024/4,096/8,192-body
+   workloads at requested 1x for five active minutes on real iPhone and iPad.
+   Judge FPS and achieved ticks/s together; inspect and navigate while recording.
+2. Profile the retained tree at the largest counts: tune leaf size, opening/error
+   curves and construction cost with the existing exact force and orbit gates.
+   Keep replay rules explicit for changes that alter arithmetic or approximation.
+3. If GPU readback still loses at larger counts, prototype device-resident
+   integration and collision handling as a separate qualified backend. Include
+   conservation, close encounters, resonance and replay portability in acceptance.
+4. Evaluate deterministic shared-memory workers only after verifying the hosting
+   requirements and measuring synchronization overhead against the remaining CPU
+   bottleneck. No live multithreaded or GPU physics backend is claimed today.
 
 Run `npm run bench:gravity` for force/error curves through 8,192 bodies and
 `npm run bench:scaling` for complete simulation and snapshot workloads. Actions runs
@@ -56,9 +105,9 @@ toolchain, and commit. Native/WASM tolerance checks and browser engine tests rem
 scaling work. Do not equate a smooth renderer with the worker
 keeping up at the requested speed.
 
-## Where the work grows
+## Baseline cost model before the scaling changes
 
-The direct solver visits N(N-1)/2 pairs five times per tick. Collision detection
+The original direct solver visited N(N-1)/2 pairs five times per tick. Collision detection
 also scans pairs at the initial contact pass and each of four substeps, repeating
 after mergers where necessary. The current tick rate requested at 1x is 102.4/s;
 16x asks for 1,638.4/s while retaining the same physical timestep.
@@ -74,7 +123,7 @@ At 1,000 bodies, direct gravity alone requests about 256 million pair evaluation
 per wall-clock second at 1x, or 4.09 billion at 16x. A modest SIMD speedup cannot
 remove that growth. These are operation counts, not measured supported workloads.
 
-## Ordered implementation plan
+## Original implementation plan (retained for review history)
 
 1. **Establish a scaling harness and remove fixed storage assumptions.** Add
    headless 64/128/256/512/1,024/2,048-body fixtures for separated orbits, clumps,

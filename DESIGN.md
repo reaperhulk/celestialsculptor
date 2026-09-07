@@ -1793,3 +1793,28 @@ Validation: headless tests prove force probes do not edit physical/replay state,
 verify imbalance/error metrics and exercise unavailable-GPU handling. Shader execution
 and independent error gates run in Actions. GPU timings include readback and are
 informational; software-adapter results are not physical GPU or phone measurements.
+
+### 163 — Qualify sustained swarms and reject an unproven SIMD candidate
+
+Review needs: short force probes can hide whole-engine regressions and browser
+timer quantization. Large systems also need lifetime and physical-device coverage;
+the original device recorder only prepared small worlds.
+Implemented: retain the existing SIMD kernel after an output-accumulation trial
+failed to improve the largest whole workloads consistently. Aggregate short CPU
+timing calls above timer granularity, extend the Apple GPU sweep through 8,192,
+and add five-minute 1x device workloads for 1,024, 4,096 and 8,192 physical bodies.
+Update the scaling scorecard with measured gains, rejected candidates and the next
+remaining bottlenecks. Add a forty-year 1,024-body headless stability gate.
+Validation: the sustained swarm advances every year, remains above the tree cutoff,
+stays finite, conserves mass and momentum within 1e-12, and bounds history to
+65,536 readings. The local run passed in 100 seconds. Device fixtures instantiate
+all requested bodies through the real WASM importer; quantized-clock tests verify
+positive, accurate short CPU timings. The rejected SIMD trial passed 419 scalar
+and 405 legacy checkpoints but its 8,192-body force time was 10.65 versus 10.61 ms.
+The previous Apple hardware GPU run passed accuracy gates but lost at 1,024 bodies
+(9.4-ms round trip versus 2.5-ms tree); the larger Metal comparison runs in CI.
+The browser gate exposed an optimistic Run label before pause acknowledgement.
+Show Starting/Pausing while intent is pending and expose the authoritative playback
+state; retain immediate input and rapid-toggle ordering. The browser test requires
+the acknowledged paused state followed by exact tick stability, and a controller
+test covers late snapshots and acknowledgement order.

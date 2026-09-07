@@ -1,4 +1,6 @@
-import test from 'node:test';import assert from 'node:assert/strict';import {DeviceRecording,deviceScenario} from '../web/device-test.js';
+import test from 'node:test';import assert from 'node:assert/strict';import {DeviceRecording,deviceScenario,deviceScenarioSpeed} from '../web/device-test.js';
+import {readFile} from 'node:fs/promises';import init,{Simulation} from '../dist/pkg/celestial_wasm.js';
+await init({module_or_path:await readFile('dist/pkg/celestial_wasm_bg.wasm')});
 test('a five-minute recording excludes idle gaps, bounds memory and retains slow frames',()=>{
  const r=new DeviceRecording({scenario:'test'});for(let i=0;i<=9000;i++)r.record(i*1000/60,2,i,true);
  r.record(160000,0,9000,false);for(let i=0;i<=9001;i++)r.record(200000+i*1000/60,3,9000+i,true);
@@ -8,4 +10,8 @@ test('a five-minute recording excludes idle gaps, bounds memory and retains slow
 });
 test('a changed workload finishes an immutable partial measurement',()=>{
  const r=new DeviceRecording({revision:'abc',speed:.25,scenario:'current'});r.record(0,2,0,true);r.record(16,2,1,true);r.stop('rendering quality changed');const before=r.report();r.record(1000,30,100,true);assert.deepEqual(r.report(),before);assert.equal(before.reason,'rendering quality changed');assert.equal(before.revision,'abc');assert.equal(before.frames,1);
+});
+test('large device workloads instantiate the requested physical population at 1x',()=>{
+ for(const count of [1024,4096,8192]){const name=`swarm${count}`,replay=deviceScenario(name),sim=new Simulation(JSON.stringify(replay.config));try{sim.import_replay(JSON.stringify(replay));assert.equal(sim.body_count(),count);assert.equal(deviceScenarioSpeed(name),1);assert.equal(replay.version,6);}finally{sim.free();}}
+ assert.equal(deviceScenarioSpeed('stress'),.25);
 });

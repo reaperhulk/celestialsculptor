@@ -14,3 +14,10 @@ test('pause supersedes a run still preserving a reviewed timeline',async()=>{
  control=new PlayControl(async(type,data,current)=>{if(data.value){await gate;if(!current())return {playing:control.playing};}sent.push(data.value);return {playing:data.value};},()=>{});
  control.observe({playing:false});const run=control.toggle();assert.equal(control.playing,true);await control.toggle();release();await run;assert.deepEqual(sent,[false]);assert.equal(control.playing,false);
 });
+test('pending pause remains visible until its own worker acknowledgement',async()=>{
+ const requests=[],updates=[],control=new PlayControl((type,data)=>new Promise(resolve=>requests.push(resolve)),(playing,pending=false)=>updates.push({playing,pending}));
+ control.observe({playing:true});const pause=control.set(false);assert.deepEqual(updates.at(-1),{playing:false,pending:true});
+ control.observe({playing:true});assert.deepEqual(updates.at(-1),{playing:false,pending:true});
+ control.observe({playing:false});assert.deepEqual(updates.at(-1),{playing:false,pending:true});
+ requests[0]({playing:false});await pause;assert.deepEqual(updates.at(-1),{playing:false,pending:false});
+});

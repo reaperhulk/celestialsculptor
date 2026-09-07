@@ -5,7 +5,14 @@ export function forceError(reference,candidate,particles){
  for(let i=0;i<candidate.length;i+=2){const dx=candidate[i]-reference[i],dy=candidate[i+1]-reference[i+1],norm=Math.hypot(reference[i],reference[i+1]),mass=particles[i/2*3+2];error+=dx*dx+dy*dy;scale+=norm*norm;relative.push(Math.hypot(dx,dy)/Math.max(norm,1e-12));fx+=candidate[i]*mass;fy+=candidate[i+1]*mass;force+=Math.hypot(candidate[i],candidate[i+1])*mass;}
  relative.sort((a,b)=>a-b);return {rmsRelativeError:Math.sqrt(error/Math.max(scale,1e-30)),p99RelativeError:relative[Math.floor((relative.length-1)*.99)],maxRelativeError:relative.at(-1),momentumResidual:Math.hypot(fx,fy)/Math.max(force,1e-30)};
 }
-export async function runGpuBenchmark({counts=[64,1024,4096],rounds=5,fallback=false,progress=()=>{}}={}){
+// Aggregate short CPU calls above the browser's timer granularity. A single
+// 64-body force calculation can otherwise be reported as zero milliseconds.
+export function measureCpuForce(sim,exact,clock=()=>performance.now()){
+ const start=clock();let elapsed=0,count=0;
+ do{sim.benchmark_gravity(exact,1);count++;elapsed=clock()-start;}while(elapsed<8&&count<10000);
+ return elapsed/count;
+}
+export async function runGpuBenchmark({counts=[64,1024,4096,8192],rounds=5,fallback=false,progress=()=>{}}={}){
  const gpu=await GpuGravity.create({fallback});if(!gpu)return {supported:false,reason:'WebGPU compute is unavailable in this browser. The WASM solver remains active.'};
  try{
   const {default:init,Simulation}=await import('./pkg/celestial_wasm.js');await init();const cases=[];
@@ -20,7 +27,7 @@ export async function runGpuBenchmark({counts=[64,1024,4096],rounds=5,fallback=f
     for(let round=0;round<rounds+2;round++){
      // Alternate CPU/GPU order; GPU timing includes upload, dispatch, map and copy.
      for(const mode of round%2?['gpu','tree','direct']:['direct','tree','gpu']){
-      const start=performance.now();if(mode==='gpu')candidate=await gpu.compute(particles);else sim.benchmark_gravity(mode==='direct',1);const elapsed=performance.now()-start;if(round>=2)samples[mode].push(elapsed);
+      let elapsed;if(mode==='gpu'){const start=performance.now();candidate=await gpu.compute(particles);elapsed=performance.now()-start;}else elapsed=measureCpuForce(sim,mode==='direct');if(round>=2)samples[mode].push(elapsed);
      }
     }
     const median=values=>[...values].sort((a,b)=>a-b)[Math.floor(values.length/2)],directMs=median(samples.direct),treeMs=median(samples.tree),gpuMs=median(samples.gpu);
