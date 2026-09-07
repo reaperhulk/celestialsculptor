@@ -1333,3 +1333,14 @@ momentum, with bounded resolved-energy error and exact replay reconstruction.
 All 120 native/WASM population cases pass the stronger gates. Build/contracts and
 clippy pass. Browser run 123 passed 196 checks; its sole failure was the new phone
 screenshot fixture clicking a hidden Sculpt control. The fixture now opens that tab.
+
+### 131 — Refine close-encounter integration, not only isolated orbits
+
+Review needs: timestep checks covered moon orbits and impacts but not the
+strong gravitational encounter at the center of the slingshot challenge.
+Implemented: the authored gravity-assist fixture now runs with four, eight and
+sixteen substeps. Its escaping outcome, momentum/angular balance and resolved
+energy are checked independently of rendering and playback batching.
+Validation: all three resolutions produce the assisted escape; relative energy
+error stays below 0.001 and the finest run reduces it below 40% of the production
+step's error. The complete native workspace suite passes with the new ledgers.

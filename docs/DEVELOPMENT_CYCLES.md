@@ -120,3 +120,16 @@ Disk torque also lacks an energy ledger despite recording its momentum transfer.
 Record escape and disk-energy exchanges without changing trajectories. Expose a
 headless balance report and verify conservation across ejection, migration and
 collisions. Extend timestep refinement to a gravitational-assist encounter.
+
+Cycle 7 implemented in 130–131. All 120 seed cases now pass momentum and angular
+checks including escapes; native refinement reduces the flyby's energy error and
+keeps its outcome. The full native suite passes. Review of the device recorder
+and live charts found that changing display settings can mix workloads in one
+report, and advancing time rebuilds unchanged encounter controls every refresh.
+
+## Cycle 8 — trustworthy performance measurements and stable live controls
+
+End recordings when their workload settings change, identify the actual scenario
+and build, and keep fixed-memory reports. Reuse unchanged encounter controls so
+live charts preserve focus and avoid unnecessary DOM allocation. Validate both
+measurement boundaries and browser control identity while time advances.

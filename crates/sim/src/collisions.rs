@@ -397,3 +397,42 @@ mod convergence {
         assert!(error(&coarse) < 0.0001);
     }
 }
+
+#[cfg(test)]
+mod flyby_refinement {
+    use crate::*;
+    #[test]
+    fn gravitational_assist_outcome_survives_timestep_refinement() {
+        let example = scenarios::campaign()
+            .into_iter()
+            .find(|s| s.name == "v5-6-trailing-flyby")
+            .unwrap();
+        let mut replay = example.replay;
+        replay.end_tick = 0;
+        let initial = World::from_replay(replay).unwrap();
+        let baseline = initial.balances();
+        let mut errors = vec![];
+        for substeps in [4, 8, 16] {
+            let mut w = initial.clone();
+            for _ in 0..2048 {
+                w.integrate_tick(substeps);
+            }
+            let balance = w.balances();
+            assert_eq!(w.assisted_ejections, 1, "substeps {substeps}");
+            assert!(balance.momentum.minus(baseline.momentum).norm() < 1e-12);
+            assert!((balance.angular_momentum - baseline.angular_momentum).abs() < 1e-12);
+            let drift = ((balance.energy_balance - baseline.energy_balance)
+                / baseline.energy_balance)
+                .abs();
+            errors.push(drift);
+            assert!(
+                drift < 0.001,
+                "substeps {substeps}, relative energy drift {drift}"
+            );
+        }
+        assert!(
+            errors[2] < errors[0] * 0.4,
+            "refinement energy errors: {errors:?}"
+        );
+    }
+}

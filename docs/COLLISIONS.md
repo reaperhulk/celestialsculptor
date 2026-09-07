@@ -37,3 +37,10 @@ position/potential changes and must not be interpreted as physical heat.
 
 Native tests exercise conservation and bounds independently of rendering. This
 model intentionally omits vapor loss, interior structure and a fine debris cloud.
+
+Convergence coverage now includes a tight moon orbit, glancing survival and an
+authored gravity-assist escape at 4 / 8 / 16 substeps. The game always uses four;
+refinement is a native test diagnostic. Escape and disk ledgers allow balance
+checks after those transfers. Compare balances between external edits; commands
+can intentionally add mass, momentum or energy. The reported resolved energy
+excludes internal spin energy and the simplified remnant interior.
