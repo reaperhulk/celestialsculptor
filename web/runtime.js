@@ -16,7 +16,72 @@ export class Runtime {
   state(id) {
     if (!this.sim) return;
     const snapshot = JSON.parse(this.sim.snapshot());
-    this.send({ type: 'state', id, ...snapshot, timeline_end:this.timelineSource?this.timelineEnd:snapshot.tick, reviewing:Boolean(this.timelineSource), playing: this.playing, speed: this.speed, event_policy:this.eventPolicy, generation: this.generation });
+    this.send({ type: 'state', id, ...snapshot, busy:this.operation?.type||null, timeline_end:this.timelineSource?this.timelineEnd:snapshot.tick, reviewing:Boolean(this.timelineSource), playing: this.playing, speed: this.speed, event_policy:this.eventPolicy, generation: this.generation });
+  }
+  // Production message entrypoint. Replays yield between small WASM slices so
+  // Pause, reset and status requests never sit behind years of reconstruction.
+  receive(message) {
+    const type=message?.type;
+    if(['reset','import','seek','undo','rewind'].includes(type)||type==='play')this.operation=null;
+    if(['import','seek','undo','rewind','compare','original'].includes(type)){
+      if(this.operation){this.send({type:'error',id:message.id,message:'An experiment is already being reconstructed.'});return;}
+      return this.rebuild(message);
+    }
+    if(this.operation&&['command','step'].includes(type)){this.send({type:'error',id:message.id,message:'Wait for reconstruction or pause to cancel it before editing.'});return;}
+    return this.handle(message);
+  }
+  async reconstruct(replay,operation) {
+    const input=typeof replay==='string'?replay:JSON.stringify(replay);
+    if(input.length>512000)throw new Error('Experiment file is too large');
+    const data=JSON.parse(input),temp=new this.Simulation(JSON.stringify(data.config));
+    try {
+      temp.begin_import(input);
+      let slice=performance.now(),reported=-Infinity;
+      for(;;){
+        if(this.operation!==operation)throw new Error('Reconstruction cancelled. Your current experiment is unchanged.');
+        if(temp.advance_import(32))return temp;
+        const now=performance.now();
+        if(now-reported>=250){this.send({type:'progress',id:operation.id,operation:operation.type,tick:temp.import_tick(),end_tick:data.end_tick});reported=now;}
+        if(now-slice>=6){await new Promise(resolve=>setTimeout(resolve,0));slice=performance.now();}
+      }
+    }catch(error){temp.free();throw error;}
+  }
+  async rebuild(message) {
+    const {type,id}=message;
+    if(!this.sim){this.send({type:'error',id,message:'The simulation is still loading.'});return;}
+    if(type==='original'&&!this.timelineSource){this.send({type:'original',id,replay:this.sim.export_replay(),snapshot:JSON.parse(this.sim.snapshot())});return;}
+    const operation={type,id};this.operation=operation;this.playing=false;this.debt=0;this.state();
+    let next;
+    try{
+      if(type==='compare'){
+        if(!Array.isArray(message.replays)||message.replays.length!==2||message.replays.some(r=>typeof r!=='string'||r.length>512000))throw new Error('Choose two valid experiments');
+        const replays=message.replays.map(r=>JSON.parse(r)),end=Math.min(...replays.map(r=>r.end_tick)),tick=message.tick??end;
+        if(!Number.isInteger(tick)||tick<0||tick>end)throw new Error('Choose an age inside both recorded experiments');
+        const states=[],histories=[];
+        for(const replay of replays){next=await this.reconstruct({...replay,end_tick:tick,commands:replay.commands.filter(c=>c.tick<=tick)},operation);states.push(JSON.parse(next.snapshot()));if(message.include_history)histories.push(JSON.parse(next.observations()));next.free();next=null;}
+        this.send({type:'comparison',id,tick,states,...(message.include_history?{histories}:{})});return;
+      }
+      let source,history,end;
+      let replay=type==='import'?message.replay:this.sim.export_replay();
+      if(type==='original')replay=this.timelineSource;
+      if(type==='seek'){
+        source=this.timelineSource||replay;history=this.timelineSource?this.timelineHistory:JSON.parse(this.sim.observations());
+        replay=JSON.parse(source);end=replay.end_tick;
+        if(!Number.isInteger(message.tick)||message.tick<0||message.tick>end)throw new Error('Choose a time inside the recorded experiment');
+        replay.commands=replay.commands.filter(c=>c.tick<=message.tick);replay.end_tick=message.tick;
+      }else if(type==='undo'||type==='rewind'){
+        replay=JSON.parse(replay);
+        if(type==='undo'){if(!replay.commands.pop())throw new Error('No sculpting actions to undo');}
+        else{replay.commands=replay.commands.filter(c=>c.tick===0);replay.end_tick=0;}
+      }
+      next=await this.reconstruct(replay,operation);
+      if(this.operation!==operation)throw new Error('Reconstruction cancelled. Your current experiment is unchanged.');
+      if(type==='original'){this.send({type:'original',id,replay,snapshot:JSON.parse(next.snapshot())});return;}
+      this.sim.free();this.sim=next;next=null;this.generation++;
+      this.timelineSource=type==='seek'?source:null;this.timelineHistory=type==='seek'?history:null;if(type==='seek')this.timelineEnd=end;
+      this.operation=null;this.state(id);
+    }catch(error){this.send({type:'error',id,message:String(error?.message||error)});}
+    finally{next?.free();if(this.operation===operation){this.operation=null;this.state();}}
   }
   handle(message) {
     const { type, id } = message ?? {};

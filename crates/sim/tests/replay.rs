@@ -70,13 +70,13 @@ fn experiment_stops_at_exportable_time_limit() {
     assert!(w.status().exhausted);
 }
 #[test]
-fn dense_experiments_stop_at_a_replayable_work_budget() {
+fn dense_experiments_keep_running_past_the_old_work_budget() {
     let mut w = celestial_sim::benchmark::system(64);
-    w.work_units = MAX_WORK_UNITS;
+    w.work_units = LEGACY_WORK_LIMIT;
     let before = w.clone();
     w.advance(10);
-    assert_eq!(w, before);
-    assert!(w.status().exhausted);
+    assert_eq!(w.tick, before.tick + 10);
+    assert!(!w.status().exhausted);
 }
 #[test]
 fn rewind_restores_initial_setup_instead_of_flattening_later_interventions() {
@@ -154,22 +154,41 @@ proptest! {
 }
 
 #[test]
-fn naturally_exhausted_dense_run_is_exportable_and_cannot_import_past_its_limit() {
-    let mut w = celestial_sim::benchmark::system(64);
-    w.advance(u32::MAX);
-    assert!(w.exhausted());
-    assert!(w.work_units <= MAX_WORK_UNITS);
-    assert!(w.tick < MAX_TICKS);
-    let replay = w.replay();
-    assert_eq!(w, World::from_replay(replay.clone()).unwrap());
-    let mut too_far = replay;
-    too_far.end_tick += 1;
-    assert!(World::from_replay(too_far)
-        .unwrap_err()
-        .contains("work limit"));
-    let before = w.clone();
-    w.advance(512);
-    assert_eq!(w, before);
+fn debris_system_survives_sixty_years_and_rebuilds_incrementally() {
+    let mut w = world(42);
+    for radius in [1.5, 2.5, 3.5, 4.5] {
+        w.apply(Command::SeedBelt { radius }).unwrap();
+    }
+    w.advance(512 * 60);
+    assert_eq!(w.tick, 512 * 60);
+    assert!(w.work_units > LEGACY_WORK_LIMIT);
+    assert!(!w.exhausted());
+    let mut rebuild = celestial_sim::replay::Reconstruction::new(w.replay()).unwrap();
+    while !rebuild.advance(127).unwrap() {}
+    assert_eq!(w, rebuild.finish().unwrap());
+}
+
+#[test]
+fn incremental_reconstruction_preserves_timed_edits_and_validates_before_stepping() {
+    let mut w = world(42);
+    w.apply(Command::SeedBelt { radius: 2.5 }).unwrap();
+    w.advance(130);
+    w.apply(Command::Launch {
+        kind: Kind::Rocky,
+        radius: 1.0,
+        angle: 0.0,
+        speed: 1.0,
+    })
+    .unwrap();
+    w.advance(300);
+    for chunk in [1, 64, 128, 512] {
+        let mut replay = celestial_sim::replay::Reconstruction::new(w.replay()).unwrap();
+        while !replay.advance(chunk).unwrap() {}
+        assert_eq!(w, replay.finish().unwrap());
+    }
+    let mut invalid = w.replay();
+    invalid.commands[1].tick = invalid.end_tick + 1;
+    assert!(celestial_sim::replay::Reconstruction::new(invalid).is_err());
 }
 
 proptest! {

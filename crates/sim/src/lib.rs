@@ -8,6 +8,7 @@ pub mod collisions;
 pub mod generation;
 pub mod generator;
 pub mod history;
+pub mod replay;
 pub mod resonance;
 pub mod satellites;
 pub mod scenarios;
@@ -20,7 +21,7 @@ pub const MAX_BODIES: usize = 64;
 pub const SOFTENING: f64 = 0.002;
 pub const SAVE_VERSION: u32 = 5;
 pub const MAX_TICKS: u64 = 512 * 600;
-pub const MAX_WORK_UNITS: u64 = 20_000_000;
+pub const LEGACY_WORK_LIMIT: u64 = 20_000_000;
 
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct V2 {
@@ -1552,31 +1553,11 @@ impl World {
         (n * n.saturating_sub(1) / 2).max(1)
     }
     pub fn exhausted(&self) -> bool {
-        self.tick >= MAX_TICKS || self.work_units + self.tick_work() > MAX_WORK_UNITS
+        self.tick >= MAX_TICKS
     }
     pub fn from_replay(replay: Replay) -> Result<Self, String> {
-        // Import is work-bounded. No untrusted state or derived scores are accepted.
-        if !(1..=SAVE_VERSION).contains(&replay.version)
-            || replay.end_tick > MAX_TICKS
-            || replay.commands.len() > 2048
-        {
-            return Err("Unsupported or oversized experiment".into());
-        }
-        let mut world = Self::with_rules(replay.config, replay.version)?;
-        for action in replay.commands {
-            if action.tick < world.tick || action.tick > replay.end_tick {
-                return Err("Commands must be ordered inside the experiment".into());
-            }
-            world.advance((action.tick - world.tick) as u32);
-            if world.tick != action.tick {
-                return Err("Experiment exceeds the simulation work limit".into());
-            }
-            world.apply(action.command)?;
-        }
-        world.advance((replay.end_tick - world.tick) as u32);
-        if world.tick != replay.end_tick {
-            return Err("Experiment exceeds the simulation work limit".into());
-        }
-        Ok(world)
+        let mut reconstruction = replay::Reconstruction::new(replay)?;
+        while !reconstruction.advance(512)? {}
+        reconstruction.finish()
     }
 }

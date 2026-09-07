@@ -45,7 +45,7 @@ try { renderer=new Renderer($('universe'),toast); } catch(error){fail(error.mess
 let worker,startupError;
 try{worker=new Worker(new URL('./worker.js',import.meta.url),{type:'module'});}catch(error){startupError='The simulation worker could not start. Reload to try again. '+error.message;}
 const channel=new RequestChannel(message=>worker.postMessage(message));
-const playback=new PlayControl((type,data)=>channel.send(type,data),playing=>{$('play').textContent=playing?'Ⅱ Pause':'▶ Run';$('play').setAttribute('aria-pressed',String(playing));});
+const playback=new PlayControl((type,data)=>channel.send(type,data),playing=>{$('play').textContent=state?.busy?'Cancel replay':playing?'Ⅱ Pause':'▶ Run';$('play').setAttribute('aria-pressed',String(playing));});
 async function send(type,data={}){
  if(state?.reviewing&&(['command','step','undo','rewind'].includes(type)||type==='play'&&data.value)){
   const original=await channel.send('original');notebookEntries=preserveOriginal(storage,notebookEntries,original.replay,original.snapshot);
@@ -169,7 +169,7 @@ function renderState(next){
     if(!writeProfile(storage,profile))toast('Discovery earned. Device storage is unavailable, so progress will last for this session.');
     else toast(`Discovery: ${m.unlock}`);
   }
-  $('playback-note').textContent=`${s.moons} bound moon${s.moons===1?'':'s'} · ${s.formed} worlds formed from debris`;
+  $('playback-note').textContent=next.busy?'Rebuilding experiment…':`${s.moons} bound moon${s.moons===1?'':'s'} · ${s.formed} worlds formed from debris`;
   updateResonanceReadings(next);
   $('next-mission').hidden=!s.completed||mission===null;
   $('next-mission').textContent=mission===9?'Explore the sandbox':'Next challenge';
@@ -211,6 +211,7 @@ if(worker)worker.onmessage=async({data})=>{
     if(!restored)await reset(nextMission(profile));
   }else if(data.type==='state'){renderState(data);}
   else if(data.type==='fatal'){workerFailed(data.message);}
+  else if(data.type==='progress')$('playback-note').textContent=`Rebuilding experiment · ${(data.tick/512).toFixed(1)} / ${(data.end_tick/512).toFixed(1)} years`;
   if(!channel.receive(data)&&data.type==='error')toast(data.message);
 };
 if(worker)worker.onerror=()=>workerFailed('The simulation could not start. Reload to try again.');
@@ -288,7 +289,7 @@ $('disk-form').onsubmit=event=>{event.preventDefault();try{send('command',{comma
 $('kind').addEventListener('change',()=>{$('body-mass').value=String({rocky:1,ice:2,giant:state?.rules_version===1?50:318,dust:.25}[$('kind').value]);updateDraft();});
 for(const id of ['kind','radius','speed','angle','body-mass','orbit-direction'])$(id).addEventListener('input',updateDraft);
 for(const id of ['radius','speed'])$(id+'-range').oninput=()=>{$(id).value=$(id+'-range').value;updateDraft();};
-$('play').onclick=()=>send('play',{value:!playback.playing}).catch(error=>toast(error.message));$('step').onclick=()=>action('step');$('rewind').onclick=()=>action('rewind');
+$('play').onclick=()=>send('play',{value:state?.busy?false:!playback.playing}).catch(error=>toast(error.message));$('step').onclick=()=>action('step');$('rewind').onclick=()=>action('rewind');
 $('undo').onclick=()=>action('undo').then(()=>renderer?.trails.clear());
 $('time-speed').onchange=()=>action('speed',{value:Number($('time-speed').value)});
 $('view').onclick=()=>{if(renderer){renderer.tilt=renderer.tilt===1?.62:1;$('view').textContent=renderer.tilt===1?'Tilt view':'Top view';}};

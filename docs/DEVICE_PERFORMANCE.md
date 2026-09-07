@@ -5,7 +5,7 @@ rendering detail and disable Reduce decorative motion for the quality target.
 Prepare a scenario; this saves the current experiment in the notebook. Record
 five minutes, pan/pinch/follow bodies, and open Observe while the simulation runs.
 
-- 64 worlds: sustained gravity at ¼ speed stays inside the simulation work budget.
+- 64 worlds: sustained gravity at ¼ speed; denser systems have the same 600-year age range.
 - Moon tracking: follow the host and a moon; pinch and pan between local/system views.
 - Nursery: observe impacts and charts while bodies merge, graze or fragment.
 

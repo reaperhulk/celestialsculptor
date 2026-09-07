@@ -11,4 +11,5 @@ test('ordinary progress is throttled while actions and pause stay immediate',()=
  assert.equal(shouldPresent(running,running,100,181),true);
  assert.equal(shouldPresent(running,{...running,id:2},100,110),true);
  assert.equal(shouldPresent(running,{...running,playing:false},100,110),true);
+ assert.equal(shouldPresent({...running,playing:false,busy:'compare'},{...running,playing:false,busy:null},100,110),true);
 });

@@ -4,7 +4,7 @@ import { Runtime } from './runtime.js';
 try {
   await init();
   const runtime = new Runtime(Simulation, message => self.postMessage(message));
-  self.onmessage = event => runtime.handle(event.data);
+  self.onmessage = event => runtime.receive(event.data);
   let previous = performance.now(), lastState = previous;
   setInterval(() => {
     const now = performance.now();
@@ -16,6 +16,7 @@ try {
       }
     } catch (error) {
       runtime.playing = false;
+      runtime.state();
       self.postMessage({type: 'error', message: String(error?.message || error)});
     }
     previous = now;

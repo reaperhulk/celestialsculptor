@@ -22,6 +22,7 @@ use wasm_bindgen::prelude::*;
 #[wasm_bindgen]
 pub struct Simulation {
     world: World,
+    reconstruction: Option<celestial_sim::replay::Reconstruction>,
 }
 
 fn js_error(e: impl ToString) -> JsValue {
@@ -38,6 +39,7 @@ impl Simulation {
         let config: Config = serde_json::from_str(config).map_err(js_error)?;
         Ok(Self {
             world: World::new(config).map_err(js_error)?,
+            reconstruction: None,
         })
     }
     pub fn command(&mut self, command: &str) -> Result<(), JsValue> {
@@ -125,7 +127,42 @@ impl Simulation {
         let replay: Replay = serde_json::from_str(input).map_err(js_error)?;
         let world = World::from_replay(replay).map_err(js_error)?;
         self.world = world;
+        self.reconstruction = None;
         Ok(())
+    }
+    /// Rebuild off to the side; no partial or untrusted state replaces the live world.
+    pub fn begin_import(&mut self, input: &str) -> Result<(), JsValue> {
+        if input.len() > 512_000 {
+            return Err(js_error("Experiment file is too large"));
+        }
+        let replay: Replay = serde_json::from_str(input).map_err(js_error)?;
+        self.reconstruction =
+            Some(celestial_sim::replay::Reconstruction::new(replay).map_err(js_error)?);
+        Ok(())
+    }
+    pub fn advance_import(&mut self, ticks: f64) -> Result<bool, JsValue> {
+        if !ticks.is_finite() || ticks.fract() != 0.0 || !(1.0..=512.0).contains(&ticks) {
+            return Err(js_error("Use a whole number of ticks from 1 to 512"));
+        }
+        let pending = self
+            .reconstruction
+            .as_mut()
+            .ok_or_else(|| js_error("No reconstruction in progress"))?;
+        let done = pending.advance(ticks as u32).map_err(js_error)?;
+        if done {
+            self.world = self
+                .reconstruction
+                .take()
+                .expect("active reconstruction")
+                .finish()
+                .map_err(js_error)?;
+        }
+        Ok(done)
+    }
+    pub fn import_tick(&self) -> f64 {
+        self.reconstruction
+            .as_ref()
+            .map_or(self.world.tick, |r| r.tick()) as f64
     }
     pub fn rewind(&mut self) -> Result<(), JsValue> {
         self.world.rewind().map_err(js_error)

@@ -66,3 +66,31 @@ test('timeline review removes later placements and restores them exactly on retu
 test('pausing a reviewed timeline retains its full observation cache and original endpoint',()=>{
  const {r,messages}=setup();try{r.sim.advance(256);r.handle({type:'seek',tick:32});const history=r.timelineHistory,source=r.timelineSource;r.handle({type:'play',value:false});assert.deepEqual(r.timelineHistory,history);assert.equal(r.timelineSource,source);r.handle({type:'observations',filter:{body:1}});assert.equal(messages.at(-1).type,'observations');assert.ok(messages.at(-1).history.frames.at(-1).tick>=256);r.handle({type:'seek',tick:256});assert.equal(JSON.parse(r.sim.snapshot()).tick,256);}finally{r.sim.free();}
 });
+test('a 48-fragment sandbox runs at 16x for sixty years and reconstructs while yielding',async()=>{
+ const messages=[],r=new Runtime(Simulation,m=>messages.push(m));r.receive({type:'reset',config:{...config,mission:null}});
+ try{
+  for(const radius of [1.5,2.5,3.5,4.5])r.receive({type:'command',command:{type:'seed_belt',radius}});
+  r.receive({type:'speed',value:16});r.receive({type:'play',value:true});for(let i=0;i<240;i++)r.advanceElapsed(.1);
+  assert.equal(JSON.parse(r.sim.snapshot()).tick,512*60);assert.equal(r.playing,true);assert.equal(r.sim.flags()&2,0);
+  const replay=r.sim.export_replay(),snapshot=r.sim.snapshot();let heartbeats=0;const timer=setInterval(()=>heartbeats++,0);
+  try{await r.receive({type:'import',id:700,replay});}finally{clearInterval(timer);}
+  assert.equal(r.sim.snapshot(),snapshot);assert.equal(messages.find(m=>m.id===700&&m.type==='state')?.tick,512*60);assert.ok(heartbeats>1);assert.ok(messages.some(m=>m.type==='progress'&&m.id===700));assert.equal(r.playing,false);
+ }finally{r.sim.free();}
+});
+test('pause cancels long reconstruction atomically and replacement cannot install stale state',async()=>{
+ const {r,messages}=setup();try{
+  const before=r.sim.snapshot(),replay=JSON.parse(r.sim.export_replay());replay.end_tick=512*500;
+  const pending=r.receive({type:'import',id:701,replay:JSON.stringify(replay)});r.receive({type:'play',value:false});await pending;
+  assert.equal(r.sim.snapshot(),before);assert.equal(r.playing,false);assert.match(messages.find(m=>m.id===701&&m.type==='error').message,/cancelled/);
+  const replacement=r.receive({type:'import',id:702,replay:JSON.stringify(replay)});r.receive({type:'reset',config:{...config,seed:7}});await replacement;
+  assert.equal(JSON.parse(r.sim.snapshot()).config.seed,7);assert.equal(JSON.parse(r.sim.snapshot()).tick,0);
+ }finally{r.sim.free();}
+});
+test('incremental timeline seek undo and comparison preserve their authoritative endpoints',async()=>{
+ const {r,messages}=setup();try{
+  r.sim.advance(200);r.handle({type:'command',command:{type:'launch',kind:'rocky',radius:2,angle:0,speed:1}});r.sim.advance(200);const original=r.sim.export_replay();
+  await r.receive({type:'seek',tick:100});assert.equal(JSON.parse(r.sim.snapshot()).tick,100);await r.receive({type:'original',id:703});assert.equal(messages.find(m=>m.id===703&&m.type==='original').replay,original);
+  await r.receive({type:'seek',tick:400});assert.equal(r.sim.export_replay(),original);await r.receive({type:'undo'});assert.equal(JSON.parse(r.sim.snapshot()).bodies.length,2);assert.equal(JSON.parse(r.sim.snapshot()).tick,400);
+  const branch=r.sim.export_replay();await r.receive({type:'compare',id:704,replays:[original,branch],tick:300,include_history:true});const compared=messages.find(m=>m.type==='comparison'&&m.id===704);assert.deepEqual(compared.states.map(s=>s.tick),[300,300]);assert.equal(r.sim.export_replay(),branch);
+ }finally{r.sim.free();}
+});

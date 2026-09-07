@@ -75,7 +75,7 @@ with the native CLI. Matter is a gameplay budget; burns are external interventio
 and are excluded from conservation claims across edits.
 
 A replay is versioned configuration plus ordered tick-stamped commands. Versions 1–5
-support 2,048 edits, 600 years and 20 million pair-tick work units. Reconstruction
+support 2,048 edits and 600 years regardless of system density. Reconstruction
 never trusts serialized scores or body state. Exact reproduction is scoped to the
 same executable; cross-target comparisons use tolerances. Future physics changes
 must explicitly consider saved-replay compatibility rather than silently promising
@@ -1503,6 +1503,18 @@ planet statistics in the viewport, and settled pause behavior with delayed repli
 ## Review after the reported interaction and debris failures
 
 - [x] Reveal body statistics, independent placement previews and reliable pause intent (144).
-- [ ] Remove the dense-system lifetime cap; retain bounded, responsive replay reconstruction.
+- [x] Remove the dense-system lifetime cap; retain bounded, responsive replay reconstruction (145).
 - [ ] Re-review navigation and long experiments after the fixes, implement the resulting list.
 - [ ] Verify native/WASM regressions, browser screenshots and the published revision.
+
+### 145 — Keep dense systems alive and reconstruct them responsively
+
+Review needs: four debris belts exhausted the cumulative pair-work allowance near
+year 35. Raising the allowance alone would make long restores block worker input.
+Implemented: body count no longer shortens an experiment's 600-year age range.
+Native and WASM reconstruction share an incremental command cursor; the worker
+yields between small batches, reports progress, and keeps the old state until
+success. Pause cancels reconstruction; reset cannot be overwritten by stale work.
+Validation: a real 48-fragment sandbox runs through 60 years at 16x, beyond the
+old work threshold, and reconstructs exactly. Timed edits, multiple chunk sizes,
+progress acknowledgements, cancellation and replacement have native/WASM coverage.
