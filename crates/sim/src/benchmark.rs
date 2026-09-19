@@ -223,8 +223,7 @@ impl OrbitProbe {
     }
     /// Gameplay cadence: the same substep policy as a live world of this size.
     pub fn advance(&mut self, ticks: u32) {
-        let substeps = if self.velocity.len() >= 512 { 2 } else { 4 };
-        self.advance_refined(ticks, substeps);
+        self.advance_refined(ticks, 4);
     }
     /// Qualification only: refine a fixed physical interval, independent of rendering.
     pub fn advance_refined(&mut self, ticks: u32, substeps: u32) {

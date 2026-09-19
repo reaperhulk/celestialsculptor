@@ -34,15 +34,10 @@ impl World {
         self.forces
             .update(&self.bodies, SOFTENING.powi(2), tree_allowed, rebuild);
     }
-    /// Substeps per tick. Large systems without authored moons or migration
-    /// integrate at 1/1024 year: still hundreds of steps per innermost orbit,
-    /// and the swept contact search does not depend on the step.
+    /// Substeps per tick: the finest schedule a command has selected. Swarms
+    /// keep four; two failed the 600-year tree trajectory gate (iteration 173).
     pub fn substeps(&self) -> u32 {
-        if self.minimum_substeps == 4 && self.bodies.len() >= 512 {
-            2
-        } else {
-            self.minimum_substeps
-        }
+        self.minimum_substeps
     }
     /// Changes whenever a contact resolved. A merge adds a collision and
     /// removes a body, so the two must not be allowed to cancel.
