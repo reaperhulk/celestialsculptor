@@ -7,10 +7,19 @@ and the matching WebAssembly binding generator:
 cargo install wasm-bindgen-cli --version 0.2.104 --locked
 npm ci --ignore-scripts
 cargo test --workspace --release --locked
+npm run lint
+npm run format:check
 npm run build
 npm test
 npm run check
 ```
+
+JavaScript, CSS and the Node scripts are formatted by Prettier (`npm run format`)
+and linted by oxlint (`npm run lint`, warnings are errors). Rust uses rustfmt and
+Clippy. `web/` is the readable source; `npm run build` copies it into `dist/`
+with whitespace and syntax minified by esbuild, keeping identifier names so
+browser stack traces and bug reports still name real functions. `npm run check`
+regenerates the same output to confirm `dist/` is not stale.
 
 The main test loop needs no browser or graphics device. `cargo run --release -p
 celestial-sim --bin sculptor -- verify` plays all authored campaign fixtures and
@@ -26,10 +35,13 @@ enable Pages for a new repository. No personal token is stored in this project.
 
 Every pull request and push to `main` runs these gates in order:
 
-1. Rust format, warning-free Clippy, native physics/property/CLI tests, 44
-   winning/losing campaign scenarios and a 32-case seeded outcome sweep.
-2. Locked release WASM build, DOM/module/toolchain/style/payload contracts, and
-   Node tests of actual WASM, native parity, replay, memory and worker behavior.
+1. Rust format, warning-free Clippy, native physics/property/CLI tests in the
+   release profile and again in the debug profile (integer overflow and debug
+   assertions armed), 25 campaign fixtures covering a winning and a losing
+   replay for every challenge, and a 120-case seeded outcome sweep.
+2. JavaScript lint and format checks, a locked release WASM build,
+   DOM/module/toolchain/style/payload contracts, and Node tests of actual WASM,
+   native parity, replay, memory and worker behavior.
 3. Chromium integration at seven viewports, Firefox and WebKit engine tests,
    graphics fallback/recovery, keyboard and touch-related controls, persistence,
    and representative desktop/phone screenshots.
@@ -39,8 +51,9 @@ Every pull request and push to `main` runs these gates in order:
 
 PRs never deploy. Main builds finish once active; newer pending main commits
 replace older pending builds. This keeps continuous pushes from interrupting an
-active release. Superseded PR builds are cancelled. Failed gates keep the last
-successful Pages release available.
+active release, so `cancel-in-progress` is enabled only for pull requests.
+Superseded PR builds are cancelled. Failed gates keep the last successful Pages
+release available.
 
 Run the browser layer locally on a machine that supports browser processes:
 
@@ -51,7 +64,9 @@ npm run test:browser
 ```
 
 Artifacts in the Actions run include `simulation-results`, `performance-results`,
-`ui-previews`, `release-report`, and failure traces/screenshots when relevant.
+`ui-previews`, `browser-report` (the Playwright JSON report, which records every
+retry so flaky tests are visible rather than absorbed), `release-report`, and
+failure traces/screenshots when relevant.
 `npm run report` describes the current build. Local builds record whether their
 source had uncommitted changes, so bug reports distinguish them from a clean
 release. `npm run verify` is the complete graphics-independent development gate.
@@ -75,8 +90,9 @@ device unless they choose to share a file.
 
 ## Payload and runtime budgets
 
-`performance-budget.json` caps uncompressed runtime assets at 1 MB, WASM at 512 KB,
-and all JavaScript at 256 KB. The static gate checks these deterministic sizes.
+`performance-budget.json` caps uncompressed runtime assets at 1.1 MB, WASM at
+740 KB, and all JavaScript at 256 KB. The static gate checks these deterministic
+sizes against the minified `dist/` output.
 A deliberate budget change should explain its player benefit and expected loading
 cost. Timing benchmarks remain informational because CI runners vary: compare
 8/32/64-body stepping and snapshot costs in the Actions summary and downloaded

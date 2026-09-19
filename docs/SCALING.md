@@ -139,8 +139,8 @@ engine: collisions, diagnostics, and history also consume time.
 
 Run `npm run build && npm run bench:simd`. The comparison builds a separate
 scalar WASM module without changing `dist`, checks campaign and seeded scenarios,
-every recipe, forty years of resonant moons, odd/even body counts and legacy
-replay versions, then times alternating runs after warmup. Snapshots, conservation
+every recipe, forty years of resonant moons and odd/even body counts, then
+times alternating runs after warmup. Snapshots, conservation
 ledgers, observation histories, and exported replays must match exactly. Actions
 runs this gate and retains `simd-benchmark-results.json` with raw samples, host,
 toolchain, and commit. Native/WASM tolerance checks and browser engine tests remain.

@@ -93,8 +93,9 @@ npm run serve
 ```
 
 Open `http://localhost:4173/celestialsculptor/`. The complete `verify` command runs
-formatting, lint, native physics and campaign tests, a release WASM build, artifact
-checks, and Node tests of the actual WASM engine. It needs no browser or GPU.
+Rust and JavaScript formatting and lint checks, native physics and campaign tests,
+a release WASM build, artifact checks, and Node tests of the actual WASM engine.
+It needs no browser or GPU.
 The same 120 generated-system cases run natively and in WASM, with measured
 outcomes and mass/momentum/angular checks. Use `npm run bench` for an informational
 performance report. See

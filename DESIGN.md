@@ -56,20 +56,21 @@ Screenshots cannot prove the rules correct; passing headless scenarios is mandat
 
 ## Scope and scientific limits
 
-Newtonian gravity in AU / years / solar masses, softened at 0.0001 AU in current rules (0.002 AU for version 1 replays). Contact
-radii are enlarged to make formation visible on game timescales. Rules version 5
-distinguishes gentle accretion, grazing survival and bounded disruption of solids;
+Newtonian gravity in AU / years / solar masses, softened at 0.0001 AU. Contact
+radii are enlarged to make formation visible on game timescales. The current rules
+distinguish gentle accretion, grazing survival and bounded disruption of solids;
 stars and giants accrete. Unresolved spin accounts for angular momentum.
 [Collision thresholds and limits](docs/COLLISIONS.md) are explicit gameplay
-simplifications. Earlier replay versions retain their original contact behavior. Habitability checks entire osculating orbits against a stellar-mass
+simplifications. Only the current replay version is accepted; older files are rejected rather than silently reinterpreted. Habitability checks entire osculating orbits against a stellar-mass
 scaled zone, without simulating atmospheres or life. Fixed steps limit close-pass
 accuracy; tests and explicit limits constrain the supported range. Native and
 WASM results are tolerance-compared, not assumed bit-identical across platforms.
 
 ## Current implementation decisions
 
-The shipped foundation uses small exact pairwise systems (64 bodies maximum),
-not a heavyweight game engine. Rust keeps physics, mission predicates and replay
+Campaigns use exact pairwise gravity with a 64-body cap, and the sandbox scales
+to 8,192 bodies with a symmetric mutual tree beyond 512, without a heavyweight
+game engine. Rust keeps physics, mission predicates and replay
 validation in one native-testable implementation; a thin WASM bridge puts that
 same code in the worker. DOM controls provide accessible forms, dialogs and a
 body inspector. WebGL 2 draws the tilted plane, procedural bodies, trails and
@@ -83,8 +84,8 @@ local. Backups and bug reports are portable, importable, and directly reproducib
 with the native CLI. Matter is a gameplay budget; burns are external interventions
 and are excluded from conservation claims across edits.
 
-A replay is versioned configuration plus ordered tick-stamped commands. Versions 1–5
-support 2,048 edits and 600 years regardless of system density. Reconstruction
+A replay is versioned configuration plus ordered tick-stamped commands. A replay
+supports 2,048 edits and 600 years regardless of system density. Reconstruction
 never trusts serialized scores or body state. Exact reproduction is scoped to the
 same executable; cross-target comparisons use tolerances. Future physics changes
 must explicitly consider saved-replay compatibility rather than silently promising
@@ -1997,3 +1998,42 @@ but slower. Semi-active experiments are fast with small sampled model-energy
 error at 600 years, but omit debris self-gravity and remain disabled in the game.
 Paired whole-swarm comparisons preserve exact body states and balances with
 approximately unchanged large-N throughput. Scalar/SIMD parity remains a gate.
+
+### 171 — Independent review: engine bugs, release pipeline and code health
+
+Review needs: a fresh source review found the observation event log corrupting
+when one tick emits more events than the 24-entry live buffer (ids were located by
+arithmetic index), synchronous whole-run replay imports in the worker, a worker
+error path that terminated live sessions and could stop the physics loop, a
+per-turn replay serialisation in the checkpoint cache, unchecked checkpoint fields
+(zero RNG, overflowing strides, impossible work units), a save version duplicated
+by hand in the web layer, moons placeable before their unlock, main-branch CI runs
+cancelling each other since iteration 161, a 1,550-line `lib.rs`, dense
+unformatted JavaScript with no linter, and documentation quoting superseded
+counts and budgets.
+Implemented: id-keyed event mirroring with a dense-collision regression test; the
+WASM API no longer exposes synchronous import, undo or rewind and the worker
+rebuilds every world in bounded slices; the worker pump re-arms in `finally`,
+message handlers report instead of throwing, runtime errors keep the session and
+the frame loop survives draw failures; checkpoint capture answers from tick and
+command count before serialising; checkpoints validate RNG, strides, work units,
+hold time and resonances; `web/version.js` holds the one save version, asserted
+against the engine by tests and the static gate; a single `moons_available` rule
+shared by engine and UI with a gating-matrix test; PR-only CI cancellation, a
+debug-profile test run, lint and format gates, a browser JSON report artifact and
+Dependabot; `lib.rs` split into commands, integrate, orbit, missions, replay,
+balances, error and rng modules with `EventKind` and `SimError` enums, one xorshift
+helper, an extracted `merge_pair`, and SIMD length assertions; Prettier plus oxlint
+for JavaScript with esbuild minification of `dist/`; `app.js` split into notebook,
+sweep, device, frame-loop, GPU, campaign and recipe modules behind one context
+object; a live region for rebuild progress, accessible play-button names and
+system reduced-motion tracking; a strict same-origin Content-Security-Policy.
+Validation: campaign `verify` and the seeded `sweep` outputs are byte-identical
+before and after the engine refactor; release and debug-profile Rust tests, Clippy
+for native and wasm32, 180 Node tests against the built WASM, and the desktop and
+phone Playwright projects pass locally; the WASM boundary, whole-`Command`
+property test and an IndexedDB-backed store test are new. An `opt-level = "s"`
+WASM build measured 30% smaller (503 KB against 717 KB) but 16% slower on 512-
+and 2,048-body swarms, so the release profile keeps `opt-level = 3` and the
+740 KB budget stands; the payload documentation now states the real numbers.
+
