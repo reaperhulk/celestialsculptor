@@ -2,8 +2,11 @@
 //! 512-body low-mass disk, 600 years. The production split (tree far field)
 //! is compared with the same split on direct far forces, isolating the tree's
 //! approximation, and with a uniform sixteen-substep integration of the same
-//! tree forces, isolating the integrator. Writes JSON to stdout, progress to
-//! stderr.
+//! tree forces, isolating the integrator. The disk leaves a gap around the
+//! giant's orbit: the probe is collisionless, and a grain diving inside what
+//! would be the giant's contact radius is an unresolved encounter in any
+//! scheme, not a property of the split. Writes JSON to stdout, progress to
+//! stderr (an optional argument shortens the horizon for quick checks).
 use celestial_sim::{benchmark::OrbitProbe, *};
 use serde_json::json;
 fn balances(s: &[f64]) -> [f64; 4] {
@@ -26,8 +29,12 @@ fn main() {
         ..Default::default()
     })
     .unwrap();
+    let years: u32 = std::env::args()
+        .nth(1)
+        .and_then(|a| a.parse().ok())
+        .unwrap_or(600);
     w.apply(Command::SeedSwarm {
-        count: 508,
+        count: 800,
         disorder: 0.,
     })
     .unwrap();
@@ -51,15 +58,25 @@ fn main() {
         })
         .unwrap();
     }
-    assert_eq!(
-        w.bodies.len(),
-        512,
-        "the tree and the split must be selected"
-    );
-    // Low-mass debris (0.016 Earth masses in total) isolates the split's own
-    // error from hard encounters, as in the tree lifetime gate.
-    let initial: Vec<f64> = w
-        .bodies
+    // Keep the star, the giant, its moons and the first 508 grains outside a
+    // gap of four Hill radii around the giant's orbit: 512 bodies, so the tree
+    // and the split are selected. Low debris mass (16 Earth masses scaled by
+    // a thousandth) isolates the split's own error, as in the tree lifetime gate.
+    let star = w.bodies[0].pos;
+    let mut kept = vec![];
+    let mut grains = 0;
+    for b in &w.bodies {
+        if b.kind == Kind::Dust {
+            let r = b.pos.minus(star).norm();
+            if (2.2..=3.8).contains(&r) || grains >= 508 {
+                continue;
+            }
+            grains += 1;
+        }
+        kept.push(b);
+    }
+    assert_eq!(kept.len(), 512, "the tree and the split must be selected");
+    let initial: Vec<f64> = kept
         .iter()
         .flat_map(|b| {
             [
@@ -75,9 +92,8 @@ fn main() {
             ]
         })
         .collect();
-    let host = w.bodies.iter().position(|b| b.id == giant).unwrap();
-    let moons: Vec<usize> = w
-        .bodies
+    let host = kept.iter().position(|b| b.id == giant).unwrap();
+    let moons: Vec<usize> = kept
         .iter()
         .enumerate()
         .filter(|(_, b)| b.parent == Some(giant))
@@ -99,9 +115,9 @@ fn main() {
                     let mut p = OrbitProbe::new(initial, exact).unwrap();
                     p.set_uniform(uniform);
                     let mut samples = vec![];
-                    for year in 1..=600 {
+                    for year in 1..=years {
                         p.advance_refined(512, substeps);
-                        if year % 25 == 0 {
+                        if year % 25 == 0 || year == years {
                             let s = p.state();
                             samples.push(json!({"year":year,"balances":balances(&s),"state":s}));
                             eprintln!("{name}: {year} years");
@@ -115,6 +131,6 @@ fn main() {
     });
     println!(
         "{}",
-        json!({"schema":1,"physics":checkpoint::PHYSICS_ID,"bodies":512,"host":host,"moons":moons,"debris_earth_masses":0.016,"initial_balances":balances(&initial),"runs":runs})
+        json!({"schema":1,"physics":checkpoint::PHYSICS_ID,"bodies":512,"years":years,"host":host,"moons":moons,"debris_earth_masses":0.016,"initial_balances":balances(&initial),"runs":runs})
     );
 }

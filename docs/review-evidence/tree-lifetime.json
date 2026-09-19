@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "physics": "newton-soft1e-4-mutual035-kdk4-moon16-disk32-edge025-v2",
+  "physics": "newton-soft1e-4-mutual035-kdk4-near2hill8-moon16-disk32-edge025-v3",
   "bodies": 512,
   "debrisEarthMasses": 0.016,
   "scope": "Constant 512-body collisionless cold disk; full 600-year tree lifetime, independently summed direct-force comparison at the same timestep. Low debris mass isolates force accumulation from hard encounters.",
@@ -8,114 +8,114 @@
     {
       "exact": false,
       "years": 600,
-      "maxRelativeEnergy": 7.975220351127859e-12,
-      "maxAngularResidual": 1.2705494208814505e-21,
-      "maxMomentumResidual": 1.140570357616739e-21
+      "maxRelativeEnergy": 8.072003867744526e-12,
+      "maxAngularResidual": 1.6199505116238494e-20,
+      "maxMomentumResidual": 9.581952890242505e-22
     },
     {
       "exact": true,
       "years": 600,
-      "maxRelativeEnergy": 1.5527843973211959e-12,
-      "maxAngularResidual": 8.258571235729428e-21,
-      "maxMomentumResidual": 1.1896627526585432e-21
+      "maxRelativeEnergy": 1.5189840470523986e-12,
+      "maxAngularResidual": 1.0905549195899117e-20,
+      "maxMomentumResidual": 1.4737664971610158e-21
     }
   ],
   "trajectory": [
     {
       "year": 25,
-      "rmsPositionAu": 1.4172011825828485e-8
+      "rmsPositionAu": 1.4173122121588646e-8
     },
     {
       "year": 50,
-      "rmsPositionAu": 0.000008269865806651742
+      "rmsPositionAu": 0.000008231367333155616
     },
     {
       "year": 75,
-      "rmsPositionAu": 0.000020814075140369236
+      "rmsPositionAu": 0.000020720606403196955
     },
     {
       "year": 100,
-      "rmsPositionAu": 0.0000318389030194954
+      "rmsPositionAu": 0.000031694608944057
     },
     {
       "year": 125,
-      "rmsPositionAu": 0.00004523942835216421
+      "rmsPositionAu": 0.00004503763023348257
     },
     {
       "year": 150,
-      "rmsPositionAu": 0.000055948543388633135
+      "rmsPositionAu": 0.000055696719277042966
     },
     {
       "year": 175,
-      "rmsPositionAu": 0.00006903428689841971
+      "rmsPositionAu": 0.00006872584472451335
     },
     {
       "year": 200,
-      "rmsPositionAu": 0.00008059584828003836
+      "rmsPositionAu": 0.00008023487767945803
     },
     {
       "year": 225,
-      "rmsPositionAu": 0.00009244295127180149
+      "rmsPositionAu": 0.00009202872847101031
     },
     {
       "year": 250,
-      "rmsPositionAu": 0.00010529029302918137
+      "rmsPositionAu": 0.00010482012646760431
     },
     {
       "year": 275,
-      "rmsPositionAu": 0.00011610920466249994
+      "rmsPositionAu": 0.00011558853632592729
     },
     {
       "year": 300,
-      "rmsPositionAu": 0.00012959616505468555
+      "rmsPositionAu": 0.0001290184631974338
     },
     {
       "year": 325,
-      "rmsPositionAu": 0.00014058731113275464
+      "rmsPositionAu": 0.00013995596468536237
     },
     {
       "year": 350,
-      "rmsPositionAu": 0.00015347168127946922
+      "rmsPositionAu": 0.00015278879675076067
     },
     {
       "year": 375,
-      "rmsPositionAu": 0.00016609730685539017
+      "rmsPositionAu": 0.0001653643621236824
     },
     {
       "year": 400,
-      "rmsPositionAu": 0.00017747342870606263
+      "rmsPositionAu": 0.00017673694962918555
     },
     {
       "year": 425,
-      "rmsPositionAu": 0.0001911872551691713
+      "rmsPositionAu": 0.00019039253617060268
     },
     {
       "year": 450,
-      "rmsPositionAu": 0.00020243600122537032
+      "rmsPositionAu": 0.00020163845161891717
     },
     {
       "year": 475,
-      "rmsPositionAu": 0.00021569544610571944
+      "rmsPositionAu": 0.00021485428230312638
     },
     {
       "year": 500,
-      "rmsPositionAu": 0.0002279190304887557
+      "rmsPositionAu": 0.0002270490126441245
     },
     {
       "year": 525,
-      "rmsPositionAu": 0.00024002103195124526
+      "rmsPositionAu": 0.000239139451299233
     },
     {
       "year": 550,
-      "rmsPositionAu": 0.00025324556481632563
+      "rmsPositionAu": 0.00025231232276603187
     },
     {
       "year": 575,
-      "rmsPositionAu": 0.00026445596636895635
+      "rmsPositionAu": 0.0002635207937408794
     },
     {
       "year": 600,
-      "rmsPositionAu": 0.0002725510921938229
+      "rmsPositionAu": 0.00027206595383520076
     }
   ],
   "passed": true,
