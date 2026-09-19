@@ -10,6 +10,32 @@ export function bodyDiameter(body, height, zoom) {
       (1 + (98 * (zoom / (zoom + 0.5)) ** 2 * zoom ** 4) / (zoom ** 4 + 0.5 ** 4)),
   );
 }
+// Fraction of the drawn quad occupied by the solid globe; the rest holds rings and haze.
+export const solidFraction = (kind) => (kind === 'star' ? 0.17 : kind === 'dust' ? 0.335 : 0.31);
+// Physical contact radius in AU, matching the engine's radius law.
+export const contactRadius = (kind, mass) =>
+  kind === 'star' ? 0.055 * Math.cbrt(mass) : 0.002 * Math.cbrt(mass / 3.003e-6);
+// Hill radius of a body about its primary at its current separation.
+export const hillRadius = (mass, primaryMass, distance) =>
+  distance * Math.cbrt(mass / (3 * (primaryMass + mass)));
+// Exaggeration never exceeds this fraction of a body's Hill radius. Two drawn globes can
+// only touch once each sits deep inside the other's Hill sphere, so a visible contact is
+// always a real close interaction, while sizes depend on nothing but the body itself.
+export const HILL_FRACTION = 0.5;
+// Unresolved bodies keep a fixed solid glyph in CSS pixels, as icons in system views do.
+export const glyphDiameter = (kind) => (kind === 'dust' ? 2 : 6);
+// Drawn quad diameter in CSS pixels: the exaggerated size, capped by the Hill fraction,
+// never below the contact radius, and never below the glyph. A function of the body,
+// its primary and the view only, so it is smooth in time and ignores neighbours.
+export function displayDiameter(body, height, zoom, hill = Infinity) {
+  const base = bodyDiameter(body, height, zoom);
+  if (body.kind === 'star') return base;
+  const fraction = solidFraction(body.kind),
+    pixels = height / (2 * zoom),
+    contact = body.radius ?? contactRadius(body.kind, body.mass),
+    cap = (Math.max(contact, HILL_FRACTION * hill) * pixels) / fraction;
+  return Math.max(glyphDiameter(body.kind) / fraction, Math.min(base, cap));
+}
 export function orbitPath(orbit, segments = 192) {
   const { eccentricity: e, periapsis: q, periapsis_angle: angle = 0 } = orbit || {};
   if (!Number.isFinite(e) || !Number.isFinite(q) || q <= 0) return [];

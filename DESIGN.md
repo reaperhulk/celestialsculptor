@@ -2163,3 +2163,37 @@ draws inside the refresh window with no task over 300 ms, asserted by a new
 phone browser test; view parity between the engine and the timeline mirror,
 186 Node tests, the Rust suites, the desktop and phone browser suites and
 headless verify pass.
+
+### 176 — Size worlds by their Hill radius instead of their neighbours
+
+Review needs: the pairwise sizing pass from iteration 149 shrank a world whenever
+a neighbour's silhouette came close, so in systems with many bodies sizes
+pulsed as neighbours passed and the scene looked chaotic. The base rule was the
+cause: at the default view an Earth was drawn about fifteen Hill radii wide, so
+the limiter fought it constantly. System-scale simulators such as Universe
+Sandbox, Celestia and NASA Eyes never size a body by its neighbours: they draw
+physical sizes with a fixed screen-space icon once a body is unresolved.
+Implemented: `appearance.js` now owns the complete display rule. A body's drawn
+solid radius is the previous zoom-dependent exaggeration, capped at half its
+Hill radius about its primary (the star, or the parent for a moon, at the drawn
+interpolated separation), never below its physical contact radius, and never
+below a fixed glyph of six CSS pixels (two for dust). The size is therefore a
+function of the body, its primary and the view only, smooth in time and
+independent of every other body. Two drawn globes can only touch once each sits
+deep inside the other's Hill sphere, so a visible contact is always a real
+close interaction. `BodyScale` keeps its allocation-stable buffers and id
+lookups but no longer sorts or sweeps pairs; giant rings fade as the globe nears
+the glyph rather than when a neighbour is close. The placement preview and
+pointer picking use the same rule, so a draft world is drawn at the size it will
+have once launched. Contact radii, orbits and every simulation rule are
+unchanged.
+Validation: the body-scale suite now asserts that a world's size is identical
+alone and with a neighbour at every separation, view scale and angle; that
+resolved globes overlap only inside each other's Hill spheres at both tilts;
+that the cap binds for Jupiter at the default view while an Earth and a dust
+grain sit on their glyphs; that contact and glyph floors hold for a close moon;
+that close views keep the mass-growth law; that positions follow the drawn
+interpolation; and that 8,192 bodies size without allocation or reordering
+effects. The appearance suite checks the cap, the glyph, and star and unbound
+pass-through directly. The close-giants browser test keeps its separated-surface
+and selection assertions.

@@ -3,7 +3,14 @@ import { VertexStream, PlanetStream, LINE_CAPACITY } from './vertices.js';
 import { planetVertex, planetFragment } from './planet-shaders.js';
 import { clampZoom, sceneContext } from './camera.js';
 import { interpolationAlpha, sampleBody, MotionSamples } from './motion.js';
-import { bodyDiameter, orbitPath, strongestPerturber, fitZoom } from './appearance.js';
+import {
+  displayDiameter,
+  contactRadius,
+  hillRadius,
+  orbitPath,
+  strongestPerturber,
+  fitZoom,
+} from './appearance.js';
 import { BodyScale } from './body-scale.js';
 import { updateTrails } from './trails.js';
 import { PreviewCache } from './preview.js';
@@ -374,7 +381,7 @@ export class Renderer {
       canvas = this.canvas,
       r = canvas.getBoundingClientRect();
     this.dpr = Math.min(devicePixelRatio || 1, this.maxDpr);
-    this.bodyScale.update(this.state.bodies, this.displayPositions, r.height, this.zoom, this.tilt);
+    this.bodyScale.update(this.state.bodies, this.displayPositions, r.height, this.zoom);
     this.sceneLabel = sceneContext(
       this.state,
       this.center,
@@ -590,19 +597,18 @@ export class Renderer {
         heat,
       );
     }
-    if (this.draft && this.previewVisible)
+    if (this.draft && this.previewVisible) {
+      const mass = (this.draft.mass || 1) * 3.003e-6,
+        draft = { kind: this.draft.kind, mass, radius: contactRadius(this.draft.kind, mass) };
       points.point(
         star.pos.x + this.draft.radius * Math.cos(this.draft.angle),
         star.pos.y + this.draft.radius * Math.sin(this.draft.angle),
-        bodyDiameter(
-          { kind: this.draft.kind, mass: (this.draft.mass || 1) * 3.003e-6 },
-          r.height,
-          this.zoom,
-        ),
+        displayDiameter(draft, r.height, this.zoom, hillRadius(mass, star.mass, this.draft.radius)),
         [0.96, 0.76, 0.4],
         1,
         1,
       );
+    }
     this.uniforms(this.points, animationTime);
     gl.bindVertexArray(this.pointVAO);
     gl.bindBuffer(gl.ARRAY_BUFFER, this.pointBuffer);

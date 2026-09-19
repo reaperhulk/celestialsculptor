@@ -1,6 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { bodyDiameter, orbitPath, strongestPerturber, fitZoom } from '../web/appearance.js';
+import {
+  bodyDiameter,
+  displayDiameter,
+  contactRadius,
+  hillRadius,
+  HILL_FRACTION,
+  orbitPath,
+  strongestPerturber,
+  fitZoom,
+} from '../web/appearance.js';
 import { PlanetStream } from '../web/vertices.js';
 test('visible collision growth preserves the radius/volume law across viewports', () => {
   for (const height of [240, 400, 620, 1000])
@@ -54,4 +63,22 @@ test('satellite-scale exaggeration leaves the inner moon outside the giant globe
       'giant must not swallow the inner moon path on screen',
     );
   }
+});
+test('display sizes cap at the Hill fraction, floor at the glyph, and pass stars and unbound bodies through', () => {
+  const mass = 318 * 3.003e-6,
+    jupiter = { kind: 'giant', mass, radius: contactRadius('giant', mass) };
+  const hill = hillRadius(mass, 1, 5.2);
+  assert.ok(Math.abs(hill - 5.2 * Math.cbrt(mass / (3 * (1 + mass)))) < 1e-15);
+  assert.ok(
+    Math.abs(displayDiameter(jupiter, 540, 3.5, hill) * 0.31 - (HILL_FRACTION * hill * 540) / 7) <
+      1e-9,
+  );
+  assert.equal(displayDiameter(jupiter, 540, 3.5), bodyDiameter(jupiter, 540, 3.5));
+  const earth = { kind: 'rocky', mass: 3.003e-6, radius: contactRadius('rocky', 3.003e-6) };
+  assert.ok(
+    Math.abs(displayDiameter(earth, 540, 3.5, hillRadius(earth.mass, 1, 1)) * 0.31 - 6) < 1e-12,
+  );
+  const sun = { kind: 'star', mass: 1 };
+  assert.equal(displayDiameter(sun, 540, 3.5, 0), bodyDiameter(sun, 540, 3.5));
+  assert.ok(Math.abs(contactRadius('star', 1) - 0.055) < 1e-15);
 });

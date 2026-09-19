@@ -1,62 +1,36 @@
-import { bodyDiameter } from './appearance.js';
+import { displayDiameter, hillRadius, solidFraction } from './appearance.js';
 
-export const solidFraction = (kind) => (kind === 'star' ? 0.17 : kind === 'dust' ? 0.335 : 0.31);
+export { solidFraction };
 
-// Reuse storage and sweep projected bounds before comparing close silhouettes.
+// Allocation-stable per-body sizing. Each size depends only on the body, its primary
+// and the view, never on where its neighbours are, so nothing breathes as bodies pass.
 export class BodyScale {
   constructor() {
     this.capacity = 0;
     this.indices = new Map();
-    this.order = [];
     this.ensure(64);
   }
   ensure(count) {
     if (count <= this.capacity) return;
     this.capacity = 2 ** Math.ceil(Math.log2(count));
-    for (const key of ['base', 'sizes', 'limits', 'x', 'y', 'left', 'right'])
-      this[key] = new Float64Array(this.capacity);
+    this.sizes = new Float64Array(this.capacity);
   }
-  update(bodies, positions, height, zoom, tilt) {
+  update(bodies, positions, height, zoom) {
     this.ensure(bodies.length);
-    const pixels = height / (2 * zoom);
-    this.order.length = bodies.length;
+    for (let i = 0; i < bodies.length; i++) this.indices.set(bodies[i].id, i);
+    for (const [id, index] of this.indices) if (bodies[index]?.id !== id) this.indices.delete(id);
+    const star = bodies.find((b) => b.kind === 'star') || bodies[0];
     for (let i = 0; i < bodies.length; i++) {
       const body = bodies[i],
-        p = positions.get(body.id) || body.pos;
-      this.indices.set(body.id, i);
-      this.base[i] = bodyDiameter(body, height, zoom);
-      this.limits[i] = 1;
-      this.x[i] = p.x;
-      this.y[i] = p.y;
-      this.order[i] = i;
-      const reach = (this.base[i] * solidFraction(body.kind)) / (0.82 * pixels);
-      this.left[i] = p.x - reach;
-      this.right[i] = p.x + reach;
-    }
-    for (const [id, index] of this.indices) if (bodies[index]?.id !== id) this.indices.delete(id);
-    const indexed = bodies.length > 64;
-    if (indexed) this.order.sort((a, b) => this.left[a] - this.left[b] || a - b);
-    for (let at = 0; at < bodies.length; at++)
-      for (let next = at + 1; next < bodies.length; next++) {
-        const i = this.order[at],
-          j = this.order[next];
-        if (indexed && this.left[j] > this.right[i]) break;
-        const a = bodies[i],
-          b = bodies[j],
-          dx = this.x[i] - this.x[j],
-          dy = this.y[i] - this.y[j];
-        const sum = this.base[i] * solidFraction(a.kind) + this.base[j] * solidFraction(b.kind),
-          screen2 = (dx * dx + dy * dy * tilt * tilt) * pixels * pixels;
-        if (screen2 >= (sum / 0.82) ** 2) continue;
-        const distance = Math.hypot(dx, dy),
-          contact = a.radius + b.radius;
-        const projection = distance > 0 ? Math.sqrt(screen2) / distance : pixels * tilt;
-        const available = (contact + 0.82 * Math.max(0, distance - contact)) * projection;
-        const limit = Math.min(1, available / sum);
-        this.limits[i] = Math.min(this.limits[i], limit);
-        this.limits[j] = Math.min(this.limits[j], limit);
+        primary = body.parent == null ? star : (bodies[this.indices.get(body.parent)] ?? star);
+      let hill = Infinity;
+      if (primary && primary !== body) {
+        const p = positions.get(body.id) || body.pos,
+          q = positions.get(primary.id) || primary.pos;
+        hill = hillRadius(body.mass, primary.mass, Math.hypot(p.x - q.x, p.y - q.y));
       }
-    for (let i = 0; i < bodies.length; i++) this.sizes[i] = this.base[i] * this.limits[i];
+      this.sizes[i] = displayDiameter(body, height, zoom, hill);
+    }
   }
   diameter(id) {
     return this.sizes[this.indices.get(id)];
@@ -64,7 +38,8 @@ export class BodyScale {
   radius(body) {
     return this.diameter(body.id) * solidFraction(body.kind);
   }
+  // Rings need a resolved globe: fade them out as the solid radius nears the glyph.
   rings(id) {
-    return Math.max(0, Math.min(1, (this.limits[this.indices.get(id)] - 0.9) * 10));
+    return Math.max(0, Math.min(1, (this.diameter(id) * 0.31 - 6) / 4));
   }
 }

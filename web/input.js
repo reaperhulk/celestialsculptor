@@ -1,5 +1,5 @@
 import { anchoredZoom, panCenter, pinchCamera, worldAt } from './camera.js';
-import { bodyDiameter } from './appearance.js';
+import { displayDiameter } from './appearance.js';
 export function wheelZoom(delta, mode = 0, height = 800) {
   if (!Number.isFinite(delta)) return 1;
   const pixels = delta * (mode === 1 ? 16 : mode === 2 ? height : 1);
@@ -157,7 +157,7 @@ export function installInput(canvas, renderer, { onDraft, onSelect }) {
             event.pointerType === 'touch' ? 28 : 18,
             (b) =>
               renderer.bodyScale?.radius(b) ??
-              bodyDiameter(b, canvas.clientHeight, renderer.zoom) * 0.31,
+              displayDiameter(b, canvas.clientHeight, renderer.zoom) * 0.31,
             (b) => renderer.displayPositions.get(b.id) || b.pos,
           );
         if (id !== null) {
