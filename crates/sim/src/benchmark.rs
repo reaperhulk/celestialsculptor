@@ -248,66 +248,6 @@ impl OrbitProbe {
     }
 }
 
-#[cfg(test)]
-mod tree_tests {
-    use super::*;
-    #[test]
-    fn tree_force_error_and_conservation_across_distributions() {
-        for cluster in [false, true] {
-            for seed in [1, 42, 123456] {
-                // Exclude the dominating stellar force when measuring approximation error.
-                let mut p = ForceProbe::new(1024, seed, cluster, 0.);
-                p.run(-1., 1);
-                let exact = p.output.clone();
-                for theta in [0.2, 0.25, 0.35, 0.5] {
-                    p.run(theta, 1);
-                    let error = p
-                        .output
-                        .iter()
-                        .zip(&exact)
-                        .skip(1)
-                        .map(|(a, b)| a.minus(*b).norm2())
-                        .sum::<f64>();
-                    let scale = exact.iter().skip(1).map(|a| a.norm2()).sum::<f64>();
-                    let relative = (error / scale).sqrt();
-                    assert!(
-                        relative < 0.005,
-                        "cluster={cluster} seed={seed} theta={theta}: {relative}"
-                    );
-                    let mut momentum = crate::V2::default();
-                    let mut torque = 0.;
-                    let mut norm = 0.;
-                    let mut torque_norm = 0.;
-                    for i in 0..p.mass.len() {
-                        let force = p.output[i].scale(p.mass[i]);
-                        momentum = momentum.plus(force);
-                        torque += crate::V2::new(p.x[i], p.y[i]).cross(force);
-                        norm += force.norm();
-                        torque_norm += crate::V2::new(p.x[i], p.y[i]).norm() * force.norm();
-                    }
-                    assert!(momentum.norm() / norm < 1e-12);
-                    assert!(torque.abs() / torque_norm < 1e-12);
-                    let first = p.output.clone();
-                    p.run(theta, 1);
-                    assert_eq!(first, p.output);
-                }
-            }
-        }
-    }
-    #[test]
-    fn coincident_and_collinear_bodies_terminate_with_finite_forces() {
-        let mut p = ForceProbe::new(1024, 42, true, 1.);
-        for collinear in [false, true] {
-            for i in 1..p.x.len() {
-                p.x[i] = if collinear { i as f64 * 0.01 } else { 1. };
-                p.y[i] = 0.;
-            }
-            p.run(0.35, 1);
-            assert!(p.output.iter().all(|a| a.x.is_finite() && a.y.is_finite()));
-        }
-    }
-}
-
 /// Where a large swarm's tick time goes. A diagnostic for scaling work; it
 /// measures each phase on a clone so the profiled world is never disturbed.
 pub fn phase_profile(count: u32, ticks: u32) -> serde_json::Value {
@@ -375,4 +315,64 @@ pub fn phase_profile(count: u32, ticks: u32) -> serde_json::Value {
         },
         "ticks_per_second": (f64::from(ticks) / (total / 1000.)).round(),
     })
+}
+
+#[cfg(test)]
+mod tree_tests {
+    use super::*;
+    #[test]
+    fn tree_force_error_and_conservation_across_distributions() {
+        for cluster in [false, true] {
+            for seed in [1, 42, 123456] {
+                // Exclude the dominating stellar force when measuring approximation error.
+                let mut p = ForceProbe::new(1024, seed, cluster, 0.);
+                p.run(-1., 1);
+                let exact = p.output.clone();
+                for theta in [0.2, 0.25, 0.35, 0.5] {
+                    p.run(theta, 1);
+                    let error = p
+                        .output
+                        .iter()
+                        .zip(&exact)
+                        .skip(1)
+                        .map(|(a, b)| a.minus(*b).norm2())
+                        .sum::<f64>();
+                    let scale = exact.iter().skip(1).map(|a| a.norm2()).sum::<f64>();
+                    let relative = (error / scale).sqrt();
+                    assert!(
+                        relative < 0.005,
+                        "cluster={cluster} seed={seed} theta={theta}: {relative}"
+                    );
+                    let mut momentum = crate::V2::default();
+                    let mut torque = 0.;
+                    let mut norm = 0.;
+                    let mut torque_norm = 0.;
+                    for i in 0..p.mass.len() {
+                        let force = p.output[i].scale(p.mass[i]);
+                        momentum = momentum.plus(force);
+                        torque += crate::V2::new(p.x[i], p.y[i]).cross(force);
+                        norm += force.norm();
+                        torque_norm += crate::V2::new(p.x[i], p.y[i]).norm() * force.norm();
+                    }
+                    assert!(momentum.norm() / norm < 1e-12);
+                    assert!(torque.abs() / torque_norm < 1e-12);
+                    let first = p.output.clone();
+                    p.run(theta, 1);
+                    assert_eq!(first, p.output);
+                }
+            }
+        }
+    }
+    #[test]
+    fn coincident_and_collinear_bodies_terminate_with_finite_forces() {
+        let mut p = ForceProbe::new(1024, 42, true, 1.);
+        for collinear in [false, true] {
+            for i in 1..p.x.len() {
+                p.x[i] = if collinear { i as f64 * 0.01 } else { 1. };
+                p.y[i] = 0.;
+            }
+            p.run(0.35, 1);
+            assert!(p.output.iter().all(|a| a.x.is_finite() && a.y.is_finite()));
+        }
+    }
 }
