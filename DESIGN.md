@@ -2062,36 +2062,41 @@ and 33.8 ms per tick; 299, 133, 62 and 30 ticks per second), contacts at 2 to 4%
 and every observation phase below 1%, so further scaling work belongs in the
 force evaluation and its parallelism, not in bookkeeping.
 
-### 173 — Partition reuse, two-substep swarms and deterministic gravity helpers
+### 173 — Partition reuse and deterministic gravity helpers
 
 Review needs: iteration 172 showed gravity at more than 90% of every large tick,
-with a tree rebuilt and re-sorted for each of five evaluations, four substeps
-chosen for moon fidelity that no swarm needs, and three or more idle cores on
-every review device. Any speed-up had to keep exact replay, byte-identical
-campaign fixtures and the 600-year qualification gates, and had to produce the
-same bits whether a device runs zero or eight helpers.
+with a tree rebuilt and re-sorted for each of five evaluations and three or more
+idle cores on every review device. Any speed-up had to keep exact replay,
+byte-identical campaign fixtures and the 600-year qualification gates, and had
+to produce the same bits whether a device runs zero or eight helpers.
 Implemented: the tree is partitioned once per tick and its moments refreshed for
 later substeps; the first kick of a tick reuses the cached forces, so a tick runs
-one evaluation per substep; swarms of 512 or more bodies without authored moons
-or disk migration integrate with two substeps, and the physics identifier moved
-to `…-kdk4-swarm2-…-v2` with the previous identifier still accepted on load;
-a resumable tick (`tick_start`, `force_request`, `force_compute_owned`,
-`tick_forces`, `tick_local`) lets the worker share each force evaluation above
-1,024 bodies with `force-helper.js` workers through `ForcePool`, one helper per
-spare core up to eight. The mutual tree is cut into sixteen subtrees; each
-participant runs every pair touching its own subtrees in the global order and
-returns only those subtrees as tagged records, so sums are bit-identical to the
-engine alone. Helpers without the tick's partition decline, a failed pool leaves
-the loop for good, and once an evaluation falls back the rest of the tick stays
-local. Messages queue while a tick is in flight. `phase_profile` now counts one
-evaluation per substep, and `npm run bench:parallel` measures helper pools.
+one evaluation per substep; the physics identifier moved to `…-edge025-v2` with
+the previous identifier still accepted on load. A resumable tick (`tick_start`,
+`force_request`, `force_compute_owned`, `tick_forces`, `tick_local`) lets the
+worker share each force evaluation above 1,024 bodies with `force-helper.js`
+workers through `ForcePool`, one helper per spare core up to eight. The mutual
+tree is cut into sixteen subtrees; each participant runs every pair touching its
+own subtrees in the global order and returns only those subtrees as tagged
+records, so sums are bit-identical to the engine alone. Helpers without the
+tick's partition decline, a failed pool leaves the loop for good, and once an
+evaluation falls back the rest of the tick stays local. Messages queue while a
+tick is in flight. `phase_profile` counts one evaluation per substep and `npm run
+bench:parallel` measures helper pools. A two-substep schedule for large swarms
+was implemented, measured and withdrawn: it failed the tree/direct trajectory
+gate (0.0012 AU against 0.001 AU at 600 years, carried by a few late close
+encounters) while four substeps passed at 0.00027 AU. The mixed-precision GPU
+probe's stale import of `orbitState`, which failed the gpu-compute and gpu-metal
+browser projects on main, is fixed, and the thousand-body browser test accepts
+the swarm's first merger when a fast batch reaches it before the pause.
 Validation: Rust release and debug suites, including exact equivalence of helper
 reductions for one, three and five helpers, mid-tick fallback and an in-tick
 merge; 186 Node tests, among them tick-for-tick equality through the runtime for
-one and three helper threads and a helper killed mid-tick; 90 desktop and phone
-browser tests; the 600-year tree qualification at two substeps; campaign fixtures
-byte-identical. Native ticks fell from 3.3/7.5/16.2/33.8 ms to
-1.77/3.82/8.53/18.18 ms at 1,024–8,192 bodies (1.86–1.96×); WASM whole ticks from
-34.9 to 19.05 ms at 8,192 bodies, and to 12.68 ms with three helpers on the
-four-core review host. `docs/SCALING.md` records the tables and the remaining
+one and three helper threads and a helper killed mid-tick; the full browser
+matrix including the gpu-compute project; the 600-year tree qualification;
+campaign fixtures byte-identical. Native ticks fell from
+3.3/7.5/16.2/33.8 ms to 3.09/6.64/13.47/29.71 ms at 1,024–8,192 bodies
+(1.07–1.20×); WASM whole ticks from 34.9 to 32.1 ms at 8,192 bodies, and to
+25.0 ms with three helpers on the four-core review host (1.38×). `docs/SCALING.md`
+records the tables, the rejected two-substep measurements and the remaining
 per-participant staging cost.

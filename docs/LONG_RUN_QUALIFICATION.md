@@ -10,12 +10,12 @@ possible moons, or a scientifically exact history of the actual Solar System.
 
 Ticks remain 1/512 year. Ordinary worlds use four fixed KDK substeps per tick.
 Adding an authored moon raises the experiment's fixed resolution to sixteen;
-applying disk migration raises it to thirty-two. A world of 512 or more bodies
-with neither uses two substeps, the resolution the tree qualification below
-measures; the first moon or migration command restores the finer schedules.
-Resolution never drops below the finest schedule a command selected and never
-depends on display speed, frame time, hardware or how many gravity helpers a
-device runs: helpers return the same sums in the same order as the engine. Commands reproduce
+applying disk migration raises it to thirty-two. Resolution never drops later
+and never depends on display speed, frame time, hardware or how many gravity
+helpers a device runs: helpers return the same sums in the same order as the
+engine. A two-substep schedule for large swarms was measured in iteration 173
+and rejected: the tree/direct trajectory gate below reached 0.0012 AU at 600
+years against the 0.001 AU limit, so swarms keep four substeps. Commands reproduce
 these changes, including moons created by the generator. Naturally captured
 satellites do not automatically change the resolution.
 

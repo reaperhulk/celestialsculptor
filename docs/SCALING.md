@@ -9,9 +9,8 @@ format is accepted; there are no historical physics implementations. Current sys
 tree with second-order cell forces and tides above that, at opening 0.35.  The star
 and nearby leaves remain direct. The tree partition is built once per tick and its
 moments refreshed for the later substeps. Ordinary systems retain four integration
-substeps; swarms of 512 or more bodies without authored moons or disk migration use
-two; moons and migration select finer fixed resolution to meet the long-run orbital
-gates. Above 1,024 bodies the worker shares each force evaluation with gravity helper
+substeps; authored moons and disk migration select finer fixed resolution to meet
+the long-run orbital gates. Above 1,024 bodies the worker shares each force evaluation with gravity helper
 workers (one per spare core, at most eight) that own fixed subtrees of the same
 partition, so the result is bit-identical to the engine alone on any device.
 
@@ -78,41 +77,49 @@ whole story: bookkeeping, contact search and observation are already cheap.
 
 ## Measured climbs (iteration 173)
 
-Three changes landed together, each gated by exact equivalence tests and the
+Two changes landed together, each gated by exact equivalence tests and the
 600-year tree qualification: the tree partition is built once per tick and only
-its moments are refreshed for the later substeps; swarms of 512 or more bodies
-without authored moons or disk migration integrate with two substeps instead of
-four; and force evaluations above 1,024 bodies are shared with gravity helper
+its moments are refreshed for the later substeps, with the tick's opening kick
+reusing the cached forces so a tick runs one evaluation per substep instead of
+five; and force evaluations above 1,024 bodies are shared with gravity helper
 workers. The physics identifier moved to
-`newton-soft1e-4-mutual035-kdk4-swarm2-moon16-disk32-edge025-v2`; saves from the
+`newton-soft1e-4-mutual035-kdk4-moon16-disk32-edge025-v2`; saves from the
 previous identifier still load and replay.
+
+A third candidate, two substeps for swarms of 512 or more bodies without moons
+or migration, was measured and rejected. It roughly halved tick cost again, and
+its energy, momentum and angular-momentum residuals matched four substeps, but
+the tree/direct trajectory comparison reached 0.0012 AU RMS at 600 years against
+the 0.001 AU gate: four or five bodies in late close encounters carried the whole
+difference (the median body differed by 1e-6 AU), and the same run passed at
+0.00027 AU with four substeps. Rebuilding the partition every evaluation did not
+change either verdict. Relaxing that gate is a physics decision, not a
+performance one, so it is recorded here rather than taken.
 
 Native whole ticks (`phase_profile`, disordered swarm, review host x64 release):
 
 | Bodies | Before ms/tick | After ms/tick | Speedup | Ticks/s after |
 |---:|---:|---:|---:|---:|
-| 1,024 | 3.3 | 1.77 | 1.86× | 567 |
-| 2,048 | 7.5 | 3.82 | 1.96× | 262 |
-| 4,096 | 16.2 | 8.53 | 1.90× | 117 |
-| 8,192 | 33.8 | 18.18 | 1.86× | 55 |
+| 1,024 | 3.3 | 3.09 | 1.07× | 324 |
+| 2,048 | 7.5 | 6.64 | 1.13× | 151 |
+| 4,096 | 16.2 | 13.47 | 1.20× | 74 |
+| 8,192 | 33.8 | 29.71 | 1.14× | 34 |
 
 Node/WASM whole ticks through the worker runtime, engine alone
 (`bench:scaling`, disorder 0.8, median):
 
 | Bodies | Before ms/tick | After ms/tick | Speedup |
 |---:|---:|---:|---:|
-| 512 | 1.39 | 1.13 | 1.23× |
-| 1,024 | 3.18 | 1.77 | 1.80× |
-| 2,048 | 7.39 | 4.07 | 1.82× |
-| 4,096 | 16.13 | 8.90 | 1.81× |
-| 8,192 | 34.90 | 19.05 | 1.83× |
+| 512 | 1.39 | 1.26 | 1.10× |
+| 1,024 | 3.18 | 2.77 | 1.15× |
+| 2,048 | 7.39 | 6.59 | 1.12× |
+| 4,096 | 16.13 | 14.71 | 1.10× |
+| 8,192 | 34.90 | 32.11 | 1.09× |
 
 Reusing the partition and the cached opening kick take a tick from five rebuilt
-evaluations to four with one rebuild; the two-substep schedule takes it to two.
-The two-substep schedule passed the same 600-year gates as four (energy
-within 2e-5, momentum and angular momentum within 1e-9, trajectory agreement with
-the exact solver), because the tree's approximation error, not the time step,
-bounds the long-run accuracy of a disordered swarm.
+evaluations to four with one rebuild; that is the 10–20% above. The rejected
+two-substep schedule would have taken it to two evaluations (18.2 ms native and
+19.1 ms WASM at 8,192 bodies).
 
 ### Gravity helpers
 
@@ -125,14 +132,14 @@ bodies. A helper that missed the tick's rebuild declines, and once an evaluation
 falls back to the engine the rest of that tick stays local, so timing never
 changes a result. `npm run bench:parallel -- 1024,2048,4096,8192 0,1,2,3 12`
 measured the review host (four cores; every helper count produced identical
-snapshots):
+snapshots; helpers engage above 1,024 bodies, where the gain begins):
 
 | Bodies | Alone | 1 helper | 2 helpers | 3 helpers |
 |---:|---:|---:|---:|---:|
-| 1,024 | 1.58 ms | 1.54 | 1.82 | 1.47 |
-| 2,048 | 3.42 ms | 3.10 | 3.19 | 3.12 |
-| 4,096 | 7.63 ms | 6.61 | 6.46 | 6.67 |
-| 8,192 | 16.57 ms | 14.58 | 13.52 | 12.68 (1.31×) |
+| 1,024 | 3.28 ms | 3.19 | 3.33 | 3.37 |
+| 2,048 | 7.29 ms | 6.65 | 7.30 | 6.42 |
+| 4,096 | 16.08 ms | 13.84 | 13.79 | 12.59 (1.28×) |
+| 8,192 | 34.46 ms | 28.76 | 27.42 | 24.97 (1.38×) |
 
 Per evaluation at 8,192 bodies with three helpers: 0.15 ms to pack the request,
 4.9 ms for the owner's own share, 0.5 ms waiting for the slowest helper and 0.5
