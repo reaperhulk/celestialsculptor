@@ -3,16 +3,53 @@
 use crate::*;
 use std::f64::consts::TAU;
 
+/// A tick paused at a force evaluation. Derived scratch, never saved.
+#[derive(Clone, Debug)]
+pub(crate) struct TickState {
+    substeps: u32,
+    h: f64,
+    tree_allowed: bool,
+    next: u32,
+    contacts: u64,
+    drifted: bool,
+    /// The next evaluation re-partitions the tree: once per tick.
+    rebuild_next: bool,
+}
+#[derive(Clone, Debug, Default)]
+pub(crate) struct PendingTick(pub(crate) Option<TickState>);
+impl PartialEq for PendingTick {
+    fn eq(&self, _: &Self) -> bool {
+        true
+    }
+}
+
 impl World {
     /// Explicit force probe for headless/GPU comparisons; physical state is unchanged.
     pub fn sample_forces(&mut self, exact: bool) -> &[V2] {
         self.forces.x.clear(); // Benchmark actual calculation, including staging/build.
-        self.update_forces(!exact);
+        self.update_forces(!exact, true);
         &self.forces.output
     }
-    pub(crate) fn update_forces(&mut self, tree_allowed: bool) {
+    pub(crate) fn update_forces(&mut self, tree_allowed: bool, rebuild: bool) {
         self.forces
-            .update(&self.bodies, SOFTENING.powi(2), tree_allowed);
+            .update(&self.bodies, SOFTENING.powi(2), tree_allowed, rebuild);
+    }
+    /// Substeps per tick. Large systems without authored moons or migration
+    /// integrate at 1/1024 year: still hundreds of steps per innermost orbit,
+    /// and the swept contact search does not depend on the step.
+    pub fn substeps(&self) -> u32 {
+        if self.minimum_substeps == 4 && self.bodies.len() >= 512 {
+            2
+        } else {
+            self.minimum_substeps
+        }
+    }
+    fn contact_serial(&self) -> u64 {
+        u64::from(self.collisions)
+            + u64::from(self.grazes)
+            + u64::from(self.disruptions)
+            + u64::from(self.absorbed)
+            + self.bodies.len() as u64
     }
     /// Symmetric dissipative splitting. Record each actual exchange with the disk.
     pub(crate) fn apply_disk_torque(&mut self, h: f64) {
@@ -46,36 +83,111 @@ impl World {
     /// Fixed KDK resolution: four substeps, sixteen after a moon is authored, thirty-two after disk migration.
     /// Display speed never changes the timestep.
     pub fn step(&mut self) {
-        self.integrate_tick(self.minimum_substeps);
+        self.integrate_tick(self.substeps());
     }
     pub(crate) fn integrate_tick(&mut self, substeps: u32) {
         self.integrate_tick_with_solver(substeps, true);
     }
     pub(crate) fn integrate_tick_with_solver(&mut self, substeps: u32, tree_allowed: bool) {
-        if self.exhausted() {
-            return;
+        let mut request = self.tick_begin(substeps, tree_allowed);
+        while let Some(rebuild) = request {
+            self.update_forces(tree_allowed, rebuild);
+            request = self.tick_resume();
+        }
+    }
+    /// Start a tick whose force evaluations may happen outside the engine.
+    /// Returns `Some(rebuild)` when accelerations are needed in
+    /// `forces.output` before `tick_resume`, or `None` if nothing ran.
+    pub fn tick_begin(&mut self, substeps: u32, tree_allowed: bool) -> Option<bool> {
+        if self.exhausted() || self.pending.0.is_some() {
+            return None;
         }
         self.work_units += self.tick_work();
-        let h = DT / f64::from(substeps);
         self.merge_contacts(0.0);
-        self.update_forces(tree_allowed);
-        for _ in 0..substeps {
-            self.apply_disk_torque(h / 2.);
-            for (i, b) in self.bodies.iter_mut().enumerate() {
-                b.vel = b.vel.plus(self.forces.output[i].scale(h / 2.0));
-                b.pos = b.pos.plus(b.vel.scale(h));
-                if b.id != 0 {
-                    b.rotation = (b.rotation + b.spin / (0.4 * b.mass * b.radius * b.radius) * h)
-                        .rem_euclid(TAU);
-                }
-            }
-            self.merge_contacts(h);
-            self.update_forces(tree_allowed);
-            for (i, b) in self.bodies.iter_mut().enumerate() {
-                b.vel = b.vel.plus(self.forces.output[i].scale(h / 2.0));
-            }
-            self.apply_disk_torque(h / 2.);
+        // One partition per tick; a contact within the tick changes the body
+        // set or moves bodies discontinuously, so it forces a fresh partition.
+        self.pending.0 = Some(TickState {
+            substeps,
+            h: DT / f64::from(substeps),
+            tree_allowed,
+            next: 0,
+            contacts: self.contact_serial(),
+            drifted: false,
+            rebuild_next: true,
+        });
+        if self
+            .forces
+            .current(&self.bodies, SOFTENING.powi(2), tree_allowed)
+        {
+            // Nothing moved since the last evaluation: the opening kick reuses
+            // it, and the first evaluation inside the tick takes the rebuild.
+            return self.tick_resume();
         }
+        self.pending.0.as_mut().expect("just set").rebuild_next = false;
+        Some(true)
+    }
+    pub fn tick_pending(&self) -> bool {
+        self.pending.0.is_some()
+    }
+    /// Continue with `forces.output` filled for the current positions. Returns
+    /// the next request, or `None` once the tick is complete.
+    pub fn tick_resume(&mut self) -> Option<bool> {
+        let mut state = self.pending.0.take()?;
+        let h = state.h;
+        loop {
+            if !state.drifted {
+                // First half of a substep with forces at its start.
+                self.apply_disk_torque(h / 2.);
+                for (i, b) in self.bodies.iter_mut().enumerate() {
+                    b.vel = b.vel.plus(self.forces.output[i].scale(h / 2.0));
+                    b.pos = b.pos.plus(b.vel.scale(h));
+                    if b.id != 0 {
+                        b.rotation = (b.rotation
+                            + b.spin / (0.4 * b.mass * b.radius * b.radius) * h)
+                            .rem_euclid(TAU);
+                    }
+                }
+                self.merge_contacts(h);
+                let rebuild = state.rebuild_next || self.contact_serial() != state.contacts;
+                state.rebuild_next = false;
+                state.contacts = self.contact_serial();
+                state.drifted = true;
+                self.pending.0 = Some(state);
+                return Some(rebuild);
+            }
+            // Second half with forces at the drifted positions.
+            for (i, b) in self.bodies.iter_mut().enumerate() {
+                b.vel = b.vel.plus(self.forces.output[i].scale(h / 2.0));
+            }
+            self.apply_disk_torque(h / 2.);
+            state.next += 1;
+            state.drifted = false;
+            if state.next >= state.substeps {
+                break;
+            }
+        }
+        self.finish_tick();
+        None
+    }
+    /// The pending request's staged state for helpers.
+    pub fn force_request(&mut self) -> Vec<f64> {
+        self.forces.request(&self.bodies, SOFTENING.powi(2))
+    }
+    /// Install helper outputs as the pending request's accelerations.
+    pub fn force_reduce(&mut self, groups: &[f64], rebuild: bool) -> bool {
+        self.pending.0.is_some()
+            && self
+                .forces
+                .reduce(&self.bodies, SOFTENING.powi(2), groups, rebuild)
+    }
+    /// Compute forces in the engine for a pending request and continue; the
+    /// fallback when helpers are unavailable mid-tick.
+    pub fn tick_local(&mut self, rebuild: bool) -> Option<bool> {
+        let tree_allowed = self.pending.0.as_ref()?.tree_allowed;
+        self.update_forces(tree_allowed, rebuild);
+        self.tick_resume()
+    }
+    fn finish_tick(&mut self) {
         self.tick += 1;
         if self.tick.is_multiple_of(8) {
             self.refresh_satellites();

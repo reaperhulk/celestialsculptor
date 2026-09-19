@@ -22,6 +22,7 @@
     "audit": "node scripts/audit-design.mjs",
     "bench:gravity": "node scripts/gravity-benchmark.mjs",
     "bench:scaling": "node scripts/scaling-benchmark.mjs",
+    "bench:parallel": "node scripts/parallel-benchmark.mjs",
     "compare:scaling": "node scripts/compare-scaling.mjs",
     "profile:scaling": "node scripts/profile-scaling.mjs",
     "bench:tuning": "node scripts/tune-gravity.mjs",

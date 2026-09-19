@@ -2,6 +2,10 @@
 //! Cell pairs exchange equal/opposite forces and matching tidal terms. Near
 //! leaves remain direct; the star is always direct. All arithmetic is f64.
 use crate::{G, V2};
+/// Task groups per force evaluation: the subtrees at depth four. Group `g`
+/// owns the interactions of subtree `g` with subtrees `g..GROUPS`.
+pub const GROUPS: usize = 16;
+const GROUP_DEPTH: u32 = 4;
 #[derive(Clone, Copy, Debug, Default)]
 struct Tensor {
     xx: f64,
@@ -33,6 +37,8 @@ struct Node {
     end: usize,
     left: usize,
     right: usize,
+    /// One past the last descendant in preorder, so a subtree is `at..end_node`.
+    end_node: usize,
     center: V2,
     mass: f64,
     radius: f64,
@@ -54,6 +60,12 @@ pub(crate) struct Tree {
     local: Vec<V2>,
     order: Vec<usize>,
     nodes: Vec<Node>,
+    /// Fixed-order reduction targets: every task group's contribution is
+    /// added here in group order, so the result is independent of how the
+    /// groups were computed (in one thread or across helpers).
+    total_local: Vec<V2>,
+    total_a: Vec<V2>,
+    total_tide: Vec<Tensor>,
     tolerance: f64,
     reference: Vec<f64>,
     pub direct_pairs: usize,
@@ -65,6 +77,11 @@ impl PartialEq for Tree {
     }
 }
 impl Tree {
+    /// `rebuild` re-partitions the tree from the current positions. Between the
+    /// substeps of one tick the partition is kept and only cell moments are
+    /// refreshed: bodies drift a little across cell boundaries, cell radii still
+    /// bound them exactly, so the opening test stays conservative.
+    #[allow(clippy::too_many_arguments)]
     pub fn compute(
         &mut self,
         x: &[f64],
@@ -73,8 +90,19 @@ impl Tree {
         soft2: f64,
         theta: f64,
         a: &mut [V2],
+        rebuild: bool,
     ) {
-        self.compute_impl::<8, false>(x, y, mass, soft2, theta, a);
+        self.compute_impl::<8, false>(x, y, mass, soft2, theta, a, rebuild);
+    }
+    /// Partition from the current positions without evaluating forces, so a
+    /// tick can fix its structure before its substeps drift the bodies.
+    pub fn prepare(&mut self, x: &[f64], y: &[f64], mass: &[f64]) {
+        self.order.clear();
+        self.order.extend(1..x.len());
+        self.nodes.clear();
+        if !self.order.is_empty() {
+            self.build::<8, false>(0, self.order.len(), x, y, mass);
+        }
     }
     #[allow(clippy::too_many_arguments)]
     pub fn compute_with_leaf_size(
@@ -88,11 +116,11 @@ impl Tree {
         leaf_size: usize,
     ) {
         match leaf_size {
-            2 => self.compute_impl::<2, false>(x, y, mass, soft2, theta, a),
-            4 => self.compute_impl::<4, false>(x, y, mass, soft2, theta, a),
-            8 => self.compute_impl::<8, false>(x, y, mass, soft2, theta, a),
-            16 => self.compute_impl::<16, false>(x, y, mass, soft2, theta, a),
-            32 => self.compute_impl::<32, false>(x, y, mass, soft2, theta, a),
+            2 => self.compute_impl::<2, false>(x, y, mass, soft2, theta, a, true),
+            4 => self.compute_impl::<4, false>(x, y, mass, soft2, theta, a, true),
+            8 => self.compute_impl::<8, false>(x, y, mass, soft2, theta, a, true),
+            16 => self.compute_impl::<16, false>(x, y, mass, soft2, theta, a, true),
+            32 => self.compute_impl::<32, false>(x, y, mass, soft2, theta, a, true),
             _ => panic!("unsupported leaf size"),
         }
     }
@@ -113,8 +141,9 @@ impl Tree {
         self.tolerance = tolerance;
         self.reference.clear();
         self.reference.extend_from_slice(reference);
-        self.compute_impl::<8, true>(x, y, mass, soft2, theta, a);
+        self.compute_impl::<8, true>(x, y, mass, soft2, theta, a, true);
     }
+    #[allow(clippy::too_many_arguments)]
     fn compute_impl<const LEAF_SIZE: usize, const CONTROLLED: bool>(
         &mut self,
         x: &[f64],
@@ -123,10 +152,8 @@ impl Tree {
         soft2: f64,
         theta: f64,
         a: &mut [V2],
+        rebuild: bool,
     ) {
-        self.order.clear();
-        self.order.extend(1..x.len());
-        self.nodes.clear();
         self.direct_pairs = 0;
         self.cell_pairs = 0;
         // Resolve the central star without approximation, including its recoil.
@@ -134,10 +161,40 @@ impl Tree {
             direct_pair(0, j, x, y, mass, soft2, a);
             self.direct_pairs += 1;
         }
-        if self.order.is_empty() {
+        if x.len() <= 1 {
+            self.order.clear();
+            self.nodes.clear();
             return;
         }
-        self.build::<LEAF_SIZE, CONTROLLED>(0, self.order.len(), x, y, mass);
+        if rebuild || CONTROLLED || self.nodes.is_empty() || self.order.len() + 1 != x.len() {
+            self.order.clear();
+            self.order.extend(1..x.len());
+            self.nodes.clear();
+            self.build::<LEAF_SIZE, CONTROLLED>(0, self.order.len(), x, y, mass);
+        } else {
+            self.refresh_moments(x, y, mass);
+        }
+        self.stage_local(x, y, mass);
+        if LEAF_SIZE == 8 && !CONTROLLED && self.group_roots().is_some() {
+            // Live rules: the same task groups and reduction order as helpers use.
+            let mut buffer = Vec::new();
+            for g in 0..GROUPS {
+                buffer.clear();
+                self.compute_group(g, soft2, theta, &mut buffer);
+                assert!(self.add_group(g, &buffer));
+            }
+        } else {
+            self.interact::<CONTROLLED>(0, 0, soft2, theta * theta);
+            self.total_local.copy_from_slice(&self.local);
+            for (k, n) in self.nodes.iter().enumerate() {
+                self.total_a[k] = n.a;
+                self.total_tide[k] = n.tide;
+            }
+        }
+        self.finish(x, y, a);
+    }
+    /// Permute positions into tree order and clear every accumulator.
+    fn stage_local(&mut self, x: &[f64], y: &[f64], mass: &[f64]) {
         self.x.clear();
         self.y.clear();
         self.mass.clear();
@@ -148,7 +205,127 @@ impl Tree {
         }
         self.local.resize(self.order.len(), V2::default());
         self.local.fill(V2::default());
-        self.interact::<CONTROLLED>(0, 0, soft2, theta * theta);
+        self.total_local.resize(self.order.len(), V2::default());
+        self.total_local.fill(V2::default());
+        self.total_a.resize(self.nodes.len(), V2::default());
+        self.total_a.fill(V2::default());
+        self.total_tide.resize(self.nodes.len(), Tensor::default());
+        self.total_tide.fill(Tensor::default());
+        for n in &mut self.nodes {
+            n.a = V2::default();
+            n.tide = Tensor::default();
+        }
+    }
+    /// The `GROUPS` subtrees at the group depth, or None when the tree is too
+    /// shallow (never the case above the tree threshold with eight-body leaves).
+    fn group_roots(&self) -> Option<[usize; GROUPS]> {
+        let mut level = vec![0usize];
+        for _ in 0..GROUP_DEPTH {
+            let mut next = Vec::with_capacity(level.len() * 2);
+            for &at in &level {
+                let n = self.nodes.get(at)?;
+                if n.leaf() {
+                    return None;
+                }
+                next.push(n.left);
+                next.push(n.right);
+            }
+            level = next;
+        }
+        level.try_into().ok()
+    }
+    /// Build or refresh the partition for a request whose forces will be
+    /// reduced from task groups, on the owner or on a helper.
+    pub fn stage(&mut self, x: &[f64], y: &[f64], mass: &[f64], rebuild: bool) -> bool {
+        if x.len() <= 1 {
+            self.order.clear();
+            self.nodes.clear();
+            return false;
+        }
+        if rebuild || self.nodes.is_empty() || self.order.len() + 1 != x.len() {
+            self.prepare(x, y, mass);
+        } else {
+            self.refresh_moments(x, y, mass);
+        }
+        self.stage_local(x, y, mass);
+        self.group_roots().is_some()
+    }
+    /// Whether a partition for `n` bodies is held, so a refresh request can be
+    /// honoured without silently building a different one.
+    pub fn partitioned_for(&self, n: usize) -> bool {
+        !self.nodes.is_empty() && self.order.len() + 1 == n
+    }
+    /// Length of group `g`'s output buffer for the current partition.
+    pub fn group_len(&self, g: usize) -> usize {
+        let Some(roots) = self.group_roots() else {
+            return 0;
+        };
+        (g..GROUPS)
+            .map(|s| {
+                let n = self.nodes[roots[s]];
+                2 * (n.end - n.start) + 5 * (n.end_node - roots[s])
+            })
+            .sum()
+    }
+    /// Contributions of task group `g`: subtree `g` interacting with subtrees
+    /// `g..GROUPS` (itself included), written into fresh scratch accumulators
+    /// and appended to `out` as [bodies of each subtree: ax, ay][nodes of each
+    /// subtree: ax, ay, txx, txy, tyy].
+    pub fn compute_group(&mut self, g: usize, soft2: f64, theta: f64, out: &mut Vec<f64>) {
+        let roots = self.group_roots().expect("staged tree with group depth");
+        self.local.fill(V2::default());
+        for n in &mut self.nodes {
+            n.a = V2::default();
+            n.tide = Tensor::default();
+        }
+        for b in g..GROUPS {
+            self.interact::<false>(roots[g], roots[b], soft2, theta * theta);
+        }
+        for &root in &roots[g..] {
+            let n = self.nodes[root];
+            for p in n.start..n.end {
+                out.push(self.local[p].x);
+                out.push(self.local[p].y);
+            }
+            for k in root..n.end_node {
+                let m = self.nodes[k];
+                out.extend([m.a.x, m.a.y, m.tide.xx, m.tide.xy, m.tide.yy]);
+            }
+        }
+    }
+    /// Add group `g`'s buffer to the totals. Groups must be added in ascending
+    /// order for the reduction to be reproducible.
+    pub fn add_group(&mut self, g: usize, buffer: &[f64]) -> bool {
+        let Some(roots) = self.group_roots() else {
+            return false;
+        };
+        if buffer.len() != self.group_len(g) {
+            return false;
+        }
+        let mut at = 0;
+        for &root in &roots[g..] {
+            let n = self.nodes[root];
+            for p in n.start..n.end {
+                self.total_local[p] = self.total_local[p].plus(V2::new(buffer[at], buffer[at + 1]));
+                at += 2;
+            }
+            for k in root..n.end_node {
+                self.total_a[k] = self.total_a[k].plus(V2::new(buffer[at], buffer[at + 1]));
+                self.total_tide[k] = self.total_tide[k].plus(Tensor {
+                    xx: buffer[at + 2],
+                    xy: buffer[at + 3],
+                    yy: buffer[at + 4],
+                });
+                at += 5;
+            }
+        }
+        true
+    }
+    /// Push the reduced cell accelerations and tides down to the bodies.
+    pub fn finish(&mut self, x: &[f64], y: &[f64], a: &mut [V2]) {
+        if self.nodes.is_empty() {
+            return;
+        }
         self.propagate(
             0,
             V2::default(),
@@ -167,39 +344,25 @@ impl Tree {
         y: &[f64],
         mass: &[f64],
     ) -> usize {
+        let m = moments(&self.order[start..end], x, y, mass);
         let mut n = Node {
             start,
             end,
             left: usize::MAX,
             right: usize::MAX,
             min_acceleration: f64::INFINITY,
+            center: m.center,
+            mass: m.mass,
+            radius: m.radius,
+            q: m.q,
             ..Node::default()
         };
-        let origin = V2::new(x[self.order[start]], y[self.order[start]]);
-        let mut lo = origin;
-        let mut hi = origin;
-        for &i in &self.order[start..end] {
-            n.mass += mass[i];
-            if CONTROLLED {
+        if CONTROLLED {
+            for &i in &self.order[start..end] {
                 n.min_acceleration = n.min_acceleration.min(self.reference[i]);
             }
-            n.center = n
-                .center
-                .plus(V2::new(x[i] - origin.x, y[i] - origin.y).scale(mass[i]));
-            lo.x = lo.x.min(x[i]);
-            lo.y = lo.y.min(y[i]);
-            hi.x = hi.x.max(x[i]);
-            hi.y = hi.y.max(y[i]);
         }
-        n.center = origin.plus(n.center.scale(1. / n.mass));
-        for &i in &self.order[start..end] {
-            let d = V2::new(x[i], y[i]).minus(n.center);
-            n.radius = n.radius.max(d.norm2());
-            n.q.xx += mass[i] * d.x * d.x;
-            n.q.xy += mass[i] * d.x * d.y;
-            n.q.yy += mass[i] * d.y * d.y;
-        }
-        n.radius = n.radius.sqrt();
+        let (lo, hi) = (m.lo, m.hi);
         let at = self.nodes.len();
         self.nodes.push(n);
         if end - start > LEAF_SIZE {
@@ -213,7 +376,23 @@ impl Tree {
             self.nodes[at].left = left;
             self.nodes[at].right = right;
         }
+        self.nodes[at].end_node = self.nodes.len();
         at
+    }
+    /// Same partition, current positions: recompute every cell's mass, centre,
+    /// bounding radius and quadrupole, and clear the accumulators.
+    fn refresh_moments(&mut self, x: &[f64], y: &[f64], mass: &[f64]) {
+        let order = &self.order;
+        for n in &mut self.nodes {
+            let m = moments(&order[n.start..n.end], x, y, mass);
+            n.mass = m.mass;
+            n.center = m.center;
+            n.radius = m.radius;
+            n.q = m.q;
+            n.a = V2::default();
+            n.tide = Tensor::default();
+            n.min_acceleration = f64::INFINITY;
+        }
     }
     #[allow(clippy::too_many_arguments)]
     fn interact<const CONTROLLED: bool>(&mut self, ai: usize, bi: usize, soft2: f64, theta2: f64) {
@@ -309,15 +488,15 @@ impl Tree {
         out: &mut [V2],
     ) {
         let n = self.nodes[at];
-        let a =
-            n.a.plus(parent_a)
-                .plus(parent_t.apply(n.center.minus(parent_center)));
-        let tide = n.tide.plus(parent_t);
+        let a = self.total_a[at]
+            .plus(parent_a)
+            .plus(parent_t.apply(n.center.minus(parent_center)));
+        let tide = self.total_tide[at].plus(parent_t);
         if n.leaf() {
             for at in n.start..n.end {
                 let i = self.order[at];
                 out[i] = out[i]
-                    .plus(self.local[at])
+                    .plus(self.total_local[at])
                     .plus(a)
                     .plus(tide.apply(V2::new(x[i], y[i]).minus(n.center)));
             }
@@ -325,6 +504,48 @@ impl Tree {
             self.propagate(n.left, a, tide, n.center, x, y, out);
             self.propagate(n.right, a, tide, n.center, x, y, out);
         }
+    }
+}
+struct Moments {
+    mass: f64,
+    center: V2,
+    radius: f64,
+    q: Tensor,
+    lo: V2,
+    hi: V2,
+}
+/// Cell moments in the same arithmetic order as the original single-pass build.
+fn moments(order: &[usize], x: &[f64], y: &[f64], mass: &[f64]) -> Moments {
+    let origin = V2::new(x[order[0]], y[order[0]]);
+    let mut lo = origin;
+    let mut hi = origin;
+    let mut total = 0.;
+    let mut center = V2::default();
+    for &i in order {
+        total += mass[i];
+        center = center.plus(V2::new(x[i] - origin.x, y[i] - origin.y).scale(mass[i]));
+        lo.x = lo.x.min(x[i]);
+        lo.y = lo.y.min(y[i]);
+        hi.x = hi.x.max(x[i]);
+        hi.y = hi.y.max(y[i]);
+    }
+    let center = origin.plus(center.scale(1. / total));
+    let mut radius = 0.;
+    let mut q = Tensor::default();
+    for &i in order {
+        let d = V2::new(x[i], y[i]).minus(center);
+        radius = f64::max(radius, d.norm2());
+        q.xx += mass[i] * d.x * d.x;
+        q.xy += mass[i] * d.x * d.y;
+        q.yy += mass[i] * d.y * d.y;
+    }
+    Moments {
+        mass: total,
+        center,
+        radius: radius.sqrt(),
+        q,
+        lo,
+        hi,
     }
 }
 #[allow(clippy::too_many_arguments)]

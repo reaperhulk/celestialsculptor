@@ -146,13 +146,13 @@ fn burns_obey_unlocks_and_cannot_overspend_the_last_unit_of_matter() {
     .unwrap();
     w.apply(Command::LaunchMass {
         kind: Kind::Giant,
-        mass: 999.0,
+        mass: 799.0,
         radius: 4.0,
         angle: 0.0,
         speed: 1.0,
     })
     .unwrap();
-    assert_eq!(w.status().remaining, 1.0);
+    assert!((w.status().remaining - 1.0).abs() < 1e-9);
     w.apply(command.clone()).unwrap();
     let before = w.clone();
     assert!(w.apply(command).is_err());

@@ -5,8 +5,22 @@ export class Runtime {
   constructor(
     Simulation,
     send,
-    { now = () => performance.now(), workBudgetMs = 6, checkpoints = null, provenance = null } = {},
+    {
+      now = () => performance.now(),
+      workBudgetMs = 6,
+      checkpoints = null,
+      provenance = null,
+      forcePool = null,
+      parallelThreshold = 1024,
+    } = {},
   ) {
+    // Gravity helpers take over above the threshold; below it a round trip
+    // costs more than the evaluation. While a tick is in flight every
+    // message waits, so nothing edits a world between its substeps.
+    this.forcePool = forcePool;
+    this.parallelThreshold = parallelThreshold;
+    this.stepping = false;
+    this.queue = [];
     this.now = now;
     this.workBudgetMs = workBudgetMs;
     this.checkpoints = checkpoints;
@@ -53,6 +67,16 @@ export class Runtime {
   // Production message entrypoint. Replays yield between small WASM slices so
   // Pause, reset and status requests never sit behind years of reconstruction.
   receive(message) {
+    if (this.stepping) {
+      this.queue.push(message);
+      return;
+    }
+    return this.dispatch(message);
+  }
+  drain() {
+    while (!this.stepping && this.queue.length) this.dispatch(this.queue.shift());
+  }
+  dispatch(message) {
     if (typeof message?.type !== 'string') {
       this.send({ type: 'error', id: message?.id, message: 'Unknown simulation command' });
       return;
@@ -362,6 +386,62 @@ export class Runtime {
       this.send({ type: 'error', id, message: String(error?.message || error) });
     }
   }
+  usesHelpers() {
+    return (
+      Boolean(this.forcePool?.size) && (this.sim?.body_count?.() || 0) >= this.parallelThreshold
+    );
+  }
+  /** One tick with gravity evaluated by the helper pool; falls back to the engine on failure. */
+  async parallelTick() {
+    let phase = this.sim.tick_start();
+    // Once an evaluation falls back to the engine the rest of the tick stays
+    // there; helpers resynchronise at the next tick's rebuild, so the result
+    // never depends on when a helper failed.
+    let local = false;
+    while (phase === 1) {
+      if (!local) {
+        try {
+          const groups = await this.forcePool.evaluate(
+            this.sim.force_request(),
+            this.sim.force_rebuild(),
+          );
+          phase = this.sim.tick_forces(groups);
+          continue;
+        } catch {
+          local = true;
+        }
+      }
+      phase = this.sim.tick_local();
+    }
+  }
+  async advanceParallel(ticks) {
+    this.stepping = true;
+    try {
+      const previous = this.sim.flags(),
+        start = this.now();
+      let remaining = ticks;
+      while (remaining > 0) {
+        const serial = this.eventPolicy === 'off' ? null : this.sim.event_serial();
+        await this.parallelTick();
+        remaining -= 1;
+        if (serial !== null && this.sim.event_serial() !== serial) {
+          this.debt = 0;
+          remaining = 0;
+          if (this.eventPolicy === 'pause') this.playing = false;
+          else this.speed = 0.25;
+          break;
+        }
+        if (this.now() - start >= this.workBudgetMs) break;
+      }
+      this.debt = Math.min(128, this.debt + remaining);
+      this.checkpoints?.capture(this.sim);
+      const current = this.sim.flags();
+      if (current & 2 || (!(previous & 1) && current & 1)) this.playing = false;
+    } finally {
+      this.stepping = false;
+      this.drain();
+    }
+  }
   advanceElapsed(seconds) {
     if (!this.playing || !this.sim || !Number.isFinite(seconds) || seconds <= 0) return;
     // Backpressure is explicit. A slow worker slows simulated time; dt never grows.
@@ -371,6 +451,7 @@ export class Runtime {
     );
     const ticks = Math.floor(this.debt);
     this.debt -= ticks;
+    if (ticks && this.usesHelpers()) return this.advanceParallel(ticks);
     if (ticks) {
       const previous = this.sim.flags();
       const large = (this.sim.body_count?.() || 0) > 64,

@@ -19,7 +19,7 @@ impl Reconstruction {
 
     pub fn new(replay: Replay) -> Result<Self, SimError> {
         if replay.version != SAVE_VERSION
-            || replay.physics != crate::checkpoint::PHYSICS_ID
+            || !checkpoint::ACCEPTED_PHYSICS.contains(&replay.physics.as_str())
             || replay.end_tick > MAX_TICKS
             || replay.commands.len() > 2048
         {

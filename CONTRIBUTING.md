@@ -90,9 +90,11 @@ device unless they choose to share a file.
 
 ## Payload and runtime budgets
 
-`performance-budget.json` caps uncompressed runtime assets at 1.1 MB, WASM at
-740 KB, and all JavaScript at 256 KB. The static gate checks these deterministic
-sizes against the minified `dist/` output.
+`performance-budget.json` caps uncompressed runtime assets at 1.2 MB, WASM at
+800 KB, and all JavaScript at 256 KB. The static gate checks these deterministic
+sizes against the minified `dist/` output. The WASM cap rose from 740 KB when the
+gravity-helper API landed: about 18 KB of engine for a multi-core force
+evaluation that scales large sandboxes with the device's cores.
 A deliberate budget change should explain its player benefit and expected loading
 cost. Timing benchmarks remain informational because CI runners vary: compare
 8/32/64-body stepping and snapshot costs in the Actions summary and downloaded

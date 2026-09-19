@@ -11,7 +11,7 @@ mod encounters;
 pub mod error;
 pub mod generation;
 pub mod generator;
-mod gravity;
+pub mod gravity;
 #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
 mod gravity_simd;
 mod gravity_tree;
@@ -366,6 +366,8 @@ pub struct World {
     forces: gravity::Forces,
     #[serde(skip)]
     contact_search: contact_search::ContactSearch,
+    #[serde(skip)]
+    pending: integrate::PendingTick,
     pub history: history::History,
     pub resonances: Vec<resonance::Resonance>,
     pub disk_momentum: V2,
@@ -491,6 +493,7 @@ impl World {
         let mut world = Self {
             forces: gravity::Forces::default(),
             contact_search: contact_search::ContactSearch::default(),
+            pending: integrate::PendingTick::default(),
             history: history::History::default(),
             minimum_substeps: 4,
             resonances: vec![],

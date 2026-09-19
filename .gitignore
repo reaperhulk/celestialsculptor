@@ -28,3 +28,4 @@ tree-rules-comparison.json
 /test-results-lifetime/
 /test-results-final/
 /test-results-gpu-final/
+parallel-benchmark-results.json

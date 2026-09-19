@@ -58,7 +58,7 @@ impl OrbitProbe {
         Ok(())
     }
     pub fn advance_refined(&mut self, ticks: u32, substeps: u32) -> Result<(), JsValue> {
-        if ticks > 512 || ![4, 8, 16, 32, 64].contains(&substeps) {
+        if ticks > 512 || ![2, 4, 8, 16, 32, 64].contains(&substeps) {
             return Err(js_error("Invalid orbital refinement"));
         }
         self.inner.advance_refined(ticks, substeps);
@@ -73,6 +73,35 @@ impl OrbitProbe {
 pub struct Simulation {
     world: World,
     reconstruction: Option<celestial_sim::replay::Reconstruction>,
+    rebuild: bool,
+}
+
+/// A gravity helper's kernel: the owner's partition, a subset of task groups.
+#[wasm_bindgen]
+pub struct ForceHelper {
+    inner: celestial_sim::gravity::ForceHelper,
+}
+#[wasm_bindgen]
+impl ForceHelper {
+    #[wasm_bindgen(constructor)]
+    pub fn new() -> ForceHelper {
+        Self {
+            inner: celestial_sim::gravity::ForceHelper::new(),
+        }
+    }
+    pub fn compute(
+        &mut self,
+        state: &[f64],
+        rebuild: bool,
+        groups: &[u32],
+    ) -> Result<Vec<f64>, JsValue> {
+        self.inner.compute(state, rebuild, groups).map_err(js_error)
+    }
+}
+impl Default for ForceHelper {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 fn js_error(e: impl ToString) -> JsValue {
@@ -90,6 +119,7 @@ impl Simulation {
         Ok(Self {
             world: World::new(config).map_err(js_error)?,
             reconstruction: None,
+            rebuild: true,
         })
     }
     pub fn command(&mut self, command: &str) -> Result<(), JsValue> {
@@ -103,9 +133,65 @@ impl Simulation {
         if !ticks.is_finite() || ticks.fract() != 0.0 || !(0.0..=512.0).contains(&ticks) {
             return Err(js_error("Use a whole number of ticks from 0 to 512"));
         }
+        if self.world.tick_pending() {
+            return Err(js_error("A tick is waiting for its forces"));
+        }
         self.world.advance(ticks as u32);
         Ok(())
     }
+    /// Begin one tick whose gravity is evaluated by helpers. Returns 1 when a
+    /// force request is pending, 0 when the tick completed without one.
+    pub fn tick_start(&mut self) -> u32 {
+        if self.world.tick_pending() {
+            return 1;
+        }
+        match self.world.tick_begin(self.world.substeps(), true) {
+            Some(rebuild) => {
+                self.rebuild = rebuild;
+                1
+            }
+            None => 0,
+        }
+    }
+    /// Whether helpers must re-partition for the pending request.
+    pub fn force_rebuild(&self) -> bool {
+        self.rebuild
+    }
+    /// The pending request as `[x…, y…, mass…]`.
+    pub fn force_request(&mut self) -> Vec<f64> {
+        self.world.force_request()
+    }
+    /// Continue the pending tick with every task group's output, ascending
+    /// and concatenated. Returns 1 for another request, 0 when the tick is done.
+    pub fn tick_forces(&mut self, groups: &[f64]) -> Result<u32, JsValue> {
+        if !self.world.tick_pending() {
+            return Err(js_error("No tick is waiting for forces"));
+        }
+        if !self.world.force_reduce(groups, self.rebuild) {
+            return Err(js_error("Helper output does not match this request"));
+        }
+        Ok(self.continue_tick())
+    }
+    /// Evaluate the pending request in the engine and continue.
+    pub fn tick_local(&mut self) -> u32 {
+        match self.world.tick_local(self.rebuild) {
+            Some(rebuild) => {
+                self.rebuild = rebuild;
+                1
+            }
+            None => 0,
+        }
+    }
+    fn continue_tick(&mut self) -> u32 {
+        match self.world.tick_resume() {
+            Some(rebuild) => {
+                self.rebuild = rebuild;
+                1
+            }
+            None => 0,
+        }
+    }
+
     pub fn snapshot(&self) -> String {
         self.snapshot_selected(None)
     }
@@ -352,7 +438,7 @@ impl Simulation {
         serde_json::to_string(&Snapshot {
             assessment,
             rules_version: celestial_sim::SAVE_VERSION,
-            physics_substeps: self.world.minimum_substeps,
+            physics_substeps: self.world.substeps(),
             burns_available: self.world.burns_available(),
             moons_available: self.world.moons_available(),
             observation_stamp: (

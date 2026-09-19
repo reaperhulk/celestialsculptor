@@ -56,12 +56,23 @@ impl ForceProbe {
         p
     }
     pub fn run(&mut self, theta: f64, repeats: u32) -> f64 {
+        self.evaluate(theta, repeats, true)
+    }
+    /// One evaluation that may keep the tree partition from `prepare`.
+    fn evaluate(&mut self, theta: f64, repeats: u32, rebuild: bool) -> f64 {
         // Keep benchmark-only leaf specializations out of the live/orbit build.
         for _ in 0..repeats {
             self.output.fill(crate::V2::default());
             if theta > 0. {
-                self.tree
-                    .compute(&self.x, &self.y, &self.mass, 1e-8, theta, &mut self.output);
+                self.tree.compute(
+                    &self.x,
+                    &self.y,
+                    &self.mass,
+                    1e-8,
+                    theta,
+                    &mut self.output,
+                    rebuild,
+                );
             } else {
                 #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
                 if theta == 0. {
@@ -143,7 +154,7 @@ impl ForceProbe {
 /// Whole-engine reference for convergence tests, never selected by UI cadence.
 pub fn advance_exact(world: &mut World, ticks: u32) {
     for _ in 0..ticks {
-        world.integrate_tick_with_solver(world.minimum_substeps, false);
+        world.integrate_tick_with_solver(world.substeps(), false);
     }
 }
 
@@ -190,7 +201,7 @@ impl OrbitProbe {
         self.active_bodies = Some(count);
         self.ready = false;
     }
-    fn update_probe_forces(&mut self) {
+    fn update_probe_forces(&mut self, rebuild: bool) {
         if let Some(active) = self.active_bodies {
             let p = &mut self.field;
             p.output.fill(crate::V2::default());
@@ -204,30 +215,39 @@ impl OrbitProbe {
                 }
             }
         } else {
-            self.field.run(self.theta, 1);
+            self.field.evaluate(self.theta, 1, rebuild);
         }
     }
+    /// Gameplay cadence: the same substep policy as a live world of this size.
     pub fn advance(&mut self, ticks: u32) {
-        self.advance_refined(ticks, 4);
+        let substeps = if self.velocity.len() >= 512 { 2 } else { 4 };
+        self.advance_refined(ticks, substeps);
     }
     /// Qualification only: refine a fixed physical interval, independent of rendering.
     pub fn advance_refined(&mut self, ticks: u32, substeps: u32) {
-        assert!([4, 8, 16, 32, 64].contains(&substeps));
+        assert!([2, 4, 8, 16, 32, 64].contains(&substeps));
         if ticks == 0 {
             return;
         }
         let h = crate::DT / f64::from(substeps);
         if !self.ready {
-            self.update_probe_forces();
+            self.update_probe_forces(true);
             self.ready = true;
         }
-        for _ in 0..ticks * substeps {
+        for step in 0..ticks * substeps {
+            // Like a live tick: partition once from the start-of-tick positions,
+            // then refresh moments for the evaluations inside the tick.
+            if step % substeps == 0 && self.theta > 0. && self.active_bodies.is_none() {
+                self.field
+                    .tree
+                    .prepare(&self.field.x, &self.field.y, &self.field.mass);
+            }
             for (i, v) in self.velocity.iter_mut().enumerate() {
                 *v = v.plus(self.field.output[i].scale(h / 2.));
                 self.field.x[i] += v.x * h;
                 self.field.y[i] += v.y * h;
             }
-            self.update_probe_forces();
+            self.update_probe_forces(false);
             for (v, a) in self.velocity.iter_mut().zip(&self.field.output) {
                 *v = v.plus(a.scale(h / 2.));
             }
@@ -245,66 +265,6 @@ impl OrbitProbe {
                 ]
             })
             .collect()
-    }
-}
-
-#[cfg(test)]
-mod tree_tests {
-    use super::*;
-    #[test]
-    fn tree_force_error_and_conservation_across_distributions() {
-        for cluster in [false, true] {
-            for seed in [1, 42, 123456] {
-                // Exclude the dominating stellar force when measuring approximation error.
-                let mut p = ForceProbe::new(1024, seed, cluster, 0.);
-                p.run(-1., 1);
-                let exact = p.output.clone();
-                for theta in [0.2, 0.25, 0.35, 0.5] {
-                    p.run(theta, 1);
-                    let error = p
-                        .output
-                        .iter()
-                        .zip(&exact)
-                        .skip(1)
-                        .map(|(a, b)| a.minus(*b).norm2())
-                        .sum::<f64>();
-                    let scale = exact.iter().skip(1).map(|a| a.norm2()).sum::<f64>();
-                    let relative = (error / scale).sqrt();
-                    assert!(
-                        relative < 0.005,
-                        "cluster={cluster} seed={seed} theta={theta}: {relative}"
-                    );
-                    let mut momentum = crate::V2::default();
-                    let mut torque = 0.;
-                    let mut norm = 0.;
-                    let mut torque_norm = 0.;
-                    for i in 0..p.mass.len() {
-                        let force = p.output[i].scale(p.mass[i]);
-                        momentum = momentum.plus(force);
-                        torque += crate::V2::new(p.x[i], p.y[i]).cross(force);
-                        norm += force.norm();
-                        torque_norm += crate::V2::new(p.x[i], p.y[i]).norm() * force.norm();
-                    }
-                    assert!(momentum.norm() / norm < 1e-12);
-                    assert!(torque.abs() / torque_norm < 1e-12);
-                    let first = p.output.clone();
-                    p.run(theta, 1);
-                    assert_eq!(first, p.output);
-                }
-            }
-        }
-    }
-    #[test]
-    fn coincident_and_collinear_bodies_terminate_with_finite_forces() {
-        let mut p = ForceProbe::new(1024, 42, true, 1.);
-        for collinear in [false, true] {
-            for i in 1..p.x.len() {
-                p.x[i] = if collinear { i as f64 * 0.01 } else { 1. };
-                p.y[i] = 0.;
-            }
-            p.run(0.35, 1);
-            assert!(p.output.iter().all(|a| a.x.is_finite() && a.y.is_finite()));
-        }
     }
 }
 
@@ -375,4 +335,64 @@ pub fn phase_profile(count: u32, ticks: u32) -> serde_json::Value {
         },
         "ticks_per_second": (f64::from(ticks) / (total / 1000.)).round(),
     })
+}
+
+#[cfg(test)]
+mod tree_tests {
+    use super::*;
+    #[test]
+    fn tree_force_error_and_conservation_across_distributions() {
+        for cluster in [false, true] {
+            for seed in [1, 42, 123456] {
+                // Exclude the dominating stellar force when measuring approximation error.
+                let mut p = ForceProbe::new(1024, seed, cluster, 0.);
+                p.run(-1., 1);
+                let exact = p.output.clone();
+                for theta in [0.2, 0.25, 0.35, 0.5] {
+                    p.run(theta, 1);
+                    let error = p
+                        .output
+                        .iter()
+                        .zip(&exact)
+                        .skip(1)
+                        .map(|(a, b)| a.minus(*b).norm2())
+                        .sum::<f64>();
+                    let scale = exact.iter().skip(1).map(|a| a.norm2()).sum::<f64>();
+                    let relative = (error / scale).sqrt();
+                    assert!(
+                        relative < 0.005,
+                        "cluster={cluster} seed={seed} theta={theta}: {relative}"
+                    );
+                    let mut momentum = crate::V2::default();
+                    let mut torque = 0.;
+                    let mut norm = 0.;
+                    let mut torque_norm = 0.;
+                    for i in 0..p.mass.len() {
+                        let force = p.output[i].scale(p.mass[i]);
+                        momentum = momentum.plus(force);
+                        torque += crate::V2::new(p.x[i], p.y[i]).cross(force);
+                        norm += force.norm();
+                        torque_norm += crate::V2::new(p.x[i], p.y[i]).norm() * force.norm();
+                    }
+                    assert!(momentum.norm() / norm < 1e-12);
+                    assert!(torque.abs() / torque_norm < 1e-12);
+                    let first = p.output.clone();
+                    p.run(theta, 1);
+                    assert_eq!(first, p.output);
+                }
+            }
+        }
+    }
+    #[test]
+    fn coincident_and_collinear_bodies_terminate_with_finite_forces() {
+        let mut p = ForceProbe::new(1024, 42, true, 1.);
+        for collinear in [false, true] {
+            for i in 1..p.x.len() {
+                p.x[i] = if collinear { i as f64 * 0.01 } else { 1. };
+                p.y[i] = 0.;
+            }
+            p.run(0.35, 1);
+            assert!(p.output.iter().all(|a| a.x.is_finite() && a.y.is_finite()));
+        }
+    }
 }

@@ -3,7 +3,13 @@ use crate::{Kind, Replay, SimError, World, MAX_BODIES, MAX_TICKS};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
-pub const PHYSICS_ID: &str = "newton-soft1e-4-mutual035-kdk4-moon16-disk32-edge025-v1";
+pub const PHYSICS_ID: &str = "newton-soft1e-4-mutual035-kdk4-swarm2-moon16-disk32-edge025-v2";
+/// Replays recorded under these rules still reconstruct. Systems below the tree
+/// threshold are bit-identical; large swarms replay under the current rules.
+pub const ACCEPTED_PHYSICS: [&str; 2] = [
+    PHYSICS_ID,
+    "newton-soft1e-4-mutual035-kdk4-moon16-disk32-edge025-v1",
+];
 pub const MAX_CHECKPOINT_BYTES: usize = 32_000_000;
 /// Every tick of the longest experiment at the largest pairwise workload.
 pub const MAX_WORK_UNITS: u64 = MAX_TICKS * (MAX_BODIES as u64 * (MAX_BODIES as u64 - 1) / 2);
