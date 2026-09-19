@@ -44,12 +44,14 @@ impl World {
             self.minimum_substeps
         }
     }
+    /// Changes whenever a contact resolved. A merge adds a collision and
+    /// removes a body, so the two must not be allowed to cancel.
     fn contact_serial(&self) -> u64 {
-        u64::from(self.collisions)
+        let events = u64::from(self.collisions)
             + u64::from(self.grazes)
             + u64::from(self.disruptions)
-            + u64::from(self.absorbed)
-            + self.bodies.len() as u64
+            + u64::from(self.absorbed);
+        (events << 24) | self.bodies.len() as u64
     }
     /// Symmetric dissipative splitting. Record each actual exchange with the disk.
     pub(crate) fn apply_disk_torque(&mut self, h: f64) {
@@ -171,7 +173,7 @@ impl World {
     }
     /// The pending request's staged state for helpers.
     pub fn force_request(&mut self) -> Vec<f64> {
-        self.forces.request(&self.bodies, SOFTENING.powi(2))
+        gravity::Forces::request(&self.bodies)
     }
     /// Install helper outputs as the pending request's accelerations.
     pub fn force_reduce(&mut self, groups: &[f64], rebuild: bool) -> bool {

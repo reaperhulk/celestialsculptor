@@ -110,3 +110,34 @@ fn a_tick_can_fall_back_to_the_engine_mid_flight() {
     assert!(bad.tick_pending());
     assert!(bad.tick_local(rebuild).is_some());
 }
+
+#[test]
+#[cfg_attr(
+    debug_assertions,
+    ignore = "large-system workload runs in the release profile"
+)]
+fn a_merge_inside_a_tick_keeps_helpers_in_step() {
+    // A merge adds a collision and removes a body in the same substep; the
+    // partition must be rebuilt and helpers told so.
+    let build = || {
+        let mut w = swarm(600, 0.2);
+        for angle in [0.0, 0.0004] {
+            w.apply(Command::Launch {
+                kind: Kind::Rocky,
+                radius: 1.5,
+                angle,
+                speed: 1.0,
+            })
+            .unwrap();
+        }
+        w
+    };
+    let mut reference = build();
+    reference.advance(4);
+    assert!(reference.collisions > 0, "fixture must merge");
+    let mut w = build();
+    for _ in 0..4 {
+        parallel_tick(&mut w, 2);
+    }
+    assert_eq!(w, reference);
+}

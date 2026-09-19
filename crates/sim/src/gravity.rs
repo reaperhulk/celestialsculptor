@@ -36,18 +36,33 @@ impl Forces {
     pub fn tree_for(bodies: usize) -> bool {
         bodies >= 512
     }
-    /// The staged request helpers evaluate: `[x…, y…, mass…]` for every body.
-    pub fn request(&mut self, bodies: &[Body], softening2: f64) -> Vec<f64> {
-        self.stage(bodies, softening2, true);
+    /// The request helpers evaluate: `[x…, y…, mass…]` for every body. Reads
+    /// only, so a failed round trip leaves the cache exactly as it was.
+    pub fn request(bodies: &[Body]) -> Vec<f64> {
         let mut out = Vec::with_capacity(3 * bodies.len());
-        out.extend_from_slice(&self.x);
-        out.extend_from_slice(&self.y);
-        out.extend_from_slice(&self.mass);
+        out.extend(bodies.iter().map(|b| b.pos.x));
+        out.extend(bodies.iter().map(|b| b.pos.y));
+        out.extend(bodies.iter().map(|b| b.mass));
         out
     }
     /// Reduce helper outputs (all groups, ascending, concatenated) into
     /// accelerations. Bit-identical to `update` with a tree.
     pub fn reduce(
+        &mut self,
+        bodies: &[Body],
+        softening2: f64,
+        groups: &[f64],
+        rebuild: bool,
+    ) -> bool {
+        let done = self.try_reduce(bodies, softening2, groups, rebuild);
+        if !done {
+            // A half-filled output must never look current to the next local
+            // evaluation; the engine recomputes from scratch.
+            self.x.clear();
+        }
+        done
+    }
+    fn try_reduce(
         &mut self,
         bodies: &[Body],
         softening2: f64,
