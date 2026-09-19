@@ -30,7 +30,8 @@ test('a thousand-body swarm renders, advances, pauses and remains navigable', as
   const canvas = await page.locator('#universe').boundingBox();
   await page.mouse.move(canvas.x + canvas.width * 0.5, canvas.y + canvas.height * 0.5);
   await page.mouse.wheel(0, -300);
-  await expect(page.locator('#fps-overlay')).toContainText('1024 bodies');
+  // A fast batch can reach the swarm's first merger (0.20 yr) before the pause.
+  await expect(page.locator('#fps-overlay')).toContainText(/102[0-4] bodies/);
   await expect(page.locator('#fps-overlay')).toContainText('Physics paused');
   await page.screenshot({ path: testInfo.outputPath(`review-swarm-${testInfo.project.name}.png`) });
 });
