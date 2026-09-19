@@ -63,18 +63,25 @@ impl World {
     /// that can touch inside a tick is a near pair, so the full sweep is only
     /// needed at tick and substep boundaries.
     fn merge_near_contacts(&mut self, sweep: f64) {
+        // A resolved graze or disruption leaves both bodies in place; like the
+        // full sweep, test such a pair once per pass rather than forever.
+        let mut handled: Vec<(u32, u32)> = Vec::new();
         loop {
             let mut resolved = false;
             for k in 0..self.near.pairs.len() {
                 let (i, j) = self.near.pairs[k];
                 let (i, j) = (i as usize, j as usize);
-                if swept_overlap(&self.bodies[i], &self.bodies[j], sweep) {
-                    if !self.resolve_solid_contact(i, j, sweep) {
-                        self.merge_pair(i, j);
-                    }
-                    resolved = true;
-                    break;
+                let ids = (self.bodies[i].id, self.bodies[j].id);
+                if handled.contains(&ids) || !swept_overlap(&self.bodies[i], &self.bodies[j], sweep)
+                {
+                    continue;
                 }
+                handled.push(ids);
+                if !self.resolve_solid_contact(i, j, sweep) {
+                    self.merge_pair(i, j);
+                }
+                resolved = true;
+                break;
             }
             if !resolved {
                 break;
