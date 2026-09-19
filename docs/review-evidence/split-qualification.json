@@ -1,0 +1,64 @@
+{
+  "schema": 1,
+  "physics": "newton-soft1e-4-mutual035-kdk4-near2hill8-moon16-disk32-edge025-v3",
+  "bodies": 512,
+  "scope": "Giant with two authored moons inside a 512-body low-mass disk for 600 years: the production near/far split with the mutual tree, compared with the same split on direct far forces (tree approximation) and with a uniform sixteen-substep integration of the same tree forces (integrator). Moon elements are relative to the host.",
+  "budgets": {
+    "axis_relative": 0.002,
+    "eccentricity": 0.002,
+    "phase_radians": 0.2,
+    "apsis_radians": 0.1,
+    "relative_energy": 0.00002,
+    "angular_residual": 1e-9,
+    "momentum_residual": 1e-9
+  },
+  "rows": [
+    {
+      "name": "split-tree",
+      "years": 600,
+      "relative_energy": 8.578091763246536e-12,
+      "angular_residual": 5.1295773184634186e-15,
+      "momentum_residual": 4.1011765347263347e-16,
+      "moonsBound": true,
+      "compared_with": "uniform-tree",
+      "moon_errors": {
+        "axis_relative": 0.00019668759781564678,
+        "eccentricity": 0.00027783814267097647,
+        "phase_radians": 0.012554867695714567,
+        "apsis_radians": 0.012926083800112842
+      }
+    },
+    {
+      "name": "split-direct",
+      "years": 600,
+      "relative_energy": 9.34422720380709e-13,
+      "angular_residual": 3.3480163086352377e-15,
+      "momentum_residual": 1.400608035828051e-15,
+      "moonsBound": true,
+      "compared_with": "split-tree",
+      "moon_errors": {
+        "axis_relative": 9.460097418872115e-8,
+        "eccentricity": 1.382444271696981e-7,
+        "phase_radians": 6.963536667292658e-7,
+        "apsis_radians": 0.000019848114690024236
+      }
+    },
+    {
+      "name": "uniform-tree",
+      "years": 600,
+      "relative_energy": 8.318890665592504e-12,
+      "angular_residual": 2.5864727026814194e-15,
+      "momentum_residual": 7.373243762053102e-16,
+      "moonsBound": true,
+      "compared_with": "split-tree",
+      "moon_errors": {
+        "axis_relative": 0.00019672629143733676,
+        "eccentricity": 0.00027783814267097647,
+        "phase_radians": 0.012554867695714567,
+        "apsis_radians": 0.012926083800112842
+      }
+    }
+  ],
+  "passed": true,
+  "failures": []
+}

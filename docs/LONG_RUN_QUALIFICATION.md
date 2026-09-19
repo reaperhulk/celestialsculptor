@@ -8,16 +8,34 @@ possible moons, or a scientifically exact history of the actual Solar System.
 
 ## Physics contract
 
-Ticks remain 1/512 year. Ordinary worlds use four fixed KDK substeps per tick.
-Adding an authored moon raises the experiment's fixed resolution to sixteen;
-applying disk migration raises it to thirty-two. Resolution never drops later
-and never depends on display speed, frame time, hardware or how many gravity
-helpers a device runs: helpers return the same sums in the same order as the
-engine. A two-substep schedule for large swarms was measured in iteration 173
+Ticks remain 1/512 year. Worlds below 512 bodies use four fixed KDK substeps
+per tick. Adding an authored moon raises the experiment's fixed resolution to
+sixteen; applying disk migration raises it to thirty-two. Resolution never
+drops later and never depends on display speed, frame time, hardware or how
+many gravity helpers a device runs: helpers return the same sums in the same
+order as the engine. Commands reproduce these changes, including moons created
+by the generator. Naturally captured satellites do not automatically change the
+resolution.
+
+Worlds of 512 or more bodies integrate with a near/far split (iteration 174).
+Every body above the dust boundary (0.5 Earth masses) carries a cutoff of twice
+its Hill radius; a pair's cutoff is the larger of the two, 0.6 AU for a massive
+body against the star, and zero for two grains of dust or dust against the
+star. Each pair force with a cutoff is divided by a smooth C² step into a near
+part inside the cutoff and a far part beyond it, the step spanning the outer
+half. The far parts are evaluated by the mutual tree, or by direct summation in
+exact runs, at four coarse substeps; the near parts, the few hundred pairs
+inside their cutoffs, are integrated directly at eight fine steps per coarse
+substep, 1/16384 year. Both parts are central pair forces, so each is
+Hamiltonian and pairwise symmetric: the composition is symplectic, momentum is
+conserved to rounding, and a moon, a migrating body near the inner disk edge or
+dust passing a giant is resolved at the fine step without slowing the swarm
+around it. Candidate near pairs are listed once per tick with a margin covering
+twice the distance a pair can close in a tick, so membership never depends on
+timing, and a tick with no candidate pair, such as any swarm of dust alone, runs
+the plain four-substep scheme unchanged. A two-substep schedule for large swarms was measured in iteration 173
 and rejected: the tree/direct trajectory gate below reached 0.0012 AU at 600
-years against the 0.001 AU limit, so swarms keep four substeps. Commands reproduce
-these changes, including moons created by the generator. Naturally captured
-satellites do not automatically change the resolution.
+years against the 0.001 AU limit.
 
 Disk torque tapers smoothly between 0.35 and 0.25 AU and vanishes inside that
 inner edge. Disk impulses are split symmetrically around the gravitational step,
@@ -58,7 +76,16 @@ and 1,024-body massive swarm each run 600 years with the actual world engine.
 Collision, unresolved-disk and escape transfers are included in the balance.
 
 A separate collisionless 512-body disk keeps the tree selected for all 600 years
-and compares it with direct summation at the same timestep. Its debris mass is
+and compares it with direct summation at the same timestep. A third fixture
+(`qualify-split`) places a giant with two authored moons inside a 512-body
+low-mass disk and runs 600 years three ways: the production split with the
+tree, the same split with direct far forces (isolating the tree's
+approximation) and a uniform sixteen-substep integration of the same tree
+forces (isolating the integrator; a direct-summation reference at that
+resolution would take hours). The moons' elements relative to their host must
+stay within the moon-family budgets (axis 2e-3, eccentricity 2e-3, phase 0.2
+rad, apsis 0.1 rad) in both comparisons, and every run's balances within the
+tree budgets. Its debris mass is
 0.016 Earth masses to isolate accumulated force approximation from unresolved
 hard encounters. The full-world swarm uses 16 Earth masses and collisions;
 mergers eventually reduce that case below the tree threshold. These are distinct

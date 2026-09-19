@@ -16,7 +16,8 @@ the qualification commands and retained as CI artifacts, rather than committed.
    independent SciPy DOP853 reference, orbital phase/apsis diagnostics, and a
    persistent 512-body tree/direct comparison. The checks exposed and fixed
    inadequate moon resolution and inward disk migration beyond the resolved
-   inner edge. [Numerical results](numerical.json), [tree lifetime](tree-lifetime.json).
+   inner edge. [Numerical results](numerical.json), [tree lifetime](tree-lifetime.json),
+   [near/far split with moons in a swarm](split-qualification.json).
 2. **Fast, validated restart.** Bounded sandbox checkpoints carry exact-build
    provenance and payload hashes. Imports validate state and replay membership;
    missing/corrupt caches fall back to command reconstruction. Named saves wait

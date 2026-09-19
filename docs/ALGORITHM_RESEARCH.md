@@ -10,7 +10,7 @@ energy conservation, and visual plausibility are each insufficient alone.
 |---|---|---|
 | Symmetric mutual tree and SIMD direct leaves | [Dehnen 2000](https://arxiv.org/abs/astro-ph/0003209) describes mutual cell interactions that preserve momentum. | Retain f64 SIMD and the existing symmetric second-order tree. Measure tree construction, traversal and exact leaf pairs together. Keep stellar recoil direct. |
 | Force-error-controlled FMM | [Dehnen 2014](https://arxiv.org/abs/1405.2255) estimates expansion error and controls its distribution. Its reported crossover above roughly 100,000 particles on a 16-core host is not a browser crossover prediction. | Added a bounded mutual acceptance experiment using acceleration scales and a geometric error estimate. It improves force accuracy but is slower in this sweep. This prototype is **not** a complete high-order FMM or a rigorous implementation of the paper's error bound. |
-| P3T and individual cutoffs | [Oshino, Funato & Makino 2011](https://arxiv.org/abs/1101.5504), [GPLUM 2021](https://arxiv.org/abs/2007.15432) split short- and long-range interactions, with accurate local integration and tree forces farther away. | This is the strongest next integrator architecture for crowded systems. A production version needs a differentiable force/potential split, deterministic neighbor construction and encounter tests. The mixed GPU prototype explores the precision split, but does not claim to implement P3T's Hermite integration or GPLUM's individual cutoffs. |
+| P3T and individual cutoffs | [Oshino, Funato & Makino 2011](https://arxiv.org/abs/1101.5504), [GPLUM 2021](https://arxiv.org/abs/2007.15432) split short- and long-range interactions, with accurate local integration and tree forces farther away. | Adopted for tree-sized systems in iteration 174 (`split.rs`): a C² force split at twice the larger Hill radius of a pair involving a body above the dust boundary, tree far forces at four coarse substeps, direct near forces at eight fine steps each, candidate pairs listed once per tick from the massive bodies with a closing-speed margin. Near steps stay KDK rather than Hermite, and collisions remain inelastic mergers. The 600-year `qualify-split` gate holds two moons inside a 512-body disk to the moon-family budgets. |
 | Kepler maps and secular accuracy | [WHFast](https://arxiv.org/abs/1506.01084), [Rein, Brown & Tamayo 2019](https://arxiv.org/abs/1908.03468) separate dominant Kepler motion and show that improved energy error need not improve secular frequencies. | Useful for well-separated planets, not a drop-in replacement for softened close encounters and changing body counts. A Kepler map would require a compatible softening correction and encounter policy. Added apsidal and phase diagnostics before adopting such a change. |
 | Encounter-aware reversible hybrids | [TRACE 2024](https://arxiv.org/html/2405.03800v2) targets close encounters using an almost time-reversible switching scheme. | A good reference for future encounter switching. It is not an exactly symplectic universal solution, and irreversible collisions remain a separate problem. Frame-dependent or casually adaptive steps are excluded. |
 | Wide-vector specialized Kepler integration | [WHFast512](https://arxiv.org/abs/2307.05683) specializes AVX-512 integration for small planetary systems. | Its speedups cannot be transferred directly to browser SIMD128 or thousands of mutually interacting particles. Current f64x2 direct leaves remain portable; scalar/SIMD parity and workload benchmarks are retained. |
@@ -48,8 +48,14 @@ from **omitted physical interactions**, not a faster implementation of the same
 system. Collisions, accretion and long-term morphology require separate validation
 before considering a clearly labeled optional mode.
 
-The fixed satellite/disk resolution policy intentionally spends more computation
-on the cases where reference checks found accumulated error. Ordinary massive
-swarms retain their previous timestep. A future near/far integrator should recover
-that extra cost while preserving the new orbital accuracy, not relax the accuracy
-gates to regain throughput.
+The fixed satellite/disk resolution policy for small worlds intentionally spends
+more computation on the cases where reference checks found accumulated error.
+Iteration 174's near/far split recovers that cost for tree-sized systems while
+keeping the accuracy gates: the fine near step is the migration world's
+thirty-two-per-tick resolution, applied only to pairs inside their cutoff.
+Measured on the way there: the moon family passes every reference gate at eight
+uniform substeps (phase 0.062 rad, eccentricity 1.4e-3, apsis 0.068 rad) but
+with roughly a third of the margin sixteen leaves, and the migration world's
+energy-balance error scales as the square of the step (4.1e-4, 1.0e-4, 2.6e-5
+and 6.4e-6 at 4, 8, 16 and 32 substeps against a 2e-5 budget), which is why the
+fine step is 1/16384 year and pairs with the star inside 0.6 AU are near pairs.

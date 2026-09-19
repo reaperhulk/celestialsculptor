@@ -8,9 +8,14 @@ source gravity. Missions retain the 64-body cap and exact solver. Only the curre
 format is accepted; there are no historical physics implementations. Current systems use exact f64 SIMD below 512 bodies and a symmetric mutual
 tree with second-order cell forces and tides above that, at opening 0.35.  The star
 and nearby leaves remain direct. The tree partition is built once per tick and its
-moments refreshed for the later substeps. Ordinary systems retain four integration
-substeps; authored moons and disk migration select finer fixed resolution to meet
-the long-run orbital gates. Above 1,024 bodies the worker shares each force evaluation with gravity helper
+moments refreshed for the later substeps. Systems below 512 bodies retain four
+integration substeps, with authored moons and disk migration selecting finer fixed
+resolution to meet the long-run orbital gates. In tree-sized systems every pair
+involving a body above the dust boundary is split at a Hill-scaled cutoff: the tree
+sums the far parts at four substeps while the few hundred near pairs (a moon and its
+host, a body at the inner disk edge, dust passing a giant) are integrated directly at
+thirty-two, so moons and migration no longer multiply the whole swarm's cost, and a
+swarm of dust alone runs the plain scheme. Above 1,024 bodies the worker shares each force evaluation with gravity helper
 workers (one per spare core, at most eight) that own fixed subtrees of the same
 partition, so the result is bit-identical to the engine alone on any device.
 
@@ -74,6 +79,51 @@ are five evaluations per tick; contacts are five swept passes without merges.
 
 Cost grows close to N log N (about N^1.1 across this range). Gravity is the
 whole story: bookkeeping, contact search and observation are already cheap.
+
+## Near/far split (iteration 174)
+
+One authored moon used to make an 8,192-body swarm four times slower and disk
+migration eight times, because the substep schedule was global: 41, 161 and
+314 ms per tick native at four, sixteen and thirty-two substeps. The resolution
+was needed by a handful of pairs. Iteration 174 gives every body above the dust
+boundary a cutoff of twice its Hill radius (0.6 AU against the star) and splits
+each pair force with a cutoff by a smooth step: the mutual tree evaluates the far
+parts at four coarse substeps, opening any cell pair whose bodies could be inside
+a cutoff, and the near parts are integrated directly at eight fine steps per
+substep on the owner. Dust pairs carry no cutoff, so a swarm without a massive
+body runs the previous scheme bit for bit; a first version that gave dust
+cutoffs too listed 2,600 candidate pairs in a plain 8,192-body swarm and cost
+40% of the tick in bookkeeping. Helpers are unchanged apart from the cutoffs
+riding in the request.
+
+Native whole ticks on the review host, the same disordered swarm with and
+without a giant carrying an authored moon, before (e1b51cf) and after:
+
+| Bodies | Swarm before | Swarm after | With a moon before | With a moon after |
+|---:|---:|---:|---:|---:|
+| 2,048 | 8.9 ms | 8.8 ms | 35.1 ms (16 substeps) | 9.2 ms (3.8×) |
+| 8,192 | 40.0 ms | 36.8 ms | 157.7 ms (16 substeps) | 40.2 ms (3.9×) |
+
+A migrating world, thirty-two substeps before, gains twice that again. The
+plain swarm is slightly faster than before because the leaf kernel is now
+marked for inlining; its physics is unchanged bit for bit. Gravity helpers are
+unaffected: in the same session `bench:parallel` took an 8,192-body swarm from
+44.1 ms alone to 30.3 ms with three helpers (1.46×), every helper count
+producing identical snapshots. Absolute figures in this section come from a
+host that measured about a quarter slower than in iteration 173's tables, so
+only the before/after pairs measured back to back are comparable.
+
+Qualification (`qualify-split`, [evidence](review-evidence/split-qualification.json)):
+a giant with two authored moons inside a 512-body low-mass disk for 600 years.
+Against a uniform sixteen-substep integration of the same tree forces, the
+production split holds the moons' semi-major axes to 2.0e-4 relative,
+eccentricities to 2.8e-4, phases to 0.013 rad and apsides to 0.013 rad
+(budgets 2e-3, 2e-3, 0.2 and 0.1), with relative energy within 8.6e-12 and
+momentum and angular momentum within 1e-14. The tree's own approximation adds
+7e-7 rad of phase over the same span (split with direct far forces against
+split with the tree). The dust-only tree lifetime gate is unchanged at
+0.000272 AU RMS, since a swarm without a massive body runs the previous
+scheme.
 
 ## Measured climbs (iteration 173)
 

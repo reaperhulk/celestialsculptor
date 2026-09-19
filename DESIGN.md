@@ -2100,3 +2100,45 @@ campaign fixtures byte-identical. Native ticks fell from
 25.0 ms with three helpers on the four-core review host (1.38×). `docs/SCALING.md`
 records the tables, the rejected two-substep measurements and the remaining
 per-participant staging cost.
+
+### 174 — Near/far force split for tree-sized systems
+
+Review needs: one authored moon made an 8,192-body swarm four times slower and
+disk migration eight times, because the substep schedule was global while the
+bodies needing it were a moon and its host or a body at the inner disk edge.
+The fix had to keep exact replay, bit-identical helper reductions, momentum
+conservation at the 1e-9 gate and every 600-year qualification, and had to be
+qualified on a moon inside a swarm, which no fixture covered.
+Implemented: `split.rs` gives every body above the dust boundary a cutoff of
+twice its Hill radius (0.6 AU against the star) and cuts each pair force with a
+cutoff by a C² step into a near and a far part; dust pairs carry none, so a
+swarm without a massive body runs the previous scheme bit for bit. The mutual
+tree, or direct summation in exact runs, evaluates the far parts at four coarse
+substeps and now opens any cell pair whose bodies could be inside a cutoff; the
+SIMD leaf kernel applies the same weights lane by lane. Candidate near pairs are
+listed once per tick from the massive bodies with a closing-speed margin and
+integrated directly at eight fine
+steps per substep, with swept contacts checked among them at every fine step and
+a plain overlap check at substep boundaries. Both parts are central forces, so
+the composition is symplectic and pairwise symmetric. The orbit probe follows
+the same scheme and gains a uniform reference mode; `qualify-split` and
+`scripts/qualify-split.mjs` add a giant with two moons inside a 512-body
+low-mass disk to the numerics gate, run three ways. The helper request carries
+the cutoffs; the physics identifier moved to `…-near2hill8-…-v3` with v2 and v1
+saves still loading.
+Validation: Rust release and debug suites, with new unit tests that the near
+and far weights sum to the full force for every pair, that the candidate list
+covers every pair inside its cutoff and margin and never a dust pair, and that
+a dust swarm keeps the plain scheme; the helper equivalence, fallback and
+in-tick merge tests; 186 Node tests including probe-versus-engine parity at
+512 bodies; the browser matrix (285 passed, with the Firefox and WebKit engine
+projects unavailable in the review container and a load flake re-run green);
+headless verify with byte-identical campaign fixtures. The 600-year
+`qualify-split` gate passes with moon phases within 0.013 rad of a uniform
+sixteen-substep integration (budget 0.2) and energy within 8.6e-12, and the
+tree lifetime gate is unchanged at 0.000272 AU. Back-to-back on the review
+host, an 8,192-body swarm with a giant and a moon runs at 40.2 ms per tick
+against 157.7 before (3.9×), 2,048 bodies at 9.2 against 35.1 (3.8×), and a
+plain swarm at 36.8 against 40.0; three helpers still give 1.46× at 8,192.
+`docs/SCALING.md` and `docs/LONG_RUN_QUALIFICATION.md` record the design, the
+measurements and the new gate.
