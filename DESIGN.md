@@ -2037,3 +2037,28 @@ WASM build measured 30% smaller (503 KB against 717 KB) but 16% slower on 512-
 and 2,048-body swarms, so the release profile keeps `opt-level = 3` and the
 740 KB budget stands; the payload documentation now states the real numbers.
 
+### 172 — Play-test fixes and a per-phase scaling profile
+
+Review needs: a scripted play-through found that the first challenge won itself
+with the default form values, that a laptop-height window hid the Next challenge
+button below the field notes, that phone players never saw the challenge brief
+because it lived in an unopened tab, that three challenges offered no
+progressive hints, that the tool panel said "Make a world" while launches were
+disabled, that the last two challenges handed out 1,000 matter, and that a
+missing favicon logged a 404 on every first load. The scaling question needed a
+measured answer about where a tick's time goes.
+Implemented: First light opens at 130% so the first orbit must be corrected;
+the Next challenge button follows the goal state; a tappable brief sits in the
+scene header on narrow layouts; hints for From dust to worlds, The giant's
+nursery and A system of your own; contextual tool-panel headings; budgets of 800
+and 500 for the last two challenges, above every authored solution; consistent
+"Place your first world" copy; sandbox notes pointing at the notebook and
+Observe; an inline SVG favicon; and `benchmark::phase_profile`, which times
+forces, contacts, history, satellites, resonances and status per tick on clones.
+Validation: campaign, assessment and CLI tests, 182 Node tests and 90 desktop and
+phone browser tests pass. The native profile on the review host puts gravity at
+more than 90% of a tick at every size from 1,024 to 8,192 bodies (3.3, 7.5, 16.2
+and 33.8 ms per tick; 299, 133, 62 and 30 ticks per second), contacts at 2 to 4%,
+and every observation phase below 1%, so further scaling work belongs in the
+force evaluation and its parallelism, not in bookkeeping.
+

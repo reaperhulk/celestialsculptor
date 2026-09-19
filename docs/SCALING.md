@@ -55,6 +55,22 @@ error 3.8e-6. This straightforward readback design loses at that count. GPU
 integration stays experimental. The next sweep includes 4,096 and 8,192 on Metal;
 short CPU measurements aggregate calls to avoid zero-duration timer samples.
 
+## Native phase profile (iteration 172)
+
+`celestial_sim::benchmark::phase_profile(count, ticks)` times each phase of a
+disordered swarm tick on the review host (x64, release profile, native). Forces
+are five evaluations per tick; contacts are five swept passes without merges.
+
+| Bodies | ms/tick | Forces | Contacts | History + status | Ticks/s |
+|---:|---:|---:|---:|---:|---:|
+| 1,024 | 3.3 | ≥ 90% | 2% | < 2% | 299 |
+| 2,048 | 7.5 | ≥ 90% | 2% | < 2% | 133 |
+| 4,096 | 16.2 | ≥ 90% | 3% | < 2% | 62 |
+| 8,192 | 33.8 | ≥ 90% | 4% | < 2% | 30 |
+
+Cost grows close to N log N (about N^1.1 across this range). Gravity is the
+whole story: bookkeeping, contact search and observation are already cheap.
+
 ## Next measured climbs
 
 Iteration 165 qualifies rules 7 at opening 0.35 and retains eight-body leaves.
