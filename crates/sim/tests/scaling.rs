@@ -13,6 +13,10 @@ fn swarm(count: u32) -> World {
     w
 }
 #[test]
+#[cfg_attr(
+    debug_assertions,
+    ignore = "large-system workload runs in the release profile"
+)]
 fn large_swarms_are_massive_bounded_and_replayable() {
     let mut w = swarm(1024);
     assert_eq!(w.bodies.len(), 1024);
@@ -36,6 +40,10 @@ fn large_swarms_are_massive_bounded_and_replayable() {
     assert!(World::from_replay(legacy).is_err());
 }
 #[test]
+#[cfg_attr(
+    debug_assertions,
+    ignore = "large-system workload runs in the release profile"
+)]
 fn large_orbital_system_converges_with_direct_gravity_and_conserves_balances() {
     let mut tree = swarm(512);
     let mut exact = tree.clone();
@@ -62,6 +70,10 @@ fn large_orbital_system_converges_with_direct_gravity_and_conserves_balances() {
     assert!(((tree.energy() + tree.collision_energy - energy) / energy).abs() < 1e-4);
 }
 #[test]
+#[cfg_attr(
+    debug_assertions,
+    ignore = "large-system workload runs in the release profile"
+)]
 fn moons_and_retrograde_orbits_survive_with_a_gravitating_swarm() {
     let mut w = World::new(Config {
         mission: None,
@@ -102,6 +114,10 @@ fn moons_and_retrograde_orbits_survive_with_a_gravitating_swarm() {
 }
 
 #[test]
+#[cfg_attr(
+    debug_assertions,
+    ignore = "large-system workload runs in the release profile"
+)]
 fn thousand_body_swarm_runs_past_forty_years_with_bounded_history() {
     let mut w = swarm(1024);
     let mass = w.bodies.iter().map(|b| b.mass).sum::<f64>();

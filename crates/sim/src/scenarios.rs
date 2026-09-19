@@ -1,4 +1,4 @@
-use crate::{Replay, World};
+use crate::{Replay, SimError, World};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
@@ -12,13 +12,13 @@ pub fn campaign() -> Vec<Scenario> {
         .expect("valid current campaign scenarios")
 }
 impl Scenario {
-    pub fn run(&self) -> Result<World, String> {
+    pub fn run(&self) -> Result<World, SimError> {
         let world = World::from_replay(self.replay.clone())?;
         if world.completed != self.completed {
-            return Err(format!(
+            return Err(SimError::Invalid(format!(
                 "{}: expected completed={}, got {}",
                 self.name, self.completed, world.completed
-            ));
+            )));
         }
         if !world.energy().is_finite()
             || world
@@ -26,7 +26,10 @@ impl Scenario {
                 .iter()
                 .any(|b| !b.pos.norm2().is_finite() || !b.vel.norm2().is_finite())
         {
-            return Err(format!("{}: non-finite state", self.name));
+            return Err(SimError::Invalid(format!(
+                "{}: non-finite state",
+                self.name
+            )));
         }
         Ok(world)
     }

@@ -1,15 +1,10 @@
 //! Seeded starting systems using the current physical rules.
-use crate::{generator::SystemStyle, Command, Kind};
+use crate::{generator::SystemStyle, Command, Kind, SimError};
 use std::f64::consts::{PI, TAU};
 struct Rng(u32);
 impl Rng {
     fn next(&mut self) -> f64 {
-        let mut x = self.0.max(1);
-        x ^= x << 13;
-        x ^= x >> 17;
-        x ^= x << 5;
-        self.0 = x;
-        x as f64 / u32::MAX as f64
+        crate::rng::xorshift(&mut self.0)
     }
 }
 pub fn commands(
@@ -18,7 +13,7 @@ pub fn commands(
     count: u32,
     chaos: f64,
     star_mass: f64,
-) -> Result<Vec<Command>, String> {
+) -> Result<Vec<Command>, SimError> {
     if !(4..=if style == SystemStyle::Swarm {
         8191
     } else {
@@ -30,7 +25,9 @@ pub fn commands(
         || !star_mass.is_finite()
         || !(0.6..=1.5).contains(&star_mass)
     {
-        return Err("Choose 4–32 bodies and disorder from 0 to 100%".into());
+        return Err(SimError::Invalid(
+            "Choose 4–32 bodies and disorder from 0 to 100%".into(),
+        ));
     }
     let mut rng = Rng(seed.wrapping_add(0x9e3779b9));
     let phase = rng.next() * TAU;

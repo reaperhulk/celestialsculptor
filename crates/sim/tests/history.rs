@@ -95,3 +95,35 @@ fn pinned_detail_survives_large_population_decimation_without_resetting_physics(
     assert!(w.history.valid_bounds());
     assert_eq!(w, celestial_sim::World::from_replay(w.replay()).unwrap());
 }
+
+#[test]
+fn event_log_stays_unique_and_ordered_when_one_tick_emits_more_than_the_live_buffer() {
+    let mut w = World::new(Config {
+        mission: None,
+        ..Config::default()
+    })
+    .unwrap();
+    for i in 0..30 {
+        w.apply(Command::Launch {
+            kind: Kind::Rocky,
+            radius: 1.0,
+            angle: f64::from(i) * 0.0005,
+            speed: 1.0,
+        })
+        .unwrap();
+    }
+    w.advance(1);
+    assert!(w.collisions > 24, "{} merges", w.collisions);
+    assert_eq!(w.events.len(), 24);
+    w.apply(Command::Spin { id: 1, rate: 1.0 }).unwrap();
+    w.advance(1);
+    let ids: Vec<u32> = w.history.events.iter().map(|e| e.id).collect();
+    assert!(ids.windows(2).all(|pair| pair[0] < pair[1]), "{ids:?}");
+    for live in &w.events {
+        assert_eq!(
+            w.history.events.iter().find(|e| e.id == live.id),
+            Some(live)
+        );
+    }
+    assert_eq!(w, World::from_replay(w.replay()).unwrap());
+}

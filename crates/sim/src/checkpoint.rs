@@ -1,10 +1,12 @@
 //! Validated sandbox restart state. Portable/campaign imports still use commands.
-use crate::{Kind, Replay, World, MAX_BODIES, MAX_TICKS};
+use crate::{Kind, Replay, SimError, World, MAX_BODIES, MAX_TICKS};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
 pub const PHYSICS_ID: &str = "newton-soft1e-4-mutual035-kdk4-moon16-disk32-edge025-v1";
 pub const MAX_CHECKPOINT_BYTES: usize = 32_000_000;
+/// Every tick of the longest experiment at the largest pairwise workload.
+pub const MAX_WORK_UNITS: u64 = MAX_TICKS * (MAX_BODIES as u64 * (MAX_BODIES as u64 - 1) / 2);
 pub fn physics_id() -> String {
     PHYSICS_ID.into()
 }
@@ -24,27 +26,34 @@ struct CheckpointRef<'a> {
 }
 
 impl World {
-    pub fn checkpoint(&self) -> Result<String, String> {
+    pub fn checkpoint(&self) -> Result<String, SimError> {
         if self.config.mission.is_some() {
-            return Err("Campaigns are reconstructed from their commands".into());
+            return Err(SimError::Unsupported(
+                "Campaigns are reconstructed from their commands".into(),
+            ));
         }
         let text = serde_json::to_string(&CheckpointRef {
             schema: 1,
             physics: PHYSICS_ID,
             world: self,
         })
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| SimError::Unsupported(e.to_string()))?;
         if text.len() > MAX_CHECKPOINT_BYTES {
-            return Err("Checkpoint exceeds its storage budget".into());
+            return Err(SimError::Unsupported(
+                "Checkpoint exceeds its storage budget".into(),
+            ));
         }
         Ok(text)
     }
 
-    pub fn from_checkpoint(text: &str, replay: &Replay) -> Result<Self, String> {
+    pub fn from_checkpoint(text: &str, replay: &Replay) -> Result<Self, SimError> {
         if text.len() > MAX_CHECKPOINT_BYTES {
-            return Err("Checkpoint exceeds its storage budget".into());
+            return Err(SimError::Unsupported(
+                "Checkpoint exceeds its storage budget".into(),
+            ));
         }
-        let data: Checkpoint = serde_json::from_str(text).map_err(|e| e.to_string())?;
+        let data: Checkpoint =
+            serde_json::from_str(text).map_err(|e| SimError::Unsupported(e.to_string()))?;
         let w = data.world;
         if replay.physics != PHYSICS_ID
             || replay.version != crate::SAVE_VERSION
@@ -63,7 +72,9 @@ impl World {
                 .get(w.commands.len())
                 .is_some_and(|c| c.tick < w.tick)
         {
-            return Err("Checkpoint does not belong to this experiment and physics build".into());
+            return Err(SimError::Unsupported(
+                "Checkpoint does not belong to this experiment and physics build".into(),
+            ));
         }
         World::new(w.config.clone())?;
         let ids: BTreeSet<_> = w.bodies.iter().map(|b| b.id).collect();
@@ -123,12 +134,18 @@ impl World {
             || w.next_event > 100_000_000
             || w.events.len() > 24
             || w.resonances.len() > 16
+            || w.resonances.iter().any(|r| !r.valid())
+            || w.rng == 0
+            || w.work_units > MAX_WORK_UNITS
+            || w.held_ticks > w.tick
             || !w.history.valid_bounds()
             || w.events
                 .iter()
                 .any(|e| e.id >= w.next_event || e.tick > w.tick || e.text.len() > 2048)
         {
-            return Err("Checkpoint contains invalid or oversized state".into());
+            return Err(SimError::Unsupported(
+                "Checkpoint contains invalid or oversized state".into(),
+            ));
         }
         Ok(w)
     }

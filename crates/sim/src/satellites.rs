@@ -1,5 +1,5 @@
 //! Current gravitational membership is separate from a satellite's origin.
-use crate::{Kind, World};
+use crate::{EventKind, Kind, World};
 impl World {
     pub(crate) fn refresh_satellites(&mut self) {
         // Compute host radii once, reject distant pairs before orbital elements.
@@ -36,7 +36,7 @@ impl World {
         for (id, parent) in changes {
             self.bodies.iter_mut().find(|b| b.id == id).unwrap().parent = parent;
             self.emit(
-                "satellite",
+                EventKind::Satellite,
                 id,
                 match parent {
                     Some(host) => format!("World {id} is now bound to World {host}"),
@@ -45,10 +45,16 @@ impl World {
             );
         }
     }
+    /// Budgeted burns arrive with the formation chapter and are withheld where
+    /// they would trivialise the lesson (gravity assists, moon families).
     pub fn burns_available(&self) -> bool {
         !self
             .config
             .mission
             .is_some_and(|m| m < 4 || (m == 6 || m == 7))
+    }
+    /// Moon creation is the reward for "Borrowed momentum" (mission index 6).
+    pub fn moons_available(&self) -> bool {
+        self.config.mission.is_none_or(|m| m >= 7)
     }
 }

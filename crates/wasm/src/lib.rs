@@ -6,6 +6,7 @@ struct Snapshot<'a> {
     rules_version: u32,
     physics_substeps: u32,
     burns_available: bool,
+    moons_available: bool,
     observation_stamp: (u64, usize, u32),
     assessment: celestial_sim::assessment::Assessment,
     mission_definition: Option<celestial_sim::Mission>,
@@ -168,6 +169,13 @@ impl Simulation {
     pub fn body_count(&self) -> u32 {
         self.world.bodies.len() as u32
     }
+    /// Cheap change detectors for the worker's per-turn bookkeeping.
+    pub fn tick(&self) -> f64 {
+        self.world.tick as f64
+    }
+    pub fn command_count(&self) -> u32 {
+        self.world.commands.len() as u32
+    }
     pub fn flags(&self) -> u8 {
         u8::from(self.world.completed) | (u8::from(self.world.exhausted()) << 1)
     }
@@ -186,12 +194,7 @@ impl Simulation {
             .events
             .iter()
             .rev()
-            .find(|e| {
-                matches!(
-                    e.kind.as_str(),
-                    "collision" | "graze" | "disruption" | "escape" | "absorb" | "satellite"
-                )
-            })
+            .find(|e| e.kind.is_physical())
             .map_or(0, |e| e.id)
     }
     pub fn export_replay(&self) -> String {
@@ -215,17 +218,9 @@ impl Simulation {
         );
         Ok(())
     }
-    pub fn import_replay(&mut self, input: &str) -> Result<(), JsValue> {
-        if input.len() > 512_000 {
-            return Err(js_error("Experiment file is too large"));
-        }
-        let replay: Replay = serde_json::from_str(input).map_err(js_error)?;
-        let world = World::from_replay(replay).map_err(js_error)?;
-        self.world = world;
-        self.reconstruction = None;
-        Ok(())
-    }
-    /// Rebuild off to the side; no partial or untrusted state replaces the live world.
+    /// Rebuild off to the side in bounded slices; no partial or untrusted state
+    /// replaces the live world, and no single call replays a whole experiment.
+    /// Undo, rewind and timeline review are edited replays imported this way.
     pub fn begin_import(&mut self, input: &str) -> Result<(), JsValue> {
         if input.len() > 512_000 {
             return Err(js_error("Experiment file is too large"));
@@ -258,12 +253,6 @@ impl Simulation {
         self.reconstruction
             .as_ref()
             .map_or(self.world.tick, |r| r.tick()) as f64
-    }
-    pub fn rewind(&mut self) -> Result<(), JsValue> {
-        self.world.rewind().map_err(js_error)
-    }
-    pub fn undo(&mut self) -> Result<(), JsValue> {
-        self.world.undo().map_err(js_error)
     }
 }
 
@@ -365,6 +354,7 @@ impl Simulation {
             rules_version: celestial_sim::SAVE_VERSION,
             physics_substeps: self.world.minimum_substeps,
             burns_available: self.world.burns_available(),
+            moons_available: self.world.moons_available(),
             observation_stamp: (
                 self.world.history.recent.last().map_or(0, |f| f.tick),
                 self.world.commands.len(),

@@ -23,6 +23,29 @@ pub struct Resonance {
     direction: f64,
     turns: u32,
 }
+impl Resonance {
+    /// Imported checkpoints are untrusted: every reading must be finite and
+    /// every tracked pair must name distinct bodies.
+    pub fn valid(&self) -> bool {
+        self.inner != self.outer
+            && self.p > self.q
+            && self.q > 0
+            && [
+                self.ratio,
+                self.angle,
+                self.span,
+                self.observed_years,
+                self.last,
+                self.unwrapped,
+                self.min,
+                self.max,
+                self.direction,
+            ]
+            .iter()
+            .all(|v| v.is_finite())
+            && self.start <= crate::MAX_TICKS
+    }
+}
 fn wrap(angle: f64) -> f64 {
     (angle + PI).rem_euclid(TAU) - PI
 }

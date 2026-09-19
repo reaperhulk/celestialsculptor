@@ -1,6 +1,6 @@
 //! Resolved balances plus transfers to removed bodies and the unresolved disk.
 //! Commands are external interventions: compare balances between edits.
-use crate::{World, V2};
+use crate::{World, G, SOFTENING, V2};
 use serde::Serialize;
 #[derive(Serialize)]
 pub struct Balances {
@@ -33,5 +33,52 @@ impl World {
             energy_balance: energy + self.collision_energy + self.disk_energy + self.escaped_energy,
             complete_contact_ledger: true,
         }
+    }
+    /// Only pairs touching changed bodies can change during an instantaneous impact.
+    /// Compute the O(kN) ledger without summing unchanged interactions.
+    pub(crate) fn affected_energy(&self, ids: &[u32]) -> f64 {
+        let changed: Vec<_> = self.bodies.iter().filter(|b| ids.contains(&b.id)).collect();
+        let mut energy = changed
+            .iter()
+            .map(|b| 0.5 * b.mass * b.vel.norm2())
+            .sum::<f64>();
+        let soft2 = SOFTENING.powi(2);
+        for (i, a) in changed.iter().enumerate() {
+            for b in &self.bodies {
+                if !ids.contains(&b.id) {
+                    energy -= G * a.mass * b.mass / (a.pos.minus(b.pos).norm2() + soft2).sqrt();
+                }
+            }
+            for b in changed.iter().skip(i + 1) {
+                energy -= G * a.mass * b.mass / (a.pos.minus(b.pos).norm2() + soft2).sqrt();
+            }
+        }
+        energy
+    }
+    pub fn energy(&self) -> f64 {
+        let mut e: f64 = self
+            .bodies
+            .iter()
+            .map(|b| 0.5 * b.mass * b.vel.norm2())
+            .sum();
+        for i in 0..self.bodies.len() {
+            for j in i + 1..self.bodies.len() {
+                e -= G * self.bodies[i].mass * self.bodies[j].mass
+                    / (self.bodies[i].pos.minus(self.bodies[j].pos).norm2() + SOFTENING.powi(2))
+                        .sqrt();
+            }
+        }
+        e
+    }
+    pub fn momentum(&self) -> V2 {
+        self.bodies
+            .iter()
+            .fold(V2::default(), |p, b| p.plus(b.vel.scale(b.mass)))
+    }
+    pub fn angular_momentum(&self) -> f64 {
+        self.bodies
+            .iter()
+            .map(|b| b.mass * b.pos.cross(b.vel) + b.spin)
+            .sum()
     }
 }

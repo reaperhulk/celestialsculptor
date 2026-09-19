@@ -20,6 +20,8 @@ pub(crate) fn range(
     start: usize,
     end: usize,
 ) {
+    // Staged together by the caller; make the SAFETY argument below explicit.
+    assert!(end <= x.len() && x.len() == y.len() && y.len() == mass.len() && end <= a.len());
     let p = V2::new(x[i], y[i]);
     let mut j = start;
     // SAFETY: equal-length slices are staged together; j+1 is in bounds.

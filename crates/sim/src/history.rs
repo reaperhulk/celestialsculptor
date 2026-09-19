@@ -240,26 +240,35 @@ impl World {
         }
         self.history.frames.push(frame);
     }
+    /// Mirror the live event buffer into the bounded observation log. Entries
+    /// are located by id: a dense tick can emit more events than the live buffer
+    /// keeps, so ids in the log are increasing but not necessarily contiguous.
     pub(crate) fn remember_events(&mut self) {
         for event in &self.events {
             if event.tick + 1 < self.tick {
                 continue;
             }
-            if let Some(first) = self.history.events.first().map(|e| e.id) {
-                if event.id < first {
-                    continue;
-                }
-                if let Some(existing) = self.history.events.get_mut((event.id - first) as usize) {
-                    if existing != event {
-                        *existing = event.clone();
+            if self.history.events.first().is_some_and(|e| event.id < e.id) {
+                continue;
+            }
+            match self
+                .history
+                .events
+                .binary_search_by_key(&event.id, |e| e.id)
+            {
+                Ok(index) => {
+                    if self.history.events[index] != *event {
+                        self.history.events[index] = event.clone();
                     }
-                    continue;
+                }
+                Err(index) => {
+                    if self.history.events.len() == MAX_HISTORY_EVENTS {
+                        self.history.events.remove(0);
+                    }
+                    let index = index.min(self.history.events.len());
+                    self.history.events.insert(index, event.clone());
                 }
             }
-            if self.history.events.len() == MAX_HISTORY_EVENTS {
-                self.history.events.remove(0);
-            }
-            self.history.events.push(event.clone());
         }
     }
 }
@@ -286,7 +295,11 @@ struct ViewFrame<'a> {
 }
 impl History {
     pub fn valid_bounds(&self) -> bool {
-        self.frames.len() <= MAX_SAMPLES
+        // Strides double on decimation; an absurd imported stride would overflow.
+        [self.stride, self.detail_stride, self.population_stride]
+            .iter()
+            .all(|s| *s <= crate::MAX_TICKS * 2)
+            && self.frames.len() <= MAX_SAMPLES
             && self.detailed.len() <= MAX_SAMPLES
             && self.recent.len() <= 128
             && self.priority_ids.len() <= 32

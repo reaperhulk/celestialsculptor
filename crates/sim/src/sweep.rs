@@ -1,4 +1,4 @@
-use crate::{generator::SystemStyle, Command, Config, World, DT};
+use crate::{generator::SystemStyle, Command, Config, SimError, World, DT};
 use serde_json::{json, Value};
 fn run_case(
     style: SystemStyle,
@@ -7,7 +7,7 @@ fn run_case(
     count: u32,
     chaos: f64,
     set: &str,
-) -> Result<Value, String> {
+) -> Result<Value, SimError> {
     let mut world = World::new(Config {
         seed,
         mission: None,
@@ -34,12 +34,7 @@ fn run_case(
                 .history
                 .events
                 .iter()
-                .find(|e| {
-                    matches!(
-                        e.kind.as_str(),
-                        "collision" | "graze" | "disruption" | "escape" | "absorb" | "satellite"
-                    )
-                })
+                .find(|e| e.kind.is_physical())
                 .map(|e| e.tick as f64 * DT);
         }
     }
@@ -67,7 +62,7 @@ fn run_case(
         json!({"style":style,"set":set,"seed":seed,"star_mass":star_mass,"count":count,"chaos":chaos,"years":years,"observed_years":status.years,"first_event_years":first,"bodies":world.bodies.len(),"calm":status.calm,"formed":status.formed,"moons":status.moons,"collisions":world.collisions,"ejections":world.ejections,"librating":world.resonances.iter().any(|r|r.librating),"finite":finite,"mass_error":mass_error,"momentum_error":momentum_error,"angular_error":angular_error,"passed":passed,"replay":world.replay(),"final_bodies":world.bodies}),
     )
 }
-pub fn run() -> Result<Value, String> {
+pub fn run() -> Result<Value, SimError> {
     let mut cases = vec![];
     for style in [
         SystemStyle::Calm,

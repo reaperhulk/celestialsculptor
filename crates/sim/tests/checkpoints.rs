@@ -64,3 +64,59 @@ fn invalid_checkpoint_or_provenance_cannot_replace_an_experiment() {
     assert!(World::from_replay(other).is_err());
     assert!(World::new(Config::default()).unwrap().checkpoint().is_err());
 }
+#[test]
+fn schema_valid_but_hostile_checkpoint_fields_are_rejected() {
+    let mut w = World::new(Config {
+        mission: None,
+        ..Config::default()
+    })
+    .unwrap();
+    w.apply(Command::Launch {
+        kind: Kind::Rocky,
+        radius: 1.,
+        angle: 0.,
+        speed: 1.,
+    })
+    .unwrap();
+    w.advance(32);
+    let checkpoint = w.checkpoint().unwrap();
+    let replay = w.replay();
+    assert!(World::from_checkpoint(&checkpoint, &replay).is_ok());
+    let resonance = serde_json::json!({
+        "inner": 1, "outer": 1, "p": 2, "q": 1, "ratio": 2.0, "angle": 0.0, "span": 0.0,
+        "observed_years": 0.0, "librating": false, "start": 0, "last": 0.0, "unwrapped": 0.0,
+        "min": 0.0, "max": 0.0, "direction": 0.0, "turns": 0
+    });
+    type Mutation = Box<dyn Fn(&mut serde_json::Value)>;
+    let cases: [(&str, Mutation); 6] = [
+        ("zero rng", Box::new(|v| v["world"]["rng"] = 0.into())),
+        (
+            "stride overflow",
+            Box::new(|v| v["world"]["history"]["stride"] = u64::MAX.into()),
+        ),
+        (
+            "detail stride overflow",
+            Box::new(|v| v["world"]["history"]["detail_stride"] = (u64::MAX / 2).into()),
+        ),
+        (
+            "impossible work",
+            Box::new(|v| v["world"]["work_units"] = u64::MAX.into()),
+        ),
+        (
+            "hold longer than the run",
+            Box::new(|v| v["world"]["held_ticks"] = 10_000.into()),
+        ),
+        (
+            "self-resonance",
+            Box::new(move |v| v["world"]["resonances"] = serde_json::json!([resonance])),
+        ),
+    ];
+    for (name, mutate) in cases {
+        let mut value: serde_json::Value = serde_json::from_str(&checkpoint).unwrap();
+        mutate(&mut value);
+        assert!(
+            World::from_checkpoint(&value.to_string(), &replay).is_err(),
+            "{name} was accepted"
+        );
+    }
+}

@@ -1,5 +1,5 @@
 //! Bounded gameplay impact regimes; see docs/COLLISIONS.md for scientific limits.
-use crate::{Body, Impact, Kind, Material, World, G, V2};
+use crate::{Body, EventKind, Impact, Kind, Material, World, G, V2};
 use serde::{Deserialize, Serialize};
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -180,9 +180,9 @@ impl World {
             .unwrap_or_else(|| self.orbit(&self.bodies[i]));
         self.emit(
             if outcome == Outcome::Graze {
-                "graze"
+                EventKind::Graze
             } else {
-                "disruption"
+                EventKind::Disruption
             },
             a.id,
             if outcome == Outcome::Graze {

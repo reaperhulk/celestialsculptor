@@ -193,3 +193,109 @@ fn formation_requires_orbital_encounters_and_slingshots_cannot_be_bought_with_sp
         .is_err());
     assert_eq!(assist, before);
 }
+
+#[test]
+fn every_tool_is_gated_consistently_across_missions_and_the_sandbox() {
+    let missions: Vec<Option<usize>> = (0..MISSIONS.len()).map(Some).chain([None]).collect();
+    for mission in missions {
+        let fresh = || {
+            World::new(Config {
+                mission,
+                seed: 42,
+                star_mass: 1.0,
+            })
+            .unwrap()
+        };
+        let mut host = fresh();
+        let hosted = host
+            .apply(Command::LaunchMass {
+                kind: Kind::Giant,
+                mass: 300.0,
+                radius: 3.0,
+                angle: 0.0,
+                speed: 1.0,
+            })
+            .is_ok();
+        let m = mission.map_or(usize::MAX, |m| m);
+        // Planet kinds follow allowed(); missions 3-5 are dust-only, 7 places no bodies.
+        for kind in [Kind::Rocky, Kind::Ice, Kind::Giant, Kind::Dust] {
+            let mut w = fresh();
+            let outcome = w.apply(Command::Launch {
+                kind,
+                radius: 1.0,
+                angle: 0.0,
+                speed: 1.0,
+            });
+            assert_eq!(outcome.is_ok(), w.allowed(kind), "{mission:?} {kind:?}");
+        }
+        // Debris tools exist exactly where dust is allowed.
+        let mut w = fresh();
+        assert_eq!(
+            w.apply(Command::SeedBelt { radius: 2.0 }).is_ok(),
+            w.allowed(Kind::Dust),
+            "{mission:?} belt"
+        );
+        // Burns need a body and follow one predicate.
+        if hosted {
+            let mut w = host.clone();
+            assert_eq!(
+                w.apply(Command::Nudge {
+                    id: 1,
+                    tangential: 0.05,
+                    radial: 0.0,
+                })
+                .is_ok(),
+                w.burns_available(),
+                "{mission:?} nudge"
+            );
+            // Moons follow their unlock, not the planet allow-list.
+            let mut w = host.clone();
+            let moon = w.apply(Command::LaunchMoon {
+                parent: 1,
+                kind: Kind::Rocky,
+                mass: 0.01,
+                distance: 0.03,
+                angle: 0.0,
+                speed: 1.0,
+            });
+            assert_eq!(
+                moon.is_ok(),
+                w.moons_available(),
+                "{mission:?} moon {moon:?}"
+            );
+            assert_eq!(w.moons_available(), mission.is_none() || m >= 7);
+        }
+        // Sandbox-only tools are rejected in every challenge.
+        let mut w = fresh();
+        assert_eq!(
+            w.apply(Command::SeedSwarm {
+                count: 64,
+                disorder: 0.1,
+            })
+            .is_ok(),
+            mission.is_none(),
+            "{mission:?} swarm"
+        );
+        let mut w = fresh();
+        assert_eq!(
+            w.apply(Command::GenerateSystem {
+                style: generator::SystemStyle::Calm,
+                count: 6,
+                chaos: 0.1,
+            })
+            .is_ok(),
+            mission.is_none(),
+            "{mission:?} generate"
+        );
+        let mut w = host.clone();
+        assert_eq!(
+            w.apply(Command::Migration {
+                id: 1,
+                timescale: 200.0,
+            })
+            .is_ok(),
+            mission.is_none() && hosted,
+            "{mission:?} migration"
+        );
+    }
+}

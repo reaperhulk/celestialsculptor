@@ -1,4 +1,4 @@
-use crate::{Command, Kind};
+use crate::{Command, Kind, SimError};
 use serde::{Deserialize, Serialize};
 use std::f64::consts::TAU;
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
@@ -14,17 +14,14 @@ pub enum SystemStyle {
 struct Rng(u32);
 impl Rng {
     fn next(&mut self) -> f64 {
-        let mut x = self.0.max(1);
-        x ^= x << 13;
-        x ^= x >> 17;
-        x ^= x << 5;
-        self.0 = x;
-        x as f64 / u32::MAX as f64
+        crate::rng::xorshift(&mut self.0)
     }
 }
-pub(crate) fn calm_commands(seed: u32, count: u32, chaos: f64) -> Result<Vec<Command>, String> {
+pub(crate) fn calm_commands(seed: u32, count: u32, chaos: f64) -> Result<Vec<Command>, SimError> {
     if !(4..=32).contains(&count) || !chaos.is_finite() || !(0.0..=1.0).contains(&chaos) {
-        return Err("Choose 4–32 bodies and disorder from 0 to 100%".into());
+        return Err(SimError::Invalid(
+            "Choose 4–32 bodies and disorder from 0 to 100%".into(),
+        ));
     }
     let mut rng = Rng(seed);
     let mut commands = vec![];
