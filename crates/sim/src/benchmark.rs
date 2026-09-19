@@ -166,6 +166,8 @@ pub struct OrbitProbe {
     theta: f64,
     ready: bool,
     active_bodies: Option<usize>,
+    /// Completed ticks, so batching an interval never changes the rebuild schedule.
+    ticks: u64,
 }
 impl OrbitProbe {
     pub fn new(state: &[f64], exact: bool) -> Result<Self, &'static str> {
@@ -192,6 +194,7 @@ impl OrbitProbe {
             theta: if exact || n < 512 { 0. } else { 0.35 },
             ready: false,
             active_bodies: None,
+            ticks: 0,
         })
     }
     /// Experimental fixed interaction graph: all pairs involving an active body
@@ -234,23 +237,23 @@ impl OrbitProbe {
             self.update_probe_forces(true);
             self.ready = true;
         }
-        for step in 0..ticks * substeps {
-            // Like a live tick: partition once from the start-of-tick positions,
-            // then refresh moments for the evaluations inside the tick.
-            if step % substeps == 0 && self.theta > 0. && self.active_bodies.is_none() {
-                self.field
-                    .tree
-                    .prepare(&self.field.x, &self.field.y, &self.field.mass);
+        for _ in 0..ticks {
+            for substep in 0..substeps {
+                for (i, v) in self.velocity.iter_mut().enumerate() {
+                    *v = v.plus(self.field.output[i].scale(h / 2.));
+                    self.field.x[i] += v.x * h;
+                    self.field.y[i] += v.y * h;
+                }
+                // Like a live tick: the first evaluation inside a tick re-partitions
+                // (the opening forces are reused), later ones refresh moments. The
+                // very first tick already partitioned when it evaluated its opening
+                // forces, exactly as a live world does after an edit.
+                self.update_probe_forces(substep == 0 && self.ticks > 0);
+                for (v, a) in self.velocity.iter_mut().zip(&self.field.output) {
+                    *v = v.plus(a.scale(h / 2.));
+                }
             }
-            for (i, v) in self.velocity.iter_mut().enumerate() {
-                *v = v.plus(self.field.output[i].scale(h / 2.));
-                self.field.x[i] += v.x * h;
-                self.field.y[i] += v.y * h;
-            }
-            self.update_probe_forces(false);
-            for (v, a) in self.velocity.iter_mut().zip(&self.field.output) {
-                *v = v.plus(a.scale(h / 2.));
-            }
+            self.ticks += 1;
         }
     }
     pub fn state(&self) -> Vec<f64> {
