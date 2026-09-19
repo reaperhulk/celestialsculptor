@@ -119,7 +119,22 @@ interleaved runs of the two builds:
 In WASM the plain swarm pays about 7% for the split's bookkeeping (a
 per-tick check that no body reaches the dust boundary, the separated kick and
 drift loops, and the cutoff term in the tree's opening test), the price of a
-3.2× moon world. Gravity helpers are
+3.2× moon world.
+
+### First physical iPhone recording
+
+A partial device recording (2 min 45 s; it ended when the playback speed was
+changed) of the 8,192-body swarm at requested 1× on an iPhone running Safari
+27 with build 78be598: 65.6 ticks/s, 0.64× of requested pace, frame spacing
+p50 17 ms and p95 19 ms, draw CPU p95 11 ms, average 46.6 fps. The phone's
+physics is 2.5× faster than this host's WASM, and its frame rate is set by
+drawing, not physics. One 7.3-second stall came from opening Observe: the
+panel listed every sampled body of the swarm in a picker and re-read that list
+every second. The picker now lists only worlds with detailed history plus the
+charted one, diffs against a cached key, and a phone browser test opens Observe
+on the largest swarm and asserts no task over 300 ms. Whether Safari's helper
+pool helps or hurts on a phone with efficiency cores is the open question the
+next full recording should answer. Gravity helpers are
 unaffected: in the same session `bench:parallel` took an 8,192-body swarm from
 44.1 ms alone to 30.3 ms with three helpers (1.46×), every helper count
 producing identical snapshots. Absolute figures in this section come from a

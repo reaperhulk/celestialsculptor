@@ -188,15 +188,27 @@ export class Observatory {
       if (generation !== this.getState().generation) return;
       this.history = history;
       const ids = history.body_ids;
+      // A swarm has thousands of sampled bodies; a picker that lists them all
+      // stalls the page for seconds. List the worlds with detailed history
+      // plus whatever is charted now; any other world is charted by
+      // selecting it in the scene.
+      const current = Number(this.$('history-body').value);
+      const listed = [...new Set([...(history.detailed_ids || ids), body, current])]
+        .filter((id) => ids.includes(id))
+        .sort((a, b) => a - b);
+      this.pickerCapped = listed.length < ids.length;
       const pairs = history.pairs;
+      this.optionKeys ??= {};
       for (const [id, values, label] of [
-        ['history-body', ids, (v) => `World ${v}`],
+        ['history-body', listed, (v) => `World ${v}`],
         ['history-pair', pairs, (v) => `Worlds ${v.replace(':', ' & ')}`],
       ]) {
         const element = this.$(id),
-          value = element.value;
-        if ([...element.options].map((o) => o.value).join(',') !== values.join(',')) {
+          value = element.value,
+          key = values.join(',');
+        if (this.optionKeys[id] !== key) {
           element.replaceChildren(...values.map((v) => new Option(label(v), String(v))));
+          this.optionKeys[id] = key;
           if (values.map(String).includes(value)) element.value = value;
         }
       }
@@ -246,7 +258,7 @@ export class Observatory {
     }[metric];
     drawChart(this.$('history-chart'), geometry, unit);
     this.$('history-caption').textContent = geometry
-      ? `${unit} · latest ${quantity(geometry.latest)}. ${population ? 'Whole-population summaries have their own bounded sampling schedule.' : isPair ? 'A near ratio is a candidate; bounded, reversing angles provide evidence of resonance.' : `Gaps mark missing observations or a change of host. ${this.history.detail ? 'Detailed recent history is retained for this world.' : 'This world uses coarse system samples.'}`}`
+      ? `${unit} · latest ${quantity(geometry.latest)}. ${population ? 'Whole-population summaries have their own bounded sampling schedule.' : isPair ? 'A near ratio is a candidate; bounded, reversing angles provide evidence of resonance.' : `Gaps mark missing observations or a change of host. ${this.history.detail ? 'Detailed recent history is retained for this world.' : 'This world uses coarse system samples.'}${this.pickerCapped ? ' Select a world in the scene to chart it.' : ''}`}`
       : 'Run the system to collect observations. Resonance graphs need a neighboring candidate pair.';
   }
   events() {

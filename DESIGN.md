@@ -2142,3 +2142,24 @@ against 157.7 before (3.9×), 2,048 bodies at 9.2 against 35.1 (3.8×), and a
 plain swarm at 36.8 against 40.0; three helpers still give 1.46× at 8,192.
 `docs/SCALING.md` and `docs/LONG_RUN_QUALIFICATION.md` record the design, the
 measurements and the new gate.
+
+### 175 — The first phone recording and the Observe stall
+
+Review needs: the first physical iPhone recording of the 8,192-body swarm
+(Safari 27, build 78be598, 2 min 45 s before a speed change ended it) showed
+65.6 ticks/s at 0.64× pace, p95 frame spacing 19 ms, average 46.6 fps and a
+single 7.3-second stall when the player opened Observe, which any large-swarm
+player would hit.
+Implemented: the history view now carries `detailed_ids` (the ranked priority
+set and pinned worlds) on both the engine and the timeline mirror; the Observe
+picker lists those plus the charted world instead of every sampled body of the
+swarm, diffs its option list against a cached key instead of re-reading the DOM
+every second, and its caption tells the player to select a world in the scene
+to chart any other. The device report and its reading are recorded in
+`docs/SCALING.md`.
+Validation: opening Observe on the 8,192-body swarm in an iPhone-sized browser
+took 12.9 s with 28 main-thread stalls near a second each before, and now
+draws inside the refresh window with no task over 300 ms, asserted by a new
+phone browser test; view parity between the engine and the timeline mirror,
+186 Node tests, the Rust suites, the desktop and phone browser suites and
+headless verify pass.

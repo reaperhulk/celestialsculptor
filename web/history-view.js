@@ -11,6 +11,13 @@ export function historyView(history, { body, inner, outer }) {
       [bi, bo] = b.split(':').map(Number);
     return ai - bi || ao - bo;
   });
+  const detailed_ids = [
+    ...new Set(
+      [...(history.priority_ids || []), ...(history.pinned_ids || [])].filter((id) =>
+        body_ids.includes(id),
+      ),
+    ),
+  ].sort((a, b) => a - b);
   if (!body_ids.includes(body)) body = body_ids[0];
   let pair = `${inner}:${outer}`;
   if (!pairs.includes(pair)) pair = pairs[0];
@@ -33,6 +40,7 @@ export function historyView(history, { body, inner, outer }) {
   }
   return {
     body_ids,
+    detailed_ids,
     pairs,
     frames: [...frames.values()].sort((a, b) => a.tick - b.tick),
     events: history.events,

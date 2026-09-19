@@ -276,6 +276,9 @@ impl World {
 #[derive(Serialize)]
 pub struct HistoryView<'a> {
     body_ids: Vec<u32>,
+    /// Bodies with detailed recent history: the ranked priority set and pins.
+    /// A picker lists these rather than every sampled body of a large swarm.
+    detailed_ids: Vec<u32>,
     pairs: Vec<String>,
     frames: Vec<ViewFrame<'a>>,
     events: &'a [Event],
@@ -395,8 +398,16 @@ impl History {
                 entry.resonances = vec![r];
             }
         }
+        let detailed_ids: std::collections::BTreeSet<u32> = self
+            .priority_ids
+            .iter()
+            .chain(&self.pinned_ids)
+            .copied()
+            .filter(|id| ids.contains(id))
+            .collect();
         HistoryView {
             body_ids: ids.into_iter().collect(),
+            detailed_ids: detailed_ids.into_iter().collect(),
             pairs: pairs.into_iter().map(|(i, o)| format!("{i}:{o}")).collect(),
             frames: frames.into_values().collect(),
             events: &self.events,
