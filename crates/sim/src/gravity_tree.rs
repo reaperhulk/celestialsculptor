@@ -47,6 +47,8 @@ struct Node {
     a: V2,
     tide: Tensor,
     min_acceleration: f64,
+    /// Largest near/far cutoff among the cell's bodies; zero without a split.
+    max_cut: f64,
 }
 impl Node {
     fn leaf(self) -> bool {
@@ -63,6 +65,9 @@ pub(crate) struct Tree {
     nodes: Vec<Node>,
     tolerance: f64,
     reference: Vec<f64>,
+    /// Per-body near/far cutoffs in body order (empty: no split) and in tree order.
+    cut_in: Vec<f64>,
+    cut: Vec<f64>,
     pub direct_pairs: usize,
     pub cell_pairs: usize,
 }
@@ -72,6 +77,20 @@ impl PartialEq for Tree {
     }
 }
 impl Tree {
+    /// Install per-body cutoffs for the far kernel: pairs closer than their
+    /// cutoff are weighted down, and cells are only accepted beyond it. An
+    /// empty slice restores the plain kernel.
+    pub fn set_cutoffs(&mut self, cuts: &[f64]) {
+        self.cut_in.clear();
+        self.cut_in.extend_from_slice(cuts);
+    }
+    fn max_cut(cut_in: &[f64], order: &[usize]) -> f64 {
+        if cut_in.is_empty() {
+            0.0
+        } else {
+            order.iter().map(|&i| cut_in[i]).fold(0.0, f64::max)
+        }
+    }
     /// `rebuild` re-partitions the tree from the current positions. Between the
     /// substeps of one tick the partition is kept and only cell moments are
     /// refreshed: bodies drift a little across cell boundaries, cell radii still
@@ -153,7 +172,7 @@ impl Tree {
         self.cell_pairs = 0;
         // Resolve the central star without approximation, including its recoil.
         for j in 1..x.len() {
-            direct_pair(0, j, x, y, mass, soft2, a);
+            direct_pair_cut(0, j, x, y, mass, &self.cut_in, soft2, a);
             self.direct_pairs += 1;
         }
         if x.len() <= 1 {
@@ -187,6 +206,12 @@ impl Tree {
             self.x.push(x[i]);
             self.y.push(y[i]);
             self.mass.push(mass[i]);
+        }
+        self.cut.clear();
+        if !self.cut_in.is_empty() {
+            for &i in &self.order {
+                self.cut.push(self.cut_in[i]);
+            }
         }
         self.local.resize(self.order.len(), V2::default());
         self.local.fill(V2::default());
@@ -331,6 +356,7 @@ impl Tree {
             mass: m.mass,
             radius: m.radius,
             q: m.q,
+            max_cut: Self::max_cut(&self.cut_in, &self.order[start..end]),
             ..Node::default()
         };
         if CONTROLLED {
@@ -359,8 +385,10 @@ impl Tree {
     /// bounding radius and quadrupole, and clear the accumulators.
     fn refresh_moments(&mut self, x: &[f64], y: &[f64], mass: &[f64]) {
         let order = &self.order;
+        let cut_in = &self.cut_in;
         for n in &mut self.nodes {
             let m = moments(&order[n.start..n.end], x, y, mass);
+            n.max_cut = Self::max_cut(cut_in, &order[n.start..n.end]);
             n.mass = m.mass;
             n.center = m.center;
             n.radius = m.radius;
@@ -394,7 +422,11 @@ impl Tree {
         } else {
             0.
         };
+        // A cell pair is only approximated when every body pair is beyond its
+        // near/far cutoff, so the far kernel stays the plain one.
+        let cut = a.max_cut.max(b.max_cut);
         if extent.powi(2) < theta2 * d2
+            && (cut == 0.0 || d2.sqrt() - extent >= cut)
             && (!CONTROLLED
                 || estimated_error
                     <= self.tolerance * a.min_acceleration.min(b.min_acceleration).max(1e-20))
@@ -440,6 +472,7 @@ impl Tree {
             &self.x,
             &self.y,
             &self.mass,
+            &self.cut,
             soft2,
             &mut self.local,
             i,
@@ -448,7 +481,16 @@ impl Tree {
         );
         #[cfg(not(all(target_arch = "wasm32", target_feature = "simd128")))]
         for j in start..end {
-            direct_pair(i, j, &self.x, &self.y, &self.mass, soft2, &mut self.local);
+            direct_pair_cut(
+                i,
+                j,
+                &self.x,
+                &self.y,
+                &self.mass,
+                &self.cut,
+                soft2,
+                &mut self.local,
+            );
         }
         self.direct_pairs += end - start;
     }
@@ -525,6 +567,30 @@ fn moments(order: &[usize], x: &[f64], y: &[f64], mass: &[f64]) -> Moments {
         lo,
         hi,
     }
+}
+/// The far part of one pair: the plain force weighted by `far_weight` when the
+/// pair has cutoffs, so near pairs contribute here only beyond `r_in`.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn direct_pair_cut(
+    i: usize,
+    j: usize,
+    x: &[f64],
+    y: &[f64],
+    mass: &[f64],
+    cut: &[f64],
+    soft2: f64,
+    a: &mut [V2],
+) {
+    if cut.is_empty() {
+        return direct_pair(i, j, x, y, mass, soft2, a);
+    }
+    let d = V2::new(x[j] - x[i], y[j] - y[i]);
+    let raw = d.norm2();
+    let w = crate::split::far_weight(raw, cut[i].max(cut[j]));
+    let r2 = raw + soft2;
+    let f = d.scale(G * w / (r2 * r2.sqrt()));
+    a[i] = a[i].plus(f.scale(mass[j]));
+    a[j] = a[j].minus(f.scale(mass[i]));
 }
 #[allow(clippy::too_many_arguments)]
 fn direct_pair(i: usize, j: usize, x: &[f64], y: &[f64], mass: &[f64], soft2: f64, a: &mut [V2]) {

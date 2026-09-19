@@ -213,6 +213,8 @@ jobs:
             numerical-qualification.json
             tree-raw.json
             tree-qualification.json
+            split-raw.json
+            split-qualification.json
           retention-days: 30
   deploy:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'

@@ -24,6 +24,7 @@ pub mod resonance;
 mod rng;
 pub mod satellites;
 pub mod scenarios;
+pub mod split;
 pub mod sweep;
 pub use error::SimError;
 pub use missions::{Mission, MISSIONS};
@@ -368,6 +369,9 @@ pub struct World {
     contact_search: contact_search::ContactSearch,
     #[serde(skip)]
     pending: integrate::PendingTick,
+    #[serde(skip)]
+    /// Near-field state of the tick in flight (derived, never saved).
+    pub(crate) near: split::Near,
     pub history: history::History,
     pub resonances: Vec<resonance::Resonance>,
     pub disk_momentum: V2,
@@ -494,6 +498,7 @@ impl World {
             forces: gravity::Forces::default(),
             contact_search: contact_search::ContactSearch::default(),
             pending: integrate::PendingTick::default(),
+            near: split::Near::default(),
             history: history::History::default(),
             minimum_substeps: 4,
             resonances: vec![],

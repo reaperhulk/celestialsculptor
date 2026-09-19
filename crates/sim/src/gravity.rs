@@ -11,6 +11,8 @@ pub(crate) struct Forces {
     tree: crate::gravity_tree::Tree,
     /// Subtrees the owner computed itself for the pending shared request.
     owned: [bool; crate::gravity_tree::SUBTREES],
+    /// Near/far cutoffs the cached far forces were evaluated with (empty: none).
+    cuts: Vec<f64>,
 }
 // Cache contents do not change the meaning of a physical state.
 impl PartialEq for Forces {
@@ -19,7 +21,7 @@ impl PartialEq for Forces {
     }
 }
 impl Forces {
-    fn stage(&mut self, bodies: &[Body], softening2: f64, use_tree: bool) {
+    fn stage(&mut self, bodies: &[Body], softening2: f64, use_tree: bool, cuts: &[f64]) {
         self.softening2 = softening2;
         self.use_tree = use_tree;
         self.x.clear();
@@ -30,6 +32,9 @@ impl Forces {
             self.y.push(b.pos.y);
             self.mass.push(b.mass);
         }
+        self.cuts.clear();
+        self.cuts.extend_from_slice(cuts);
+        self.tree.set_cutoffs(cuts);
         self.output.resize(bodies.len(), V2::default());
         self.output.fill(V2::default());
     }
@@ -38,13 +43,19 @@ impl Forces {
     pub fn tree_for(bodies: usize) -> bool {
         bodies >= 512
     }
-    /// The request helpers evaluate: `[x…, y…, mass…]` for every body. Reads
-    /// only, so a failed round trip leaves the cache exactly as it was.
-    pub fn request(bodies: &[Body]) -> Vec<f64> {
-        let mut out = Vec::with_capacity(3 * bodies.len());
+    /// The request helpers evaluate: `[x…, y…, mass…, cutoff…]` for every
+    /// body. Reads only, so a failed round trip leaves the cache exactly as it
+    /// was.
+    pub fn request(bodies: &[Body], cuts: &[f64]) -> Vec<f64> {
+        let mut out = Vec::with_capacity(4 * bodies.len());
         out.extend(bodies.iter().map(|b| b.pos.x));
         out.extend(bodies.iter().map(|b| b.pos.y));
         out.extend(bodies.iter().map(|b| b.mass));
+        if cuts.len() == bodies.len() {
+            out.extend_from_slice(cuts);
+        } else {
+            out.extend(std::iter::repeat_n(0.0, bodies.len()));
+        }
         out
     }
     /// Stage a request the owner shares with helpers: star pass, partition,
@@ -55,15 +66,17 @@ impl Forces {
         softening2: f64,
         owned: &[u32],
         rebuild: bool,
+        cuts: &[f64],
     ) -> bool {
-        self.stage(bodies, softening2, true);
+        self.stage(bodies, softening2, true, cuts);
         for j in 1..self.x.len() {
-            direct_pair_into(
+            crate::gravity_tree::direct_pair_cut(
                 0,
                 j,
                 &self.x,
                 &self.y,
                 &self.mass,
+                &self.cuts,
                 softening2,
                 &mut self.output,
             );
@@ -132,6 +145,9 @@ impl Forces {
         true
     }
     /// Whether `output` already holds the accelerations for these bodies.
+    /// Cutoffs are deliberately not compared: a tick's opening kick reuses the
+    /// far forces of the previous tick's last evaluation, whose cutoffs differ
+    /// only by the fraction each body's host distance moved in one tick.
     pub fn current(&self, bodies: &[Body], softening2: f64, tree_allowed: bool) -> bool {
         let use_tree = tree_allowed && Self::tree_for(bodies.len());
         self.use_tree == use_tree
@@ -144,12 +160,21 @@ impl Forces {
                     && self.mass[i].to_bits() == b.mass.to_bits()
             })
     }
-    pub fn update(&mut self, bodies: &[Body], softening2: f64, tree_allowed: bool, rebuild: bool) {
+    /// Evaluate accelerations: the whole force without cutoffs, or the far part
+    /// of every pair when `cuts` gives each body its near/far cutoff.
+    pub fn update(
+        &mut self,
+        bodies: &[Body],
+        softening2: f64,
+        tree_allowed: bool,
+        rebuild: bool,
+        cuts: &[f64],
+    ) {
         let use_tree = tree_allowed && Self::tree_for(bodies.len());
         if self.current(bodies, softening2, tree_allowed) {
             return;
         }
-        self.stage(bodies, softening2, use_tree);
+        self.stage(bodies, softening2, use_tree, cuts);
         if use_tree {
             self.tree.compute(
                 &self.x,
@@ -163,33 +188,39 @@ impl Forces {
             return;
         }
         #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
-        crate::gravity_simd::accelerations(
-            &self.x,
-            &self.y,
-            &self.mass,
-            softening2,
-            &mut self.output,
-        );
+        if self.cuts.is_empty() {
+            crate::gravity_simd::accelerations(
+                &self.x,
+                &self.y,
+                &self.mass,
+                softening2,
+                &mut self.output,
+            );
+        } else {
+            crate::gravity_simd::accelerations_cut(
+                &self.x,
+                &self.y,
+                &self.mass,
+                &self.cuts,
+                softening2,
+                &mut self.output,
+            );
+        }
         #[cfg(not(all(target_arch = "wasm32", target_feature = "simd128")))]
-        direct(&self.x, &self.y, &self.mass, softening2, &mut self.output);
+        if self.cuts.is_empty() {
+            direct(&self.x, &self.y, &self.mass, softening2, &mut self.output);
+        } else {
+            direct_cut(
+                &self.x,
+                &self.y,
+                &self.mass,
+                &self.cuts,
+                softening2,
+                &mut self.output,
+            );
+        }
     }
 }
-fn direct_pair_into(
-    i: usize,
-    j: usize,
-    x: &[f64],
-    y: &[f64],
-    mass: &[f64],
-    soft2: f64,
-    a: &mut [V2],
-) {
-    let d = V2::new(x[j] - x[i], y[j] - y[i]);
-    let r2 = d.norm2() + soft2;
-    let f = d.scale(G / (r2 * r2.sqrt()));
-    a[i] = a[i].plus(f.scale(mass[j]));
-    a[j] = a[j].minus(f.scale(mass[i]));
-}
-
 /// One helper's share of a force evaluation: the same partition as the owner,
 /// the tasks touching its owned subtrees, returned as tagged records.
 #[derive(Clone, Debug, Default)]
@@ -200,20 +231,22 @@ impl ForceHelper {
     pub fn new() -> Self {
         Self::default()
     }
-    /// `state` is `[x…, y…, mass…]`; returns one `[subtree, len, values…]`
-    /// record per owned subtree: its bodies (ax, ay) then its nodes.
+    /// `state` is `[x…, y…, mass…, cutoff…]`; returns one `[subtree, len,
+    /// values…]` record per owned subtree: its bodies (ax, ay) then its nodes.
     pub fn compute(
         &mut self,
         state: &[f64],
         rebuild: bool,
         owned: &[u32],
     ) -> Result<Vec<f64>, String> {
-        if !state.len().is_multiple_of(3) || state.iter().any(|v| !v.is_finite()) {
+        if !state.len().is_multiple_of(4) || state.iter().any(|v| !v.is_finite()) {
             return Err("Malformed force request".into());
         }
-        let n = state.len() / 3;
+        let n = state.len() / 4;
         let (x, rest) = state.split_at(n);
-        let (y, mass) = rest.split_at(n);
+        let (y, rest) = rest.split_at(n);
+        let (mass, cut) = rest.split_at(n);
+        self.tree.set_cutoffs(cut);
         if !rebuild && !self.tree.partitioned_for(n) {
             // A helper that missed the tick's rebuild must not partition on its
             // own; the owner evaluates this request itself and resyncs next tick.
@@ -240,6 +273,23 @@ impl ForceHelper {
     }
 }
 
+/// Far parts of every pair by direct summation, for exact-solver runs of a
+/// system with near/far cutoffs.
+#[allow(dead_code)]
+pub(crate) fn direct_cut(
+    x: &[f64],
+    y: &[f64],
+    mass: &[f64],
+    cuts: &[f64],
+    softening2: f64,
+    a: &mut [V2],
+) {
+    for i in 0..x.len() {
+        for j in i + 1..x.len() {
+            crate::gravity_tree::direct_pair_cut(i, j, x, y, mass, cuts, softening2, a);
+        }
+    }
+}
 #[allow(dead_code)] // Also the independent accuracy reference for optimized backends.
 pub(crate) fn direct(x: &[f64], y: &[f64], mass: &[f64], softening2: f64, a: &mut [V2]) {
     for i in 0..x.len() {
@@ -270,11 +320,11 @@ mod tests {
                 _ => (),
             }
             let softening2 = if change == 5 { 0.001 } else { 1e-8 };
-            cache.update(&w.bodies, softening2, false, true);
+            cache.update(&w.bodies, softening2, false, true, &[]);
             let mut expected = vec![V2::default(); w.bodies.len()];
             direct(&cache.x, &cache.y, &cache.mass, softening2, &mut expected);
             assert_eq!(cache.output, expected);
-            cache.update(&w.bodies, softening2, false, true);
+            cache.update(&w.bodies, softening2, false, true, &[]);
             assert_eq!(cache.output, expected);
         }
     }

@@ -25,3 +25,9 @@ run(
   'tree-raw.json',
 );
 run(process.execPath, ['scripts/qualify-tree.mjs', 'tree-raw.json']);
+run(
+  'cargo',
+  ['run', '--release', '--locked', '-p', 'celestial-sim', '--example', 'qualify-split'],
+  'split-raw.json',
+);
+run(process.execPath, ['scripts/qualify-split.mjs', 'split-raw.json']);

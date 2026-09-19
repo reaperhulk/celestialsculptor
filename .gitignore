@@ -20,6 +20,8 @@ tree-rules-comparison.json
 /numerical-qualification.json
 /tree-raw.json
 /tree-qualification.json
+/split-raw.json
+/split-qualification.json
 /device-qualification.json
 /swarm-comparison.json
 /test-results-gpu/

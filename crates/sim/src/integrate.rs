@@ -8,6 +8,8 @@ use std::f64::consts::TAU;
 pub(crate) struct TickState {
     substeps: u32,
     h: f64,
+    /// Fine near steps per substep: `split::NEAR_STEPS` with a split, else one.
+    fine: u32,
     tree_allowed: bool,
     next: u32,
     contacts: u64,
@@ -31,13 +33,54 @@ impl World {
         &self.forces.output
     }
     pub(crate) fn update_forces(&mut self, tree_allowed: bool, rebuild: bool) {
-        self.forces
-            .update(&self.bodies, SOFTENING.powi(2), tree_allowed, rebuild);
+        self.forces.update(
+            &self.bodies,
+            SOFTENING.powi(2),
+            tree_allowed,
+            rebuild,
+            &self.near.cuts,
+        );
     }
-    /// Substeps per tick: the finest schedule a command has selected. Swarms
-    /// keep four; two failed the 600-year tree trajectory gate (iteration 173).
+    /// Substeps per tick. Small systems use the finest schedule a command has
+    /// selected. Tree-sized systems integrate with the near/far split: four
+    /// coarse substeps for the far field and `split::NEAR_STEPS` fine near
+    /// steps inside each, whatever moons or migration they hold.
     pub fn substeps(&self) -> u32 {
-        self.minimum_substeps
+        if split::applies(self.bodies.len()) {
+            split::COARSE_SUBSTEPS
+        } else {
+            self.minimum_substeps
+        }
+    }
+    /// Kick every body by its near acceleration over `dt`.
+    fn near_kick(&mut self, dt: f64) {
+        self.near.evaluate(&self.bodies, SOFTENING.powi(2));
+        for (i, b) in self.bodies.iter_mut().enumerate() {
+            b.vel = b.vel.plus(self.near.accel[i].scale(dt));
+        }
+    }
+    /// Contacts among the near candidate pairs after one fine drift. Every pair
+    /// that can touch inside a tick is a near pair, so the full sweep is only
+    /// needed at tick and substep boundaries.
+    fn merge_near_contacts(&mut self, sweep: f64) {
+        loop {
+            let mut resolved = false;
+            for k in 0..self.near.pairs.len() {
+                let (i, j) = self.near.pairs[k];
+                let (i, j) = (i as usize, j as usize);
+                if swept_overlap(&self.bodies[i], &self.bodies[j], sweep) {
+                    if !self.resolve_solid_contact(i, j, sweep) {
+                        self.merge_pair(i, j);
+                    }
+                    resolved = true;
+                    break;
+                }
+            }
+            if !resolved {
+                break;
+            }
+            self.near.prepare(&self.bodies);
+        }
     }
     /// Changes whenever a contact resolved. A merge adds a collision and
     /// removes a body, so the two must not be allowed to cancel.
@@ -101,11 +144,21 @@ impl World {
         }
         self.work_units += self.tick_work();
         self.merge_contacts(0.0);
+        // Cutoffs and near pairs for this tick. The opening kick may reuse far
+        // forces evaluated with last tick's cutoffs: the weights of pairs in a
+        // transition zone move by the fraction their host distance moved in a
+        // tick, far below the tree's own approximation error.
+        self.near.prepare(&self.bodies);
         // One partition per tick; a contact within the tick changes the body
         // set or moves bodies discontinuously, so it forces a fresh partition.
         self.pending.0 = Some(TickState {
             substeps,
             h: DT / f64::from(substeps),
+            fine: if self.near.active {
+                split::NEAR_STEPS
+            } else {
+                1
+            },
             tree_allowed,
             next: 0,
             contacts: self.contact_serial(),
@@ -133,18 +186,37 @@ impl World {
         let h = state.h;
         loop {
             if !state.drifted {
-                // First half of a substep with forces at its start.
+                // First half of a substep with far forces at its start, then the
+                // near field integrated across the substep in fine steps.
                 self.apply_disk_torque(h / 2.);
                 for (i, b) in self.bodies.iter_mut().enumerate() {
                     b.vel = b.vel.plus(self.forces.output[i].scale(h / 2.0));
-                    b.pos = b.pos.plus(b.vel.scale(h));
-                    if b.id != 0 {
-                        b.rotation = (b.rotation
-                            + b.spin / (0.4 * b.mass * b.radius * b.radius) * h)
-                            .rem_euclid(TAU);
+                }
+                let delta = h / f64::from(state.fine);
+                for _ in 0..state.fine {
+                    if self.near.active {
+                        self.near_kick(delta / 2.0);
+                    }
+                    for b in self.bodies.iter_mut() {
+                        b.pos = b.pos.plus(b.vel.scale(delta));
+                        if b.id != 0 {
+                            b.rotation = (b.rotation
+                                + b.spin / (0.4 * b.mass * b.radius * b.radius) * delta)
+                                .rem_euclid(TAU);
+                        }
+                    }
+                    if self.near.active {
+                        self.near.stale = true;
+                        self.merge_near_contacts(delta);
+                        self.near_kick(delta / 2.0);
+                    } else {
+                        self.merge_contacts(delta);
                     }
                 }
-                self.merge_contacts(h);
+                if self.near.active {
+                    // Overlaps the candidate list could not anticipate.
+                    self.merge_contacts(0.0);
+                }
                 let rebuild = state.rebuild_next || self.contact_serial() != state.contacts;
                 state.rebuild_next = false;
                 state.contacts = self.contact_serial();
@@ -168,14 +240,18 @@ impl World {
     }
     /// The pending request's staged state for helpers.
     pub fn force_request(&mut self) -> Vec<f64> {
-        gravity::Forces::request(&self.bodies)
+        gravity::Forces::request(&self.bodies, &self.near.cuts)
     }
     /// Stage the pending request and compute the owner's own subtrees.
     pub fn force_compute_owned(&mut self, owned: &[u32], rebuild: bool) -> bool {
         self.pending.0.is_some()
-            && self
-                .forces
-                .compute_owned(&self.bodies, SOFTENING.powi(2), owned, rebuild)
+            && self.forces.compute_owned(
+                &self.bodies,
+                SOFTENING.powi(2),
+                owned,
+                rebuild,
+                &self.near.cuts,
+            )
     }
     /// Install the subtrees helpers computed as the pending request's forces.
     pub fn force_reduce(&mut self, helpers: &[f64]) -> bool {
@@ -266,20 +342,7 @@ impl World {
                         };
                         j = candidate;
                     }
-                    let a = &self.bodies[i];
-                    let b = &self.bodies[j];
-                    // Closest point on the relative drift segment catches fast bodies
-                    // that pass through each other between endpoint samples.
-                    let separation = a.pos.minus(b.pos);
-                    let drift = a.vel.minus(b.vel).scale(sweep);
-                    let fraction = if drift.norm2() > 0.0 {
-                        ((separation.x * drift.x + separation.y * drift.y) / drift.norm2())
-                            .clamp(0.0, 1.0)
-                    } else {
-                        0.0
-                    };
-                    let closest = separation.minus(drift.scale(fraction));
-                    if closest.norm2() <= (a.radius + b.radius).powi(2) {
+                    if swept_overlap(&self.bodies[i], &self.bodies[j], sweep) {
                         if self.resolve_solid_contact(i, j, sweep) {
                             if indexed {
                                 self.contact_search.rebuild(&self.bodies, sweep);
@@ -411,4 +474,17 @@ impl World {
         }
         self.collision_energy += energy_before - self.affected_energy(&[id]);
     }
+}
+/// Closest point on the relative drift segment catches fast bodies that pass
+/// through each other between endpoint samples.
+fn swept_overlap(a: &Body, b: &Body, sweep: f64) -> bool {
+    let separation = a.pos.minus(b.pos);
+    let drift = a.vel.minus(b.vel).scale(sweep);
+    let fraction = if drift.norm2() > 0.0 {
+        ((separation.x * drift.x + separation.y * drift.y) / drift.norm2()).clamp(0.0, 1.0)
+    } else {
+        0.0
+    };
+    let closest = separation.minus(drift.scale(fraction));
+    closest.norm2() <= (a.radius + b.radius).powi(2)
 }

@@ -3,11 +3,12 @@ use crate::{Kind, Replay, SimError, World, MAX_BODIES, MAX_TICKS};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
-pub const PHYSICS_ID: &str = "newton-soft1e-4-mutual035-kdk4-moon16-disk32-edge025-v2";
+pub const PHYSICS_ID: &str = "newton-soft1e-4-mutual035-kdk4-near2hill8-moon16-disk32-edge025-v3";
 /// Replays recorded under these rules still reconstruct. Systems below the tree
 /// threshold are bit-identical; large swarms replay under the current rules.
-pub const ACCEPTED_PHYSICS: [&str; 2] = [
+pub const ACCEPTED_PHYSICS: [&str; 3] = [
     PHYSICS_ID,
+    "newton-soft1e-4-mutual035-kdk4-moon16-disk32-edge025-v2",
     "newton-soft1e-4-mutual035-kdk4-moon16-disk32-edge025-v1",
 ];
 pub const MAX_CHECKPOINT_BYTES: usize = 32_000_000;

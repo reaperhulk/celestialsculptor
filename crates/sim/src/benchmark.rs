@@ -25,6 +25,8 @@ pub struct ForceProbe {
     pub mass: Vec<f64>,
     pub output: Vec<crate::V2>,
     tree: crate::gravity_tree::Tree,
+    /// Near/far cutoffs when the probe integrates with the split (empty: none).
+    cuts: Vec<f64>,
 }
 impl ForceProbe {
     pub fn new(count: usize, seed: u32, cluster: bool, star_mass: f64) -> Self {
@@ -40,6 +42,7 @@ impl ForceProbe {
             mass: vec![star_mass],
             output: vec![crate::V2::default(); count],
             tree: crate::gravity_tree::Tree::default(),
+            cuts: Vec::new(),
         };
         for i in 1..count {
             let r = if cluster {
@@ -63,6 +66,7 @@ impl ForceProbe {
         // Keep benchmark-only leaf specializations out of the live/orbit build.
         for _ in 0..repeats {
             self.output.fill(crate::V2::default());
+            self.tree.set_cutoffs(&self.cuts);
             if theta > 0. {
                 self.tree.compute(
                     &self.x,
@@ -72,6 +76,25 @@ impl ForceProbe {
                     theta,
                     &mut self.output,
                     rebuild,
+                );
+            } else if !self.cuts.is_empty() {
+                #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
+                crate::gravity_simd::accelerations_cut(
+                    &self.x,
+                    &self.y,
+                    &self.mass,
+                    &self.cuts,
+                    1e-8,
+                    &mut self.output,
+                );
+                #[cfg(not(all(target_arch = "wasm32", target_feature = "simd128")))]
+                crate::gravity::direct_cut(
+                    &self.x,
+                    &self.y,
+                    &self.mass,
+                    &self.cuts,
+                    1e-8,
+                    &mut self.output,
                 );
             } else {
                 #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
@@ -168,6 +191,9 @@ pub struct OrbitProbe {
     active_bodies: Option<usize>,
     /// Completed ticks, so batching an interval never changes the rebuild schedule.
     ticks: u64,
+    near: crate::split::Near,
+    /// Qualification reference: uniform substeps for every pair, no split.
+    uniform: bool,
 }
 impl OrbitProbe {
     pub fn new(state: &[f64], exact: bool) -> Result<Self, &'static str> {
@@ -186,6 +212,7 @@ impl OrbitProbe {
                 mass: state.chunks_exact(5).map(|p| p[4]).collect(),
                 output: vec![crate::V2::default(); n],
                 tree: crate::gravity_tree::Tree::default(),
+                cuts: Vec::new(),
             },
             velocity: state
                 .chunks_exact(5)
@@ -195,6 +222,8 @@ impl OrbitProbe {
             ready: false,
             active_bodies: None,
             ticks: 0,
+            near: crate::split::Near::default(),
+            uniform: false,
         })
     }
     /// Experimental fixed interaction graph: all pairs involving an active body
@@ -202,6 +231,13 @@ impl OrbitProbe {
     pub fn set_active_bodies(&mut self, count: usize) {
         assert!((1..=self.velocity.len()).contains(&count));
         self.active_bodies = Some(count);
+        self.ready = false;
+    }
+    /// Integrate every pair at the requested substeps without the near/far
+    /// split: the reference the split is qualified against. Never live physics.
+    pub fn set_uniform(&mut self, uniform: bool) {
+        self.uniform = uniform;
+        self.field.cuts.clear();
         self.ready = false;
     }
     fn update_probe_forces(&mut self, rebuild: bool) {
@@ -225,23 +261,45 @@ impl OrbitProbe {
     pub fn advance(&mut self, ticks: u32) {
         self.advance_refined(ticks, 4);
     }
-    /// Qualification only: refine a fixed physical interval, independent of rendering.
+    /// Qualification only: refine a fixed physical interval, independent of
+    /// rendering. Tree-sized systems integrate with the near/far split exactly
+    /// as a live world does: `substeps` coarse far substeps, each with
+    /// `split::NEAR_STEPS` fine near steps.
     pub fn advance_refined(&mut self, ticks: u32, substeps: u32) {
         assert!([2, 4, 8, 16, 32, 64].contains(&substeps));
         if ticks == 0 {
             return;
         }
+        let split = !self.uniform
+            && self.active_bodies.is_none()
+            && crate::split::applies(self.velocity.len());
+        let fine = if split { crate::split::NEAR_STEPS } else { 1 };
         let h = crate::DT / f64::from(substeps);
-        if !self.ready {
-            self.update_probe_forces(true);
-            self.ready = true;
-        }
+        let delta = h / f64::from(fine);
         for _ in 0..ticks {
+            if split {
+                self.prepare_near();
+            }
+            if !self.ready {
+                self.update_probe_forces(true);
+                self.ready = true;
+            }
             for substep in 0..substeps {
                 for (i, v) in self.velocity.iter_mut().enumerate() {
                     *v = v.plus(self.field.output[i].scale(h / 2.));
-                    self.field.x[i] += v.x * h;
-                    self.field.y[i] += v.y * h;
+                }
+                for _ in 0..fine {
+                    if split {
+                        self.near_kick(delta / 2.);
+                    }
+                    for (i, v) in self.velocity.iter().enumerate() {
+                        self.field.x[i] += v.x * delta;
+                        self.field.y[i] += v.y * delta;
+                    }
+                    if split {
+                        self.near.stale = true;
+                        self.near_kick(delta / 2.);
+                    }
                 }
                 // Like a live tick: the first evaluation inside a tick re-partitions
                 // (the opening forces are reused), later ones refresh moments. The
@@ -253,6 +311,21 @@ impl OrbitProbe {
                 }
             }
             self.ticks += 1;
+        }
+    }
+    fn prepare_near(&mut self) {
+        let vx: Vec<f64> = self.velocity.iter().map(|v| v.x).collect();
+        let vy: Vec<f64> = self.velocity.iter().map(|v| v.y).collect();
+        self.near
+            .prepare_slices(&self.field.x, &self.field.y, &vx, &vy, &self.field.mass);
+        self.field.cuts.clear();
+        self.field.cuts.extend_from_slice(&self.near.cuts);
+    }
+    fn near_kick(&mut self, dt: f64) {
+        self.near
+            .evaluate_slices(&self.field.x, &self.field.y, &self.field.mass, 1e-8);
+        for (i, v) in self.velocity.iter_mut().enumerate() {
+            *v = v.plus(self.near.accel[i].scale(dt));
         }
     }
     pub fn state(&self) -> Vec<f64> {
