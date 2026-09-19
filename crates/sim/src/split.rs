@@ -10,9 +10,11 @@
 //! symmetric: the composition stays symplectic and conserves momentum exactly,
 //! and with fixed schedules it replays bit for bit.
 //!
-//! Cutoffs scale with each body's Hill radius, so a moon orbiting a giant is a
-//! near pair while two grains of dust a tenth of an AU apart are not. Pairs
-//! with the star use a fixed cutoff so the inner disk keeps fine steps.
+//! Cutoffs scale with each body's Hill radius and only bodies massive enough
+//! to be more than dust carry one, so a moon orbiting a giant, or dust passing
+//! it, is a near pair while two grains of dust are never one: a swarm without
+//! such a body integrates exactly as before the split. Pairs between the star
+//! and a massive body use a fixed cutoff so the inner disk keeps fine steps.
 use crate::{Body, DT, G, V2};
 
 /// Coarse substeps per tick: the far (tree) evaluations.
@@ -23,20 +25,20 @@ pub const NEAR_STEPS: u32 = 8;
 /// `r_out` as a multiple of the Hill radius; `r_in` is half of `r_out`, so an
 /// authored moon (apoapsis below 0.7 Hill radii) is fully a near pair.
 pub const CUT_SCALE: f64 = 2.0;
-/// `r_out` for pairs with the star: the inner disk edge (0.25–0.35 AU) sits
-/// inside `r_in = 0.3`.
+/// `r_out` for pairs between the star and a massive body: the inner disk edge
+/// (0.25–0.35 AU) sits inside `r_in = 0.3`.
 pub const STAR_CUT: f64 = 0.6;
+/// Bodies below this mass (the dust boundary) carry no cutoff of their own.
+pub const FINE_MASS: f64 = 0.5 * crate::EARTH;
 const INNER: f64 = 0.5;
-/// Bodies whose reach exceeds this are paired by a full scan rather than the
-/// sorted sweep, so the sweep window stays narrow.
-const WIDE_REACH: f64 = 0.04;
 
 /// Whether a system of this many bodies integrates with the split.
 pub fn applies(bodies: usize) -> bool {
     crate::gravity::Forces::tree_for(bodies)
 }
 
-/// Per-body cutoff radii `r_out` from positions and masses (the star first).
+/// Per-body cutoff radii `r_out` from positions and masses (the star first);
+/// dust carries none.
 pub fn cutoffs(x: &[f64], y: &[f64], mass: &[f64], out: &mut Vec<f64>) {
     out.clear();
     if x.is_empty() {
@@ -44,8 +46,24 @@ pub fn cutoffs(x: &[f64], y: &[f64], mass: &[f64], out: &mut Vec<f64>) {
     }
     out.push(STAR_CUT);
     for i in 1..x.len() {
+        if mass[i] < FINE_MASS {
+            out.push(0.0);
+            continue;
+        }
         let r = V2::new(x[i] - x[0], y[i] - y[0]).norm();
         out.push(CUT_SCALE * r * libm::cbrt(mass[i] / (3.0 * mass[0])));
+    }
+}
+
+/// A pair's cutoff: the larger of the two, except that the star's cutoff only
+/// applies against a massive body. Every kernel and the pair search use this.
+#[inline]
+pub fn pair_cut(cut: &[f64], i: usize, j: usize) -> f64 {
+    let (a, b) = (cut[i], cut[j]);
+    if (i == 0 && b == 0.0) || (j == 0 && a == 0.0) {
+        0.0
+    } else {
+        a.max(b)
     }
 }
 
@@ -70,9 +88,15 @@ pub fn far_weight(r2: f64, r_out: f64) -> f64 {
 pub struct Near {
     pub cuts: Vec<f64>,
     pub pairs: Vec<(u32, u32)>,
+    /// Bodies with at least one candidate pair: the only ones a near kick moves.
+    pub members: Vec<u32>,
     pub accel: Vec<V2>,
     pub stale: bool,
     pub active: bool,
+    /// Reused staging buffers, so a fine step allocates nothing.
+    x: Vec<f64>,
+    y: Vec<f64>,
+    mass: Vec<f64>,
 }
 impl PartialEq for Near {
     fn eq(&self, _: &Self) -> bool {
@@ -82,24 +106,50 @@ impl PartialEq for Near {
 impl Near {
     /// Rebuild cutoffs and candidate pairs for the current bodies.
     pub fn prepare(&mut self, bodies: &[Body]) {
-        let x: Vec<f64> = bodies.iter().map(|b| b.pos.x).collect();
-        let y: Vec<f64> = bodies.iter().map(|b| b.pos.y).collect();
+        self.stage(bodies);
         let vx: Vec<f64> = bodies.iter().map(|b| b.vel.x).collect();
         let vy: Vec<f64> = bodies.iter().map(|b| b.vel.y).collect();
-        let mass: Vec<f64> = bodies.iter().map(|b| b.mass).collect();
+        let (x, y, mass) = (
+            std::mem::take(&mut self.x),
+            std::mem::take(&mut self.y),
+            std::mem::take(&mut self.mass),
+        );
         self.prepare_slices(&x, &y, &vx, &vy, &mass);
+        (self.x, self.y, self.mass) = (x, y, mass);
+    }
+    fn stage(&mut self, bodies: &[Body]) {
+        self.x.clear();
+        self.y.clear();
+        self.mass.clear();
+        for b in bodies {
+            self.x.push(b.pos.x);
+            self.y.push(b.pos.y);
+            self.mass.push(b.mass);
+        }
     }
     pub fn prepare_slices(&mut self, x: &[f64], y: &[f64], vx: &[f64], vy: &[f64], mass: &[f64]) {
-        self.active = applies(x.len());
         self.stale = true;
         self.accel.clear();
-        if !self.active {
-            self.cuts.clear();
-            self.pairs.clear();
+        self.active = false;
+        self.cuts.clear();
+        self.pairs.clear();
+        self.members.clear();
+        if !applies(x.len()) {
             return;
         }
         cutoffs(x, y, mass, &mut self.cuts);
         near_pairs(x, y, vx, vy, &self.cuts, &mut self.pairs);
+        if self.pairs.is_empty() {
+            // Nothing to integrate finely: the tick runs the plain scheme.
+            self.cuts.clear();
+            return;
+        }
+        self.active = true;
+        self.members.clear();
+        self.members
+            .extend(self.pairs.iter().flat_map(|&(i, j)| [i, j]));
+        self.members.sort_unstable();
+        self.members.dedup();
         self.accel.resize(x.len(), V2::default());
     }
     /// Near accelerations at the current positions (recomputed only when stale).
@@ -107,10 +157,14 @@ impl Near {
         if !self.stale {
             return;
         }
-        let x: Vec<f64> = bodies.iter().map(|b| b.pos.x).collect();
-        let y: Vec<f64> = bodies.iter().map(|b| b.pos.y).collect();
-        let mass: Vec<f64> = bodies.iter().map(|b| b.mass).collect();
+        self.stage(bodies);
+        let (x, y, mass) = (
+            std::mem::take(&mut self.x),
+            std::mem::take(&mut self.y),
+            std::mem::take(&mut self.mass),
+        );
         self.evaluate_slices(&x, &y, &mass, soft2);
+        (self.x, self.y, self.mass) = (x, y, mass);
     }
     pub fn evaluate_slices(&mut self, x: &[f64], y: &[f64], mass: &[f64], soft2: f64) {
         if !self.stale {
@@ -123,7 +177,9 @@ impl Near {
 }
 
 /// Every pair that can come inside its cutoff during one tick: separation
-/// below `r_out` plus twice the distance both bodies can drift in a tick.
+/// below the pair's cutoff plus twice the distance the pair can close in a
+/// tick. Only pairs with a cutoff can qualify, so the search runs from the few
+/// massive bodies over a window of the x-sorted others.
 pub fn near_pairs(
     x: &[f64],
     y: &[f64],
@@ -134,33 +190,35 @@ pub fn near_pairs(
 ) {
     out.clear();
     let n = x.len();
-    let reach: Vec<f64> = (0..n)
-        .map(|i| cuts[i] + 2.0 * DT * V2::new(vx[i], vy[i]).norm())
-        .collect();
-    let within = |i: usize, j: usize| {
-        let limit = reach[i] + reach[j];
-        let d = V2::new(x[j] - x[i], y[j] - y[i]);
-        d.x.abs() <= limit && d.y.abs() <= limit && d.norm2() <= limit * limit
-    };
-    let mut narrow = Vec::with_capacity(n);
-    for (i, &wide) in reach.iter().enumerate() {
-        if wide > WIDE_REACH {
-            for j in 0..n {
-                if j != i && within(i, j) {
-                    out.push((i.min(j) as u32, i.max(j) as u32));
-                }
-            }
-        } else {
-            narrow.push(i);
-        }
+    let massive: Vec<usize> = (1..n).filter(|&i| cuts[i] > 0.0).collect();
+    if massive.is_empty() {
+        return;
     }
-    narrow.sort_unstable_by(|&a, &b| x[a].total_cmp(&x[b]).then(a.cmp(&b)));
-    for (at, &i) in narrow.iter().enumerate() {
-        for &j in &narrow[at + 1..] {
-            if x[j] - x[i] > reach[i] + WIDE_REACH {
+    let cut_max = cuts.iter().fold(0.0, |a: f64, &b| a.max(b));
+    let speed: Vec<f64> = (0..n).map(|i| V2::new(vx[i], vy[i]).norm()).collect();
+    let speed_max = speed.iter().fold(0.0, |a: f64, &b| a.max(b));
+    let mut order: Vec<usize> = (0..n).collect();
+    order.sort_unstable_by(|&a, &b| x[a].total_cmp(&x[b]).then(a.cmp(&b)));
+    let xs: Vec<f64> = order.iter().map(|&i| x[i]).collect();
+    for &i in &massive {
+        // Every pair limit is at most this window, so the scan is complete.
+        let window = cuts[i] + cut_max + 2.0 * DT * (speed[i] + speed_max);
+        let from = xs.partition_point(|&v| v < x[i] - window);
+        for &j in &order[from..] {
+            if x[j] - x[i] > window {
                 break;
             }
-            if within(i, j) {
+            if j == i {
+                continue;
+            }
+            let cut = pair_cut(cuts, i, j);
+            if cut == 0.0 {
+                continue;
+            }
+            let closing = V2::new(vx[j] - vx[i], vy[j] - vy[i]).norm();
+            let limit = cut + 2.0 * DT * closing;
+            let d = V2::new(x[j] - x[i], y[j] - y[i]);
+            if d.x.abs() <= limit && d.y.abs() <= limit && d.norm2() <= limit * limit {
                 out.push((i.min(j) as u32, i.max(j) as u32));
             }
         }
@@ -184,7 +242,7 @@ pub fn near_accelerations(
         let (i, j) = (i as usize, j as usize);
         let d = V2::new(x[j] - x[i], y[j] - y[i]);
         let raw = d.norm2();
-        let w = 1.0 - far_weight(raw, cuts[i].max(cuts[j]));
+        let w = 1.0 - far_weight(raw, pair_cut(cuts, i, j));
         if w == 0.0 {
             continue;
         }
@@ -214,6 +272,30 @@ mod tests {
         }
         // Zero cutoff: everything is far, so the split is the identity.
         assert_eq!(far_weight(1e-30, 0.0), 1.0);
+        // Dust pairs and star–dust pairs have no cutoff; massive pairs the larger.
+        let cuts = [STAR_CUT, 0.0, 0.4, 0.02];
+        assert_eq!(pair_cut(&cuts, 0, 1), 0.0);
+        assert_eq!(pair_cut(&cuts, 1, 0), 0.0);
+        assert_eq!(pair_cut(&cuts, 0, 2), STAR_CUT);
+        assert_eq!(pair_cut(&cuts, 1, 2), 0.4);
+        assert_eq!(pair_cut(&cuts, 2, 3), 0.4);
+        assert_eq!(pair_cut(&cuts, 1, 3), 0.02);
+    }
+    #[test]
+    fn a_swarm_without_a_massive_body_keeps_the_plain_scheme() {
+        let mut w = crate::World::new(crate::Config {
+            mission: None,
+            ..crate::Config::default()
+        })
+        .unwrap();
+        w.apply(crate::Command::SeedSwarm {
+            count: 600,
+            disorder: 0.3,
+        })
+        .unwrap();
+        let mut near = Near::default();
+        near.prepare(&w.bodies);
+        assert!(!near.active && near.cuts.is_empty() && near.pairs.is_empty());
     }
     #[test]
     fn near_pairs_cover_every_pair_that_can_reach_its_cutoff() {
@@ -252,17 +334,23 @@ mod tests {
         let gi = b.iter().position(|x| x.id == giant).unwrap();
         let mi = b.iter().position(|x| x.parent == Some(giant)).unwrap();
         assert!(near.pairs.contains(&(gi.min(mi) as u32, gi.max(mi) as u32)));
-        // Brute force: every pair inside r_out + drift margin is listed.
+        // Brute force: every pair inside its cutoff + closing margin is listed,
+        // and dust pairs never are.
         for i in 0..b.len() {
             for j in i + 1..b.len() {
-                let limit =
-                    near.cuts[i].max(near.cuts[j]) + 2.0 * DT * (b[i].vel.norm() + b[j].vel.norm());
-                if b[i].pos.minus(b[j].pos).norm() <= limit {
-                    assert!(near.pairs.contains(&(i as u32, j as u32)), "{i} {j}");
+                let cut = pair_cut(&near.cuts, i, j);
+                let limit = cut + 2.0 * DT * b[i].vel.minus(b[j].vel).norm();
+                let listed = near.pairs.contains(&(i as u32, j as u32));
+                if cut > 0.0 && b[i].pos.minus(b[j].pos).norm() <= limit {
+                    assert!(listed, "{i} {j}");
+                }
+                if cut == 0.0 {
+                    assert!(!listed, "{i} {j} carry no cutoff");
                 }
             }
         }
         assert!(near.pairs.windows(2).all(|p| p[0] < p[1]), "sorted, unique");
+        assert!(near.members.contains(&(gi as u32)) && near.members.contains(&(mi as u32)));
         // Far weights plus near weights reproduce the full force for every pair.
         near.evaluate(&w.bodies, crate::SOFTENING.powi(2));
         let mut far = vec![V2::default(); b.len()];

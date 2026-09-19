@@ -405,7 +405,7 @@ impl Tree {
         if ai == bi {
             if a.leaf() {
                 for p in a.start..a.end {
-                    self.leaf_row(p, p + 1, a.end, soft2);
+                    self.leaf_row(p, p + 1, a.end, soft2, true);
                 }
             } else {
                 self.interact::<CONTROLLED>(a.left, a.left, soft2, theta2);
@@ -426,7 +426,7 @@ impl Tree {
         // near/far cutoff, so the far kernel stays the plain one.
         let cut = a.max_cut.max(b.max_cut);
         if extent.powi(2) < theta2 * d2
-            && (cut == 0.0 || d2.sqrt() - extent >= cut)
+            && (cut == 0.0 || d2 >= (extent + cut).powi(2))
             && (!CONTROLLED
                 || estimated_error
                     <= self.tolerance * a.min_acceleration.min(b.min_acceleration).max(1e-20))
@@ -455,8 +455,11 @@ impl Tree {
             return;
         }
         if a.leaf() && b.leaf() {
+            // Pairs beyond every cutoff weigh exactly one: the plain kernel is
+            // bit-identical there and skips the weight arithmetic.
+            let weighted = cut != 0.0 && d2 < (extent + cut).powi(2);
             for p in a.start..a.end {
-                self.leaf_row(p, b.start, b.end, soft2);
+                self.leaf_row(p, b.start, b.end, soft2, weighted);
             }
         } else if !a.leaf() && (b.leaf() || a.radius >= b.radius) {
             self.interact::<CONTROLLED>(a.left, bi, soft2, theta2);
@@ -466,13 +469,14 @@ impl Tree {
             self.interact::<CONTROLLED>(ai, b.right, soft2, theta2);
         }
     }
-    fn leaf_row(&mut self, i: usize, start: usize, end: usize, soft2: f64) {
+    fn leaf_row(&mut self, i: usize, start: usize, end: usize, soft2: f64, weighted: bool) {
+        let cut: &[f64] = if weighted { &self.cut } else { &[] };
         #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
         crate::gravity_simd::range(
             &self.x,
             &self.y,
             &self.mass,
-            &self.cut,
+            cut,
             soft2,
             &mut self.local,
             i,
@@ -480,17 +484,23 @@ impl Tree {
             end,
         );
         #[cfg(not(all(target_arch = "wasm32", target_feature = "simd128")))]
-        for j in start..end {
-            direct_pair_cut(
-                i,
-                j,
-                &self.x,
-                &self.y,
-                &self.mass,
-                &self.cut,
-                soft2,
-                &mut self.local,
-            );
+        if weighted {
+            for j in start..end {
+                direct_pair_cut(
+                    i,
+                    j,
+                    &self.x,
+                    &self.y,
+                    &self.mass,
+                    cut,
+                    soft2,
+                    &mut self.local,
+                );
+            }
+        } else {
+            for j in start..end {
+                direct_pair(i, j, &self.x, &self.y, &self.mass, soft2, &mut self.local);
+            }
         }
         self.direct_pairs += end - start;
     }
@@ -570,6 +580,7 @@ fn moments(order: &[usize], x: &[f64], y: &[f64], mass: &[f64]) -> Moments {
 }
 /// The far part of one pair: the plain force weighted by `far_weight` when the
 /// pair has cutoffs, so near pairs contribute here only beyond `r_in`.
+#[inline]
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn direct_pair_cut(
     i: usize,
@@ -586,12 +597,13 @@ pub(crate) fn direct_pair_cut(
     }
     let d = V2::new(x[j] - x[i], y[j] - y[i]);
     let raw = d.norm2();
-    let w = crate::split::far_weight(raw, cut[i].max(cut[j]));
+    let w = crate::split::far_weight(raw, crate::split::pair_cut(cut, i, j));
     let r2 = raw + soft2;
     let f = d.scale(G * w / (r2 * r2.sqrt()));
     a[i] = a[i].plus(f.scale(mass[j]));
     a[j] = a[j].minus(f.scale(mass[i]));
 }
+#[inline]
 #[allow(clippy::too_many_arguments)]
 fn direct_pair(i: usize, j: usize, x: &[f64], y: &[f64], mass: &[f64], soft2: f64, a: &mut [V2]) {
     let d = V2::new(x[j] - x[i], y[j] - y[i]);

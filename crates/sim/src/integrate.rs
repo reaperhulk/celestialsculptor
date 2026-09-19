@@ -55,8 +55,9 @@ impl World {
     /// Kick every body by its near acceleration over `dt`.
     fn near_kick(&mut self, dt: f64) {
         self.near.evaluate(&self.bodies, SOFTENING.powi(2));
-        for (i, b) in self.bodies.iter_mut().enumerate() {
-            b.vel = b.vel.plus(self.near.accel[i].scale(dt));
+        for &i in &self.near.members {
+            let b = &mut self.bodies[i as usize];
+            b.vel = b.vel.plus(self.near.accel[i as usize].scale(dt));
         }
     }
     /// Contacts among the near candidate pairs after one fine drift. Every pair
@@ -200,15 +201,18 @@ impl World {
                     b.vel = b.vel.plus(self.forces.output[i].scale(h / 2.0));
                 }
                 let delta = h / f64::from(state.fine);
-                for _ in 0..state.fine {
+                for step in 0..state.fine {
                     if self.near.active {
                         self.near_kick(delta / 2.0);
                     }
+                    // Rotation is display state on the unresolved spin: advance
+                    // it once per substep, ahead of that substep's contacts.
+                    let turn = if step == 0 { h } else { 0.0 };
                     for b in self.bodies.iter_mut() {
                         b.pos = b.pos.plus(b.vel.scale(delta));
-                        if b.id != 0 {
+                        if b.id != 0 && step == 0 {
                             b.rotation = (b.rotation
-                                + b.spin / (0.4 * b.mass * b.radius * b.radius) * delta)
+                                + b.spin / (0.4 * b.mass * b.radius * b.radius) * turn)
                                 .rem_euclid(TAU);
                         }
                     }

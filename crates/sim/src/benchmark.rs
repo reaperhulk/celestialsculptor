@@ -324,8 +324,9 @@ impl OrbitProbe {
     fn near_kick(&mut self, dt: f64) {
         self.near
             .evaluate_slices(&self.field.x, &self.field.y, &self.field.mass, 1e-8);
-        for (i, v) in self.velocity.iter_mut().enumerate() {
-            *v = v.plus(self.near.accel[i].scale(dt));
+        for &i in &self.near.members {
+            let v = &mut self.velocity[i as usize];
+            *v = v.plus(self.near.accel[i as usize].scale(dt));
         }
     }
     pub fn state(&self) -> Vec<f64> {
