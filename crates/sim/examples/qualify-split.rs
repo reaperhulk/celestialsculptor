@@ -1,6 +1,9 @@
 //! Near/far split qualification: a giant with two authored moons inside a
-//! 512-body low-mass disk, 600 years, against a uniform direct-summation
-//! reference at the fine step. Writes JSON to stdout, progress to stderr.
+//! 512-body low-mass disk, 600 years. The production split (tree far field)
+//! is compared with the same split on direct far forces, isolating the tree's
+//! approximation, and with a uniform sixteen-substep integration of the same
+//! tree forces, isolating the integrator. Writes JSON to stdout, progress to
+//! stderr.
 use celestial_sim::{benchmark::OrbitProbe, *};
 use serde_json::json;
 fn balances(s: &[f64]) -> [f64; 4] {
@@ -85,7 +88,7 @@ fn main() {
     let plans = [
         ("split-tree", false, false, 4u32),
         ("split-direct", true, false, 4),
-        ("uniform-direct", true, true, 16),
+        ("uniform-tree", false, true, 16),
     ];
     let runs: Vec<_> = std::thread::scope(|scope| {
         let handles: Vec<_> = plans

@@ -1,9 +1,11 @@
 // Gate for the near/far split: a giant with two authored moons inside a
 // 512-body low-mass disk, integrated for 600 years by the production scheme
 // (mutual tree far field at four coarse substeps, direct near field at eight
-// fine steps each) and compared with a uniform direct-summation integration at
-// the fine step. The moons' elements are measured relative to their host with
-// the same budgets as the small moon family; balances use the tree budgets.
+// fine steps each). Two comparisons: the same split with direct far forces
+// isolates the tree's approximation, and a uniform sixteen-substep integration
+// of the same tree forces isolates the integrator. The moons' elements are
+// measured relative to their host with the same budgets as the small moon
+// family; balances use the tree budgets.
 import { readFile, writeFile } from 'node:fs/promises';
 const raw = JSON.parse(await readFile(process.argv[2], 'utf8')),
   budgets = {
@@ -60,7 +62,8 @@ function moonErrors(candidate, reference) {
   return worst;
 }
 const initial = raw.initial_balances,
-  reference = raw.runs.find((run) => run.name === 'uniform-direct');
+  reference = raw.runs.find((run) => run.name === 'uniform-tree'),
+  production = raw.runs.find((run) => run.name === 'split-tree');
 const rows = raw.runs.map((run) => {
   const row = {
     name: run.name,
@@ -77,12 +80,12 @@ const rows = raw.runs.map((run) => {
       return raw.moons.every((index) => elements(b[index], b[raw.host]).axis > 0);
     }),
   };
-  if (run !== reference) {
-    const errors = run.samples.map((s, k) => moonErrors(s.state, reference.samples[k].state));
-    row.moon_errors_vs_reference = Object.fromEntries(
-      Object.keys(errors[0]).map((key) => [key, Math.max(...errors.map((e) => e[key]))]),
-    );
-  }
+  const against = run === production ? reference : production;
+  const errors = run.samples.map((s, k) => moonErrors(s.state, against.samples[k].state));
+  row.compared_with = against.name;
+  row.moon_errors = Object.fromEntries(
+    Object.keys(errors[0]).map((key) => [key, Math.max(...errors.map((e) => e[key]))]),
+  );
   return row;
 });
 for (const row of rows) {
@@ -90,15 +93,16 @@ for (const row of rows) {
   for (const key of ['relative_energy', 'angular_residual', 'momentum_residual'])
     if (row[key] > budgets[key]) failures.push(`${row.name}: ${key} ${row[key]} > ${budgets[key]}`);
   if (!row.moonsBound) failures.push(`${row.name}: a moon left its host`);
-  for (const [key, value] of Object.entries(row.moon_errors_vs_reference ?? {}))
-    if (value > budgets[key]) failures.push(`${row.name}: moon ${key} ${value} > ${budgets[key]}`);
+  for (const [key, value] of Object.entries(row.moon_errors))
+    if (value > budgets[key])
+      failures.push(`${row.name} vs ${row.compared_with}: moon ${key} ${value} > ${budgets[key]}`);
 }
 const report = {
   schema: 1,
   physics: raw.physics,
   bodies: raw.bodies,
   scope:
-    'Giant with two authored moons inside a 512-body low-mass disk for 600 years: the production near/far split with the mutual tree, the same split with direct far forces, and a uniform direct-summation integration at the fine step as reference. Moon elements are relative to the host.',
+    'Giant with two authored moons inside a 512-body low-mass disk for 600 years: the production near/far split with the mutual tree, compared with the same split on direct far forces (tree approximation) and with a uniform sixteen-substep integration of the same tree forces (integrator). Moon elements are relative to the host.',
   budgets,
   rows,
   passed: !failures.length,
