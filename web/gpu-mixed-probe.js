@@ -98,7 +98,7 @@ export async function runMixedBenchmark({ fallback = false, counts = [64, 1024],
   try {
     const { default: init, Simulation, OrbitProbe } = await import('./pkg/celestial_wasm.js');
     await init();
-    const { orbitState } = await import('./gpu-orbit-benchmark.js');
+    const { orbitState } = await import('./gpu-orbit-metrics.js');
     const cases = [];
     for (const count of counts) {
       const sim = new Simulation(JSON.stringify({ seed: 42, mission: null, star_mass: 1 }));
