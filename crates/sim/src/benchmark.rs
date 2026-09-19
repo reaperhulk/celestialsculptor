@@ -273,13 +273,18 @@ impl OrbitProbe {
         let split = !self.uniform
             && self.active_bodies.is_none()
             && crate::split::applies(self.velocity.len());
-        let fine = if split { crate::split::NEAR_STEPS } else { 1 };
         let h = crate::DT / f64::from(substeps);
-        let delta = h / f64::from(fine);
         for _ in 0..ticks {
             if split {
                 self.prepare_near();
             }
+            // Like a live tick: fine near steps only when a candidate pair exists.
+            let fine = if split && self.near.active {
+                crate::split::NEAR_STEPS
+            } else {
+                1
+            };
+            let delta = h / f64::from(fine);
             if !self.ready {
                 self.update_probe_forces(true);
                 self.ready = true;
@@ -289,14 +294,14 @@ impl OrbitProbe {
                     *v = v.plus(self.field.output[i].scale(h / 2.));
                 }
                 for _ in 0..fine {
-                    if split {
+                    if self.near.active {
                         self.near_kick(delta / 2.);
                     }
                     for (i, v) in self.velocity.iter().enumerate() {
                         self.field.x[i] += v.x * delta;
                         self.field.y[i] += v.y * delta;
                     }
-                    if split {
+                    if self.near.active {
                         self.near.stale = true;
                         self.near_kick(delta / 2.);
                     }
