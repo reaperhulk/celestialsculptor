@@ -1822,3 +1822,24 @@ input[type='text'] {
 .experiment-lab label {
   display: block;
 }
+
+/* On narrow layouts the goal lives in another tab; the brief keeps it in view. */
+.scene-brief {
+  display: none;
+}
+@media (max-width: 760px) {
+  .scene-brief:not([hidden]) {
+    display: block;
+    width: 100%;
+    margin: 0 0 6px;
+    padding: 6px 8px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #101d2dcc;
+    color: var(--amber);
+    font: inherit;
+    font-size: 0.82rem;
+    text-align: left;
+    line-height: 1.3;
+  }
+}

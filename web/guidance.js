@@ -38,7 +38,7 @@ export function goalMessage(status, mission, bodyCount, state = null) {
         return `World ${id} comes too close (${orbit.periapsis.toFixed(2)} AU). Raise its closest approach while keeping the far side in the band.`;
     }
   }
-  return bodyCount === 1
+  return bodyCount === 1 || status.actions_remaining === 2048
     ? 'Place your first world to begin.'
     : 'Adjust your conditions to meet the goal.';
 }

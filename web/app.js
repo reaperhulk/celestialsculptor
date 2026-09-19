@@ -220,8 +220,25 @@ function updateDraft() {
           ? 'Falling inward · likely stellar impact'
           : 'Elliptical orbit · watch the close approach');
 }
+let speedMission;
 function setMissionUI() {
   const m = mission === null ? null : state?.mission_definition || missions[mission];
+  // First light starts fast on purpose: the first orbit must be corrected, so
+  // the lesson about circular speed is a decision rather than a default.
+  if (mission !== speedMission) {
+    speedMission = mission;
+    const speed = mission === 0 ? '130' : '100';
+    $('speed').value = speed;
+    $('speed-range').value = speed;
+  }
+  $('sculpt-title').textContent =
+    mission === 7
+      ? 'Create a moon'
+      : mission !== null && mission >= 3 && mission <= 5
+        ? 'Seed a debris disk'
+        : 'Make a world';
+  $('scene-brief').hidden = !m;
+  if (m) $('scene-brief').textContent = `${m.name} · ${m.brief}`;
   $('campaign').setAttribute('aria-pressed', String(mission !== null));
   $('sandbox').setAttribute('aria-pressed', String(mission === null));
   $('campaign').classList.toggle('active', mission !== null);
@@ -234,7 +251,7 @@ function setMissionUI() {
     m?.brief || 'No goal, no hurry. Follow an idea and see what gravity makes of it.';
   $('mission-hint').textContent =
     m?.hint ||
-    'Try a crowded belt, a giant on an eccentric orbit, or a system around a smaller star.';
+    'Try a crowded belt, a giant on an eccentric orbit, or a system around a smaller star. Save checkpoints in the notebook and compare runs under Observe.';
   $('reward').textContent = m?.unlock || 'Every tool is available';
   const speedLimit = mission === 6 ? 135 : 220;
   $('speed').max = String(speedLimit);
@@ -953,6 +970,8 @@ for (const button of document.querySelectorAll('[data-panel]'))
         other.setAttribute('aria-pressed', String(other === button));
       }
     };
+$('scene-brief').onclick = () =>
+  document.querySelector('.mobile-tabs [data-panel="mission"]')?.click();
 $('help').onclick = () => $('help-dialog').showModal();
 for (const button of document.querySelectorAll('.dialog-close'))
   button.onclick = () => $('help-dialog').close();

@@ -307,3 +307,72 @@ mod tree_tests {
         }
     }
 }
+
+/// Where a large swarm's tick time goes. A diagnostic for scaling work; it
+/// measures each phase on a clone so the profiled world is never disturbed.
+pub fn phase_profile(count: u32, ticks: u32) -> serde_json::Value {
+    use std::time::Instant;
+    let mut w = World::new(Config {
+        mission: None,
+        ..Config::default()
+    })
+    .unwrap();
+    w.apply(Command::SeedSwarm {
+        count,
+        disorder: 0.3,
+    })
+    .unwrap();
+    w.advance(4);
+    let ms = |start: Instant| start.elapsed().as_secs_f64() * 1000.;
+    let mut total = 0.;
+    let mut forces = 0.;
+    let mut contacts = 0.;
+    let mut history = 0.;
+    let mut satellites = 0.;
+    let mut resonances = 0.;
+    let mut status = 0.;
+    for _ in 0..ticks {
+        let start = Instant::now();
+        w.step();
+        total += ms(start);
+        let start = Instant::now();
+        std::hint::black_box(w.sample_forces(false));
+        forces += ms(start) * f64::from(w.minimum_substeps + 1);
+        let mut c = w.clone();
+        let start = Instant::now();
+        c.merge_contacts(0.0);
+        contacts += ms(start) * f64::from(w.minimum_substeps + 1);
+        let mut c = w.clone();
+        let start = Instant::now();
+        c.observe_history(false);
+        history += ms(start);
+        let mut c = w.clone();
+        let start = Instant::now();
+        c.refresh_satellites();
+        satellites += ms(start) / 8.;
+        let mut c = w.clone();
+        c.tick = w.tick.next_multiple_of(8);
+        let start = Instant::now();
+        c.observe_resonances();
+        resonances += ms(start) / 8.;
+        let start = Instant::now();
+        std::hint::black_box(w.status());
+        status += ms(start);
+    }
+    let per = |v: f64| (v / f64::from(ticks) * 1000.).round() / 1000.;
+    serde_json::json!({
+        "bodies": w.bodies.len(),
+        "ticks": ticks,
+        "substeps": w.minimum_substeps,
+        "ms_per_tick": {
+            "total": per(total),
+            "forces": per(forces),
+            "contacts": per(contacts),
+            "history": per(history),
+            "satellites_amortised": per(satellites),
+            "resonances_amortised": per(resonances),
+            "status_if_polled": per(status),
+        },
+        "ticks_per_second": (f64::from(ticks) / (total / 1000.)).round(),
+    })
+}

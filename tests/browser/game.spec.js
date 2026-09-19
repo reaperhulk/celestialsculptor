@@ -11,6 +11,10 @@ test.beforeEach(async ({ page }) => {
 });
 
 test('real worker launches a world, completes a goal, and unlocks the next', async ({ page }) => {
+  await expect(page.locator('#orbit-reading')).toContainText('Elliptical');
+  await page.locator('#speed').fill('100');
+  await page.locator('#speed').dispatchEvent('input');
+  await expect(page.locator('#orbit-reading')).toContainText('Circular');
   await page.locator('#launch').click();
   await expect(page.locator('#planet-count')).toHaveText('1');
   await page.locator('#time-speed').selectOption('16');

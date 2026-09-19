@@ -1,10 +1,20 @@
 import { series, chartGeometry, drawChart } from './observatory.js';
 import { quantity } from './readings.js';
 export const HINTS = {
+  3: [
+    'Fragments only grow when their paths cross. Keep the disk narrow so neighbours meet.',
+    'Disorder spreads speeds: a little makes encounters, too much scatters survivors onto eccentric orbits that never count as calm.',
+    'Try 24 fragments in a 0.6 AU disk at 15–25% disorder, then branch and compare a wider or calmer disk at the same age.',
+  ],
   4: [
     'Watch the whole garden orbit, not just its current position.',
     'A narrower nursery encourages encounters; lower speed disorder limits how far fragments wander.',
     'Try a compact disk outside the garden, then branch and move it closer. Compare survival and time to formation.',
+  ],
+  5: [
+    'The giant clears a wide lane around its whole orbit. Nurseries inside about half its distance survive longest.',
+    'Fragments near the giant are stretched onto eccentric paths; a compact disk far inside keeps meetings gentle.',
+    'Try a disk centred near 1 AU with modest disorder, then compare one moved outward toward the giant.',
   ],
   6: [
     'The giant must be near the crossing when your world arrives.',
@@ -20,6 +30,11 @@ export const HINTS = {
     'A near 2:1 period ratio is a candidate, not a completed resonance.',
     'Watch the resonant-angle graph. A bounded swing differs from an angle that continually circulates.',
     'The detector needs at least eight outer orbits and measurable eccentricity. Massive neighbors interact more strongly; lighter pairs can need more time.',
+  ],
+  9: [
+    'Build in the order you learned: a debris disk first, then a garden orbit with room, then a moon around a calm host.',
+    'The garden must keep its whole orbit inside the band while accretion happens nearby; give it distance from the nursery.',
+    'A moon needs a calm, massive host well away from the disk. Place the host early so it settles before the moon.',
   ],
 };
 export function lessonSetup(example) {

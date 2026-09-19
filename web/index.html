@@ -33,7 +33,7 @@
     </aside>
     <section class="observatory" aria-label="Solar system">
       <canvas id="universe" aria-label="Solar system. Drag to pan, pinch or scroll to zoom, tap a world to inspect, double tap to follow. F fits the system. Switch to Place to position a world. L launches; Space plays or pauses." tabindex="0"></canvas>
-      <div class="scene-heading"><span class="eyebrow" id="system-label">EXPERIMENT 0042</span><h2 id="system-title">A beginning, in starlight.</h2></div>
+      <div class="scene-heading"><button id="scene-brief" class="scene-brief" hidden></button><span class="eyebrow" id="system-label">EXPERIMENT 0042</span><h2 id="system-title">A beginning, in starlight.</h2></div>
       <div class="view-controls"><button id="display" class="glass" aria-label="View settings">View</button><button id="view" class="glass" title="Toggle top-down or tilted view">Top view</button><button id="place-mode" class="glass" aria-pressed="false" title="Switch between navigating and positioning a new world">Place</button><button id="fit-view" class="glass" aria-label="Fit whole system">Fit</button><button id="zoom-in" class="glass" aria-label="Zoom in">+</button><button id="zoom-out" class="glass" aria-label="Zoom out">−</button></div>
       <output id="fps-overlay" aria-label="Rendering performance" hidden></output><div id="loading" class="loading" role="status"><span class="loading-star">✧</span><p>Lighting the first star…</p><button id="reload" hidden>Reload game</button><button id="continue" class="quiet" hidden>Keep going</button></div>
       <div class="scene-bottom"><span id="scene-hint">Choose a world. Set its orbit. Let gravity work.</span><span id="scene-context" class="zone-key">Potential habitable zone</span></div>
@@ -41,7 +41,7 @@
     </section>
     <aside class="sculpt-panel panel" aria-label="Sculpting controls">
       <div id="creation-tools"><div class="row"><span class="eyebrow">SHAPE THE SYSTEM</span><span class="matter"><strong id="matter">8</strong> matter</span></div>
-      <h2>Make a world</h2>
+      <h2 id="sculpt-title">Make a world</h2>
       <form id="launch-form">
         <label for="kind">World type</label><select id="kind"><option value="rocky">Rocky world</option><option value="ice" disabled>Ice world</option><option value="giant" disabled>Gas giant</option><option value="dust" disabled>Debris</option></select>
         <div class="condition-fields">
