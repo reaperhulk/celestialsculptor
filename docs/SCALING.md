@@ -105,8 +105,21 @@ without a giant carrying an authored moon, before (e1b51cf) and after:
 | 8,192 | 40.0 ms | 36.8 ms | 157.7 ms (16 substeps) | 40.2 ms (3.9×) |
 
 A migrating world, thirty-two substeps before, gains twice that again. The
-plain swarm is slightly faster than before because the leaf kernel is now
-marked for inlining; its physics is unchanged bit for bit. Gravity helpers are
+plain swarm is slightly faster than before natively because the leaf kernel
+is now marked for inlining; its physics is unchanged bit for bit.
+
+The same comparison in Node/WASM through the worker runtime, engine alone,
+interleaved runs of the two builds:
+
+| Bodies | Swarm before | Swarm after | With a moon before | With a moon after |
+|---:|---:|---:|---:|---:|
+| 2,048 | 7.6 ms | 8.3 ms | 29.0 ms | 9.1 ms (3.2×) |
+| 8,192 | 35.5 ms | 38.1 ms | 136.5 ms | 42.5 ms (3.2×) |
+
+In WASM the plain swarm pays about 7% for the split's bookkeeping (a
+per-tick check that no body reaches the dust boundary, the separated kick and
+drift loops, and the cutoff term in the tree's opening test), the price of a
+3.2× moon world. Gravity helpers are
 unaffected: in the same session `bench:parallel` took an 8,192-body swarm from
 44.1 ms alone to 30.3 ms with three helpers (1.46×), every helper count
 producing identical snapshots. Absolute figures in this section come from a

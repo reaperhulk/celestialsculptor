@@ -106,6 +106,11 @@ impl PartialEq for Near {
 impl Near {
     /// Rebuild cutoffs and candidate pairs for the current bodies.
     pub fn prepare(&mut self, bodies: &[Body]) {
+        if !applies(bodies.len()) || !bodies.iter().skip(1).any(|b| b.mass >= FINE_MASS) {
+            // No body carries a cutoff: nothing to stage, the plain scheme runs.
+            self.clear();
+            return;
+        }
         self.stage(bodies);
         let vx: Vec<f64> = bodies.iter().map(|b| b.vel.x).collect();
         let vy: Vec<f64> = bodies.iter().map(|b| b.vel.y).collect();
@@ -116,6 +121,14 @@ impl Near {
         );
         self.prepare_slices(&x, &y, &vx, &vy, &mass);
         (self.x, self.y, self.mass) = (x, y, mass);
+    }
+    fn clear(&mut self) {
+        self.stale = true;
+        self.active = false;
+        self.accel.clear();
+        self.cuts.clear();
+        self.pairs.clear();
+        self.members.clear();
     }
     fn stage(&mut self, bodies: &[Body]) {
         self.x.clear();
@@ -128,13 +141,8 @@ impl Near {
         }
     }
     pub fn prepare_slices(&mut self, x: &[f64], y: &[f64], vx: &[f64], vy: &[f64], mass: &[f64]) {
-        self.stale = true;
-        self.accel.clear();
-        self.active = false;
-        self.cuts.clear();
-        self.pairs.clear();
-        self.members.clear();
-        if !applies(x.len()) {
+        self.clear();
+        if !applies(x.len()) || !mass.iter().skip(1).any(|&m| m >= FINE_MASS) {
             return;
         }
         cutoffs(x, y, mass, &mut self.cuts);
