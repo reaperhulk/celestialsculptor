@@ -1,20 +1,144 @@
-const STYLES=['calm','nursery','chaos','moons','resonance','swarm'],KEY='celestial-sculptor.generation.v1';
-export function validSettings(value){return value&&STYLES.includes(value.style)&&Number.isInteger(value.count)&&value.count>=4&&value.count<=(value.style==='swarm'?8191:32)&&Number.isFinite(value.chaos)&&value.chaos>=0&&value.chaos<=1;}
-export function readGeneration(storage){try{const text=storage?.getItem(KEY);if(text?.length>1024)return null;const value=JSON.parse(text);return validSettings(value?.command)&&value.command.type==='generate_system'&&value.version===7&&Number.isInteger(value.config?.seed)&&value.config.seed>=0&&value.config.seed<=4294967295&&[null].includes(value.config.mission)&&Number.isFinite(value.config.star_mass)&&value.config.star_mass>=.6&&value.config.star_mass<=1.5?value:null;}catch{return null;}}
+import { SAVE_VERSION } from './version.js';
+const STYLES = ['calm', 'nursery', 'chaos', 'moons', 'resonance', 'swarm'],
+  KEY = 'celestial-sculptor.generation.v1';
+export function validSettings(value) {
+  return (
+    value &&
+    STYLES.includes(value.style) &&
+    Number.isInteger(value.count) &&
+    value.count >= 4 &&
+    value.count <= (value.style === 'swarm' ? 8191 : 32) &&
+    Number.isFinite(value.chaos) &&
+    value.chaos >= 0 &&
+    value.chaos <= 1
+  );
+}
+export function readGeneration(storage) {
+  try {
+    const text = storage?.getItem(KEY);
+    if (text?.length > 1024) return null;
+    const value = JSON.parse(text);
+    return validSettings(value?.command) &&
+      value.command.type === 'generate_system' &&
+      value.version === SAVE_VERSION &&
+      Number.isInteger(value.config?.seed) &&
+      value.config.seed >= 0 &&
+      value.config.seed <= 4294967295 &&
+      [null].includes(value.config.mission) &&
+      Number.isFinite(value.config.star_mass) &&
+      value.config.star_mass >= 0.6 &&
+      value.config.star_mass <= 1.5
+      ? value
+      : null;
+  } catch {
+    return null;
+  }
+}
 export class GeneratorControls {
- constructor({storage,getState,create,repeat,save}){
-  this.storage=storage;this.getState=getState;this.last=readGeneration(storage);this.$=id=>document.getElementById(id);
-  this.$('generate').onclick=()=>{this.$('generate-seed').value=String(this.getState()?.config.seed??42);if(this.last){this.$('generate-style').value=this.last.command.style;this.options();if([...this.$('generate-count').options].some(o=>o.value===String(this.last.command.count)))this.$('generate-count').value=String(this.last.command.count);this.$('generate-chaos').value=String(this.last.command.chaos*100);}else this.options();this.$('generate-dialog').showModal();};
-  this.$('generate-style').onchange=()=>this.options();this.$('shuffle-seed').onclick=()=>{this.$('generate-seed').value=String(crypto.getRandomValues(new Uint32Array(1))[0]);};this.$('close-generate').onclick=()=>this.$('generate-dialog').close();
-  this.$('generate-form').onsubmit=event=>{event.preventDefault();const command={type:'generate_system',style:this.$('generate-style').value,count:Number(this.$('generate-count').value)||12,chaos:Number(this.$('generate-chaos').value)/100};const seed=Number(this.$('generate-seed').value);this.$('generate-dialog').close();create({seed,command,play:this.$('generate-play').checked});};
-  this.$('repeat-system').onclick=()=>{if(this.last)repeat(this.last);};this.$('keep-system').onclick=()=>save(this.last);
- }
- options(){
-  const style=this.$('generate-style').value,moons=style==='moons',resonance=style==='resonance';const swarm=style==='swarm';const count=this.$('generate-count');const previous=count.value;
-  count.replaceChildren(...(swarm?[[63,'64 bodies'],[255,'256 bodies'],[1023,'1,024 bodies'],[4095,'4,096 bodies'],[8191,'8,192 bodies']]:moons?[[4,'3 moons'],[6,'5 moons'],[9,'8 moons']]:[[8,'8 bodies'],[16,'16 bodies'],[24,'24 bodies'],[32,'32 bodies']]).map(([value,label])=>new Option(label,String(value))));
-  count.value=[...count.options].some(o=>o.value===previous)?previous:swarm?'1023':moons?'9':'16';this.$('generate-count-row').hidden=resonance;
-  this.$('generate-guidance').textContent={swarm:'A wide, low-mass swarm. Every particle contributes gravity. Higher disorder encourages encounters. Large swarms advance more slowly; start with 1,024 bodies.',calm:'Spaced worlds for peaceful watching. Disorder adds a small variation to orbital speed.',nursery:'A compact, gentle disk encourages accretion. Watch the first fragments grow, then compare a wider or more disordered start.',chaos:'A close flyby and neighboring worlds invite scattering and impacts. Higher disorder adds more opposing orbits.',moons:'A planet with light satellites. Distance limits adapt to the planet and star; higher disorder introduces more clockwise orbits.',resonance:'Two giants approach a resonance through disk migration. Seeds vary masses, orbital distances and torque; disorder changes their initial separation.'}[style];
- }
- record(config,command,version){this.last={config,command,version};try{this.storage?.setItem(KEY,JSON.stringify(this.last));}catch{}this.update();}
- update(){const sandbox=this.getState()?.config.mission===null;this.$('repeat-system').hidden=!sandbox||!this.last;this.$('keep-system').hidden=!sandbox;}
+  constructor({ storage, getState, create, repeat, save }) {
+    this.storage = storage;
+    this.getState = getState;
+    this.last = readGeneration(storage);
+    this.$ = (id) => document.getElementById(id);
+    this.$('generate').onclick = () => {
+      this.$('generate-seed').value = String(this.getState()?.config.seed ?? 42);
+      if (this.last) {
+        this.$('generate-style').value = this.last.command.style;
+        this.options();
+        if (
+          [...this.$('generate-count').options].some(
+            (o) => o.value === String(this.last.command.count),
+          )
+        )
+          this.$('generate-count').value = String(this.last.command.count);
+        this.$('generate-chaos').value = String(this.last.command.chaos * 100);
+      } else this.options();
+      this.$('generate-dialog').showModal();
+    };
+    this.$('generate-style').onchange = () => this.options();
+    this.$('shuffle-seed').onclick = () => {
+      this.$('generate-seed').value = String(crypto.getRandomValues(new Uint32Array(1))[0]);
+    };
+    this.$('close-generate').onclick = () => this.$('generate-dialog').close();
+    this.$('generate-form').onsubmit = (event) => {
+      event.preventDefault();
+      const command = {
+        type: 'generate_system',
+        style: this.$('generate-style').value,
+        count: Number(this.$('generate-count').value) || 12,
+        chaos: Number(this.$('generate-chaos').value) / 100,
+      };
+      const seed = Number(this.$('generate-seed').value);
+      this.$('generate-dialog').close();
+      create({ seed, command, play: this.$('generate-play').checked });
+    };
+    this.$('repeat-system').onclick = () => {
+      if (this.last) repeat(this.last);
+    };
+    this.$('keep-system').onclick = () => save(this.last);
+  }
+  options() {
+    const style = this.$('generate-style').value,
+      moons = style === 'moons',
+      resonance = style === 'resonance';
+    const swarm = style === 'swarm';
+    const count = this.$('generate-count');
+    const previous = count.value;
+    count.replaceChildren(
+      ...(swarm
+        ? [
+            [63, '64 bodies'],
+            [255, '256 bodies'],
+            [1023, '1,024 bodies'],
+            [4095, '4,096 bodies'],
+            [8191, '8,192 bodies'],
+          ]
+        : moons
+          ? [
+              [4, '3 moons'],
+              [6, '5 moons'],
+              [9, '8 moons'],
+            ]
+          : [
+              [8, '8 bodies'],
+              [16, '16 bodies'],
+              [24, '24 bodies'],
+              [32, '32 bodies'],
+            ]
+      ).map(([value, label]) => new Option(label, String(value))),
+    );
+    count.value = [...count.options].some((o) => o.value === previous)
+      ? previous
+      : swarm
+        ? '1023'
+        : moons
+          ? '9'
+          : '16';
+    this.$('generate-count-row').hidden = resonance;
+    this.$('generate-guidance').textContent = {
+      swarm:
+        'A wide, low-mass swarm. Every particle contributes gravity. Higher disorder encourages encounters. Large swarms advance more slowly; start with 1,024 bodies.',
+      calm: 'Spaced worlds for peaceful watching. Disorder adds a small variation to orbital speed.',
+      nursery:
+        'A compact, gentle disk encourages accretion. Watch the first fragments grow, then compare a wider or more disordered start.',
+      chaos:
+        'A close flyby and neighboring worlds invite scattering and impacts. Higher disorder adds more opposing orbits.',
+      moons:
+        'A planet with light satellites. Distance limits adapt to the planet and star; higher disorder introduces more clockwise orbits.',
+      resonance:
+        'Two giants approach a resonance through disk migration. Seeds vary masses, orbital distances and torque; disorder changes their initial separation.',
+    }[style];
+  }
+  record(config, command, version) {
+    this.last = { config, command, version };
+    try {
+      this.storage?.setItem(KEY, JSON.stringify(this.last));
+    } catch {}
+    this.update();
+  }
+  update() {
+    const sandbox = this.getState()?.config.mission === null;
+    this.$('repeat-system').hidden = !sandbox || !this.last;
+    this.$('keep-system').hidden = !sandbox;
+  }
 }

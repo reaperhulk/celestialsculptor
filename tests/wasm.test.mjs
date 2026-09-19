@@ -2,25 +2,49 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
-import init, { Simulation, missions } from '../dist/pkg/celestial_wasm.js';
+import init, { Simulation, missions, save_version } from '../dist/pkg/celestial_wasm.js';
+import { SAVE_VERSION } from '../web/version.js';
 
-await init({ module_or_path: await readFile(new URL('../dist/pkg/celestial_wasm_bg.wasm', import.meta.url)) });
-const fixtures = JSON.parse(execFileSync('cargo', ['run', '--quiet', '--release', '--locked', '-p', 'celestial-sim', '--bin', 'sculptor', '--', 'fixtures'], { maxBuffer: 10_000_000, encoding: 'utf8' }));
+import { importReplay } from '../scripts/replay.mjs';
+await init({
+  module_or_path: await readFile(new URL('../dist/pkg/celestial_wasm_bg.wasm', import.meta.url)),
+});
+const fixtures = JSON.parse(
+  execFileSync(
+    'cargo',
+    [
+      'run',
+      '--quiet',
+      '--release',
+      '--locked',
+      '-p',
+      'celestial-sim',
+      '--bin',
+      'sculptor',
+      '--',
+      'fixtures',
+    ],
+    { maxBuffer: 10_000_000, encoding: 'utf8' },
+  ),
+);
 
 for (const fixture of fixtures) {
   test(`native / WASM parity: ${fixture.name}`, () => {
     const sim = new Simulation(JSON.stringify(fixture.replay.config));
-    sim.import_replay(JSON.stringify(fixture.replay));
+    importReplay(sim, JSON.stringify(fixture.replay));
     const state = JSON.parse(sim.snapshot());
     assert.equal(state.status.completed, fixture.status.completed);
     assert.equal(state.tick, fixture.replay.end_tick);
     assert.equal(state.bodies.length, fixture.bodies.length);
     for (let i = 0; i < state.bodies.length; i++) {
-      const a = state.bodies[i], b = fixture.bodies[i];
-      assert.equal(a.id, b.id); assert.equal(a.kind, b.kind);
-      for (const field of ['pos', 'vel']) for (const axis of ['x', 'y']) {
-        assert.ok(Math.abs(a[field][axis] - b[field][axis]) < 1e-8, `${a.id}.${field}.${axis}`);
-      }
+      const a = state.bodies[i],
+        b = fixture.bodies[i];
+      assert.equal(a.id, b.id);
+      assert.equal(a.kind, b.kind);
+      for (const field of ['pos', 'vel'])
+        for (const axis of ['x', 'y']) {
+          assert.ok(Math.abs(a[field][axis] - b[field][axis]) < 1e-8, `${a.id}.${field}.${axis}`);
+        }
       assert.ok(Math.abs(a.mass - b.mass) < 1e-12);
     }
     assert.deepEqual(state.events, fixture.events);
@@ -29,38 +53,107 @@ for (const fixture of fixtures) {
 }
 
 test('WASM rejects bad commands and imports without damaging the running state', () => {
-  const sim = new Simulation(JSON.stringify({seed: 42, mission: null, star_mass: 1}));
-  sim.command(JSON.stringify({type: 'launch', kind: 'rocky', radius: 1, angle: 0, speed: 1}));
+  const sim = new Simulation(JSON.stringify({ seed: 42, mission: null, star_mass: 1 }));
+  sim.command(JSON.stringify({ type: 'launch', kind: 'rocky', radius: 1, angle: 0, speed: 1 }));
   const before = sim.snapshot();
   assert.throws(() => sim.command('{"type":"launch"}'));
-  assert.throws(() => sim.import_replay('{"version":999}'));
+  assert.throws(() => importReplay(sim, '{"version":999}'));
   assert.throws(() => sim.advance(513));
   assert.equal(sim.snapshot(), before);
   assert.equal(JSON.parse(missions()).length, 10);
   sim.free();
 });
-test('disk creation crosses the real WASM command boundary and evolves finite state',()=>{
- const sim=new Simulation(JSON.stringify({seed:71,mission:null,star_mass:1}));
- sim.command(JSON.stringify({type:'seed_disk',radius:2.5,spread:1,disorder:.25,count:24}));
- assert.equal(JSON.parse(sim.snapshot()).bodies.length,25);sim.advance(512);
- const state=JSON.parse(sim.snapshot());assert.equal(state.tick,512);
- for(const b of state.bodies)assert.ok(Number.isFinite(b.pos.x)&&Number.isFinite(b.vel.y));
- assert.equal(JSON.parse(sim.export_replay()).commands[0].command.type,'seed_disk');sim.free();
+test('disk creation crosses the real WASM command boundary and evolves finite state', () => {
+  const sim = new Simulation(JSON.stringify({ seed: 71, mission: null, star_mass: 1 }));
+  sim.command(
+    JSON.stringify({ type: 'seed_disk', radius: 2.5, spread: 1, disorder: 0.25, count: 24 }),
+  );
+  assert.equal(JSON.parse(sim.snapshot()).bodies.length, 25);
+  sim.advance(512);
+  const state = JSON.parse(sim.snapshot());
+  assert.equal(state.tick, 512);
+  for (const b of state.bodies) assert.ok(Number.isFinite(b.pos.x) && Number.isFinite(b.vel.y));
+  assert.equal(JSON.parse(sim.export_replay()).commands[0].command.type, 'seed_disk');
+  sim.free();
 });
-test('the WASM boundary rejects fractional nonfinite and oversized arguments atomically',()=>{
- const config=JSON.stringify({seed:42,mission:null,star_mass:1}),sim=new Simulation(config),before=sim.snapshot();
- try{
-  for(const ticks of [-1,.5,NaN,Infinity,513]){assert.throws(()=>sim.advance(ticks));assert.equal(sim.snapshot(),before);}
-  assert.throws(()=>new Simulation(config+' '.repeat(1024)));assert.throws(()=>sim.command(' '.repeat(2049)));assert.equal(sim.snapshot(),before);
-  sim.advance(0);assert.equal(sim.snapshot(),before);sim.advance(1);assert.equal(JSON.parse(sim.snapshot()).tick,1);
- }finally{sim.free();}
+test('the WASM boundary rejects fractional nonfinite and oversized arguments atomically', () => {
+  const config = JSON.stringify({ seed: 42, mission: null, star_mass: 1 }),
+    sim = new Simulation(config),
+    before = sim.snapshot();
+  try {
+    for (const ticks of [-1, 0.5, NaN, Infinity, 513]) {
+      assert.throws(() => sim.advance(ticks));
+      assert.equal(sim.snapshot(), before);
+    }
+    assert.throws(() => new Simulation(config + ' '.repeat(1024)));
+    assert.throws(() => sim.command(' '.repeat(2049)));
+    assert.equal(sim.snapshot(), before);
+    sim.advance(0);
+    assert.equal(sim.snapshot(), before);
+    sim.advance(1);
+    assert.equal(JSON.parse(sim.snapshot()).tick, 1);
+  } finally {
+    sim.free();
+  }
 });
 
+test('unsupported physics formats cannot select a legacy engine or mutate a world', () => {
+  const sim = new Simulation(JSON.stringify({ seed: 42, mission: null, star_mass: 1 }));
+  try {
+    sim.command(JSON.stringify({ type: 'seed_swarm', count: 511, disorder: 0.2 }));
+    sim.advance(8);
+    const replay = sim.export_replay(),
+      state = sim.snapshot();
+    for (const version of [0, 1, 2, 3, 4, 5, 6, 8, 999]) {
+      const obsolete = { ...JSON.parse(replay), version };
+      assert.throws(() => importReplay(sim, JSON.stringify(obsolete)));
+      assert.equal(sim.snapshot(), state);
+      assert.equal(sim.export_replay(), replay);
+    }
+  } finally {
+    sim.free();
+  }
+});
 
-test('unsupported physics formats cannot select a legacy engine or mutate a world',()=>{
- const sim=new Simulation(JSON.stringify({seed:42,mission:null,star_mass:1}));try{
-  sim.command(JSON.stringify({type:'seed_swarm',count:511,disorder:.2}));sim.advance(8);
-  const replay=sim.export_replay(),state=sim.snapshot();
-  for(const version of [0,1,2,3,4,5,6,8,999]){const obsolete={...JSON.parse(replay),version};assert.throws(()=>sim.import_replay(JSON.stringify(obsolete)));assert.equal(sim.snapshot(),state);assert.equal(sim.export_replay(),replay);}
- }finally{sim.free();}
+test('the web save version is the engine save version', () => {
+  assert.equal(SAVE_VERSION, save_version());
+});
+
+test('the JSON command boundary rejects malformed, unknown and mistyped requests atomically', () => {
+  const sim = new Simulation(JSON.stringify({ seed: 42, mission: null, star_mass: 1 }));
+  try {
+    sim.command(JSON.stringify({ type: 'launch', kind: 'rocky', radius: 1, angle: 0, speed: 1 }));
+    const before = sim.snapshot(),
+      replay = sim.export_replay();
+    const bad = [
+      'not json',
+      '',
+      '[]',
+      'null',
+      '42',
+      '{}',
+      '{"type":"teleport"}',
+      '{"type":"launch","kind":"moon","radius":1,"angle":0,"speed":1}',
+      '{"type":"launch","kind":"rocky","radius":"1","angle":0,"speed":1}',
+      '{"type":"launch","kind":"rocky","radius":1e999,"angle":0,"speed":1}',
+      '{"type":"nudge","id":-1,"tangential":0.1,"radial":0}',
+      '{"type":"seed_disk","radius":2,"spread":1,"disorder":0.1,"count":4.5}',
+      '{"type":"spin","id":1,"rate":null}',
+    ];
+    for (const text of bad) {
+      assert.throws(() => sim.command(text), text);
+      assert.equal(sim.snapshot(), before);
+      assert.equal(sim.export_replay(), replay);
+    }
+    assert.throws(() => new Simulation('{"seed":1,"mission":99,"star_mass":1}'));
+    assert.throws(() => new Simulation('{"seed":1,"mission":null,"star_mass":"one"}'));
+    assert.throws(() => sim.begin_import('{"version":7}'));
+    assert.throws(() => sim.begin_import('x'.repeat(512_001)));
+    assert.throws(() => sim.advance_import(1), /No reconstruction/);
+    assert.equal(sim.tick(), 0);
+    assert.equal(sim.command_count(), 1);
+    assert.equal(sim.snapshot(), before);
+  } finally {
+    sim.free();
+  }
 });

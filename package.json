@@ -12,6 +12,9 @@
     "test:browser": "playwright test",
     "serve": "node scripts/serve.mjs",
     "check": "node scripts/check.mjs",
+    "lint": "oxlint --deny-warnings web tests scripts playwright.config.js",
+    "format": "prettier --write \"web/**/*.{js,css}\" \"tests/**/*.{js,mjs}\" \"scripts/**/*.mjs\" playwright.config.js",
+    "format:check": "prettier --check \"web/**/*.{js,css}\" \"tests/**/*.{js,mjs}\" \"scripts/**/*.mjs\" playwright.config.js",
     "bench": "node scripts/benchmark.mjs",
     "bench:simd": "node scripts/simd-benchmark.mjs",
     "verify": "node scripts/verify.mjs",
@@ -27,7 +30,10 @@
     "compare:swarm": "node scripts/compare-swarm.mjs"
   },
   "devDependencies": {
-    "@playwright/test": "1.55.0"
+    "@playwright/test": "1.55.0",
+    "esbuild": "0.28.2",
+    "oxlint": "1.83.0",
+    "prettier": "3.9.8"
   },
   "license": "MIT"
 }

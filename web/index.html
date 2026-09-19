@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; connect-src 'self'; img-src 'self' data:; style-src 'self'; font-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
   <meta name="theme-color" content="#080f1b">
   <meta name="description" content="Sculpt a solar system. Set the conditions, let gravity take over, and discover what survives.">
   <title>Celestial Sculptor</title>
@@ -70,7 +71,7 @@
       <div class="clock"><span class="eyebrow">SYSTEM AGE</span><strong><span id="sim-years">0.00</span> <small>years</small></strong></div>
       <div class="playback"><button id="rewind" title="Return to the initial setup; discard later placements" aria-label="Rewind experiment">↶</button><button id="play" class="primary" disabled>▶ Run</button><button id="step" title="Advance 16 simulation ticks" aria-label="Step simulation">▹</button></div>
       <div class="speed-control"><label for="time-speed">Time</label><select id="time-speed"><option value="0.0625">¹⁄₁₆×</option><option value="0.25">¼×</option><option value="1" selected>1×</option><option value="4">4×</option><option value="16">16×</option></select></div>
-      <span class="timeline-note" id="playback-note">Gravity writes the next chapter.</span>
+      <span class="timeline-note" id="playback-note" aria-live="polite">Gravity writes the next chapter.</span>
     </footer>
   </main>
   <nav class="mobile-tabs" aria-label="Game panels"><button data-panel="mission" aria-pressed="false">Goal & journal</button><button data-panel="sculpt" class="active" aria-pressed="true">Sculpt & inspect</button><button data-panel="observe" aria-pressed="false">Observe</button></nav>
