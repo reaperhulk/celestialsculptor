@@ -92,6 +92,19 @@ function fail(message) {
   $('reload').hidden = false;
 }
 $('reload').onclick = () => location.reload();
+// A runtime failure offers recovery without discarding a session that may still
+// respond: the last autosave is seconds old, so a reload restores it.
+function recover(message) {
+  $('loading').hidden = false;
+  $('loading').querySelector('p').textContent = message;
+  $('reload').hidden = false;
+  $('continue').hidden = false;
+}
+$('continue').onclick = () => {
+  $('loading').hidden = true;
+  $('reload').hidden = true;
+  $('continue').hidden = true;
+};
 try {
   renderer = new Renderer($('universe'), toast);
 } catch (error) {
@@ -569,8 +582,8 @@ if (worker) {
   worker.onerror = (event) => {
     if (!ready) return workerFailed('The simulation could not start. Reload to try again.');
     event?.preventDefault?.();
-    toast(
-      `Simulation error: ${event?.message || 'unexpected failure'}. Your experiment is unchanged.`,
+    recover(
+      `The simulation reported an error: ${event?.message || 'unexpected failure'}. Your experiment is autosaved. Reload to recover it, or keep going if the system still responds.`,
     );
   };
   worker.onmessageerror = () => toast('A simulation message could not be decoded.');
