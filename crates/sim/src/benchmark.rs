@@ -298,13 +298,15 @@ pub fn phase_profile(count: u32, ticks: u32) -> serde_json::Value {
         let start = Instant::now();
         w.step();
         total += ms(start);
+        // One evaluation per substep: the opening kick reuses the cached forces.
+        let evaluations = f64::from(w.substeps());
         let start = Instant::now();
         std::hint::black_box(w.sample_forces(false));
-        forces += ms(start) * f64::from(w.minimum_substeps + 1);
+        forces += ms(start) * evaluations;
         let mut c = w.clone();
         let start = Instant::now();
         c.merge_contacts(0.0);
-        contacts += ms(start) * f64::from(w.minimum_substeps + 1);
+        contacts += ms(start) * evaluations;
         let mut c = w.clone();
         let start = Instant::now();
         c.observe_history(false);
@@ -326,7 +328,7 @@ pub fn phase_profile(count: u32, ticks: u32) -> serde_json::Value {
     serde_json::json!({
         "bodies": w.bodies.len(),
         "ticks": ticks,
-        "substeps": w.minimum_substeps,
+        "substeps": w.substeps(),
         "ms_per_tick": {
             "total": per(total),
             "forces": per(forces),

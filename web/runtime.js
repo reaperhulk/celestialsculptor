@@ -400,14 +400,15 @@ export class Runtime {
     let local = false;
     while (phase === 1) {
       if (!local) {
+        const pool = this.forcePool;
+        const helpers = pool.evaluate(this.sim.force_request(), this.sim.force_rebuild());
         try {
-          const groups = await this.forcePool.evaluate(
-            this.sim.force_request(),
-            this.sim.force_rebuild(),
-          );
-          phase = this.sim.tick_forces(groups);
+          // The owner's share overlaps the helpers' round trip.
+          this.sim.force_compute_owned(pool.owner);
+          phase = this.sim.tick_forces(await helpers);
           continue;
         } catch {
+          helpers.catch(() => {});
           local = true;
         }
       }

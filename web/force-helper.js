@@ -1,7 +1,8 @@
-// Gravity helper: computes a fixed subset of the mutual tree's task groups for
-// one force evaluation. Runs as a browser Worker or a Node worker thread; the
-// owner reduces every group's output in a fixed order, so the result never
-// depends on how many helpers exist or which finished first.
+// Gravity helper: computes every task touching its own subtrees of the mutual
+// tree for one force evaluation and returns those subtrees. Runs as a browser
+// Worker or a Node worker thread; each subtree's sums are the same additions in
+// the same order whoever owns it, so the result never depends on how many
+// helpers exist or which finished first.
 import init, { ForceHelper } from './pkg/celestial_wasm.js';
 
 const node = typeof self === 'undefined';
@@ -20,8 +21,8 @@ const ready = load();
 const receive = async (message) => {
   try {
     await ready;
-    const { id, state, rebuild, groups } = message;
-    const output = helper.compute(state, rebuild, Uint32Array.from(groups));
+    const { id, state, rebuild, owned } = message;
+    const output = helper.compute(state, rebuild, Uint32Array.from(owned));
     port.postMessage({ id, output }, [output.buffer]);
   } catch (error) {
     port.postMessage({ id: message?.id, error: String(error?.message || error) });

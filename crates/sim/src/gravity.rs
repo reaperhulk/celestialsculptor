@@ -9,6 +9,8 @@ pub(crate) struct Forces {
     softening2: f64,
     use_tree: bool,
     tree: crate::gravity_tree::Tree,
+    /// Subtrees the owner computed itself for the pending shared request.
+    owned: [bool; crate::gravity_tree::SUBTREES],
 }
 // Cache contents do not change the meaning of a physical state.
 impl PartialEq for Forces {
@@ -31,8 +33,8 @@ impl Forces {
         self.output.resize(bodies.len(), V2::default());
         self.output.fill(V2::default());
     }
-    /// Whether a tree evaluation of this many bodies may be split into task
-    /// groups computed elsewhere.
+    /// Whether this many bodies use the tree, whose subtrees may be computed
+    /// elsewhere.
     pub fn tree_for(bodies: usize) -> bool {
         bodies >= 512
     }
@@ -45,28 +47,13 @@ impl Forces {
         out.extend(bodies.iter().map(|b| b.mass));
         out
     }
-    /// Reduce helper outputs (all groups, ascending, concatenated) into
-    /// accelerations. Bit-identical to `update` with a tree.
-    pub fn reduce(
+    /// Stage a request the owner shares with helpers: star pass, partition,
+    /// and the tasks touching the owner's own subtrees. Must precede `reduce`.
+    pub fn compute_owned(
         &mut self,
         bodies: &[Body],
         softening2: f64,
-        groups: &[f64],
-        rebuild: bool,
-    ) -> bool {
-        let done = self.try_reduce(bodies, softening2, groups, rebuild);
-        if !done {
-            // A half-filled output must never look current to the next local
-            // evaluation; the engine recomputes from scratch.
-            self.x.clear();
-        }
-        done
-    }
-    fn try_reduce(
-        &mut self,
-        bodies: &[Body],
-        softening2: f64,
-        groups: &[f64],
+        owned: &[u32],
         rebuild: bool,
     ) -> bool {
         self.stage(bodies, softening2, true);
@@ -82,20 +69,63 @@ impl Forces {
             );
         }
         if !self.tree.stage(&self.x, &self.y, &self.mass, rebuild) {
+            self.x.clear();
             return false;
         }
-        let mut at = 0;
-        for g in 0..crate::gravity_tree::GROUPS {
-            let len = self.tree.group_len(g);
-            let Some(buffer) = groups.get(at..at + len) else {
-                return false;
-            };
-            if !self.tree.add_group(g, buffer) {
+        let mut mask = [false; crate::gravity_tree::SUBTREES];
+        for &s in owned {
+            if s as usize >= mask.len() {
+                self.x.clear();
                 return false;
             }
-            at += len;
+            mask[s as usize] = true;
         }
-        if at != groups.len() {
+        if !owned.is_empty() {
+            self.tree.sweep(&mask, softening2, 0.35);
+        }
+        self.owned = mask;
+        true
+    }
+    /// Install the subtrees helpers computed, as `[subtree, len, values…]`
+    /// records in any order, and finish the accelerations. Bit-identical to
+    /// `update` with a tree.
+    pub fn reduce(&mut self, bodies: &[Body], helpers: &[f64]) -> bool {
+        let done = self.try_reduce(bodies, helpers);
+        if !done {
+            // A half-filled output must never look current to the next local
+            // evaluation; the engine recomputes from scratch.
+            self.x.clear();
+        }
+        done
+    }
+    fn try_reduce(&mut self, bodies: &[Body], helpers: &[f64]) -> bool {
+        if self.x.len() != bodies.len() || !self.tree.partitioned_for(bodies.len()) {
+            return false;
+        }
+        let mut installed = self.owned;
+        let mut at = 0;
+        while at < helpers.len() {
+            let (Some(&s), Some(&len)) = (helpers.get(at), helpers.get(at + 1)) else {
+                return false;
+            };
+            if s.fract() != 0.0 || len.fract() != 0.0 || s < 0.0 || len < 0.0 {
+                return false;
+            }
+            let (s, len) = (s as usize, len as usize);
+            if s >= crate::gravity_tree::SUBTREES || installed[s] || len != self.tree.subtree_len(s)
+            {
+                return false;
+            }
+            let Some(buffer) = helpers.get(at + 2..at + 2 + len) else {
+                return false;
+            };
+            if !self.tree.install(s, buffer) {
+                return false;
+            }
+            installed[s] = true;
+            at += 2 + len;
+        }
+        if installed.iter().any(|done| !done) {
             return false;
         }
         self.tree.finish(&self.x, &self.y, &mut self.output);
@@ -161,7 +191,7 @@ fn direct_pair_into(
 }
 
 /// One helper's share of a force evaluation: the same partition as the owner,
-/// the requested task groups, each output prefixed by its length.
+/// the tasks touching its owned subtrees, returned as tagged records.
 #[derive(Clone, Debug, Default)]
 pub struct ForceHelper {
     tree: crate::gravity_tree::Tree,
@@ -170,12 +200,13 @@ impl ForceHelper {
     pub fn new() -> Self {
         Self::default()
     }
-    /// `state` is `[x…, y…, mass…]`; returns `[len, values…]` per requested group.
+    /// `state` is `[x…, y…, mass…]`; returns one `[subtree, len, values…]`
+    /// record per owned subtree: its bodies (ax, ay) then its nodes.
     pub fn compute(
         &mut self,
         state: &[f64],
         rebuild: bool,
-        groups: &[u32],
+        owned: &[u32],
     ) -> Result<Vec<f64>, String> {
         if !state.len().is_multiple_of(3) || state.iter().any(|v| !v.is_finite()) {
             return Err("Malformed force request".into());
@@ -191,15 +222,19 @@ impl ForceHelper {
         if !Forces::tree_for(n) || !self.tree.stage(x, y, mass, rebuild) {
             return Err("Force requests need a tree-sized system".into());
         }
-        let mut out = Vec::new();
-        for &g in groups {
-            let g = g as usize;
-            if g >= crate::gravity_tree::GROUPS {
-                return Err("Unknown task group".into());
+        let mut mask = [false; crate::gravity_tree::SUBTREES];
+        for &s in owned {
+            if s as usize >= mask.len() {
+                return Err("Unknown subtree".into());
             }
-            out.push(self.tree.group_len(g) as f64);
-            self.tree
-                .compute_group(g, crate::SOFTENING.powi(2), 0.35, &mut out);
+            mask[s as usize] = true;
+        }
+        self.tree.sweep(&mask, crate::SOFTENING.powi(2), 0.35);
+        let mut out = Vec::new();
+        for (s, _) in mask.iter().enumerate().filter(|(_, own)| **own) {
+            out.push(s as f64);
+            out.push(self.tree.subtree_len(s) as f64);
+            self.tree.extract(s, &mut out);
         }
         Ok(out)
     }

@@ -2,10 +2,11 @@
 //! Cell pairs exchange equal/opposite forces and matching tidal terms. Near
 //! leaves remain direct; the star is always direct. All arithmetic is f64.
 use crate::{G, V2};
-/// Task groups per force evaluation: the subtrees at depth four. Group `g`
-/// owns the interactions of subtree `g` with subtrees `g..GROUPS`.
-pub const GROUPS: usize = 16;
-const GROUP_DEPTH: u32 = 4;
+/// Owned subtrees per force evaluation: the subtrees at depth four. Every
+/// pair of subtrees is one task, run in row-major order, so a body's
+/// contributions always arrive in the same sequence whichever worker owns it.
+pub const SUBTREES: usize = 16;
+const SUBTREE_DEPTH: u32 = 4;
 #[derive(Clone, Copy, Debug, Default)]
 struct Tensor {
     xx: f64,
@@ -60,12 +61,6 @@ pub(crate) struct Tree {
     local: Vec<V2>,
     order: Vec<usize>,
     nodes: Vec<Node>,
-    /// Fixed-order reduction targets: every task group's contribution is
-    /// added here in group order, so the result is independent of how the
-    /// groups were computed (in one thread or across helpers).
-    total_local: Vec<V2>,
-    total_a: Vec<V2>,
-    total_tide: Vec<Tensor>,
     tolerance: f64,
     reference: Vec<f64>,
     pub direct_pairs: usize,
@@ -175,21 +170,11 @@ impl Tree {
             self.refresh_moments(x, y, mass);
         }
         self.stage_local(x, y, mass);
-        if LEAF_SIZE == 8 && !CONTROLLED && self.group_roots().is_some() {
-            // Live rules: the same task groups and reduction order as helpers use.
-            let mut buffer = Vec::new();
-            for g in 0..GROUPS {
-                buffer.clear();
-                self.compute_group(g, soft2, theta, &mut buffer);
-                assert!(self.add_group(g, &buffer));
-            }
+        if LEAF_SIZE == 8 && !CONTROLLED && self.subtree_roots().is_some() {
+            // Live rules: the same task sweep helpers run, every side kept.
+            self.sweep(&ALL_SUBTREES, soft2, theta);
         } else {
             self.interact::<CONTROLLED>(0, 0, soft2, theta * theta);
-            self.total_local.copy_from_slice(&self.local);
-            for (k, n) in self.nodes.iter().enumerate() {
-                self.total_a[k] = n.a;
-                self.total_tide[k] = n.tide;
-            }
         }
         self.finish(x, y, a);
     }
@@ -205,22 +190,16 @@ impl Tree {
         }
         self.local.resize(self.order.len(), V2::default());
         self.local.fill(V2::default());
-        self.total_local.resize(self.order.len(), V2::default());
-        self.total_local.fill(V2::default());
-        self.total_a.resize(self.nodes.len(), V2::default());
-        self.total_a.fill(V2::default());
-        self.total_tide.resize(self.nodes.len(), Tensor::default());
-        self.total_tide.fill(Tensor::default());
         for n in &mut self.nodes {
             n.a = V2::default();
             n.tide = Tensor::default();
         }
     }
-    /// The `GROUPS` subtrees at the group depth, or None when the tree is too
+    /// The `SUBTREES` subtrees at the owner depth, or None when the tree is too
     /// shallow (never the case above the tree threshold with eight-body leaves).
-    fn group_roots(&self) -> Option<[usize; GROUPS]> {
+    fn subtree_roots(&self) -> Option<[usize; SUBTREES]> {
         let mut level = vec![0usize];
-        for _ in 0..GROUP_DEPTH {
+        for _ in 0..SUBTREE_DEPTH {
             let mut next = Vec::with_capacity(level.len() * 2);
             for &at in &level {
                 let n = self.nodes.get(at)?;
@@ -234,8 +213,8 @@ impl Tree {
         }
         level.try_into().ok()
     }
-    /// Build or refresh the partition for a request whose forces will be
-    /// reduced from task groups, on the owner or on a helper.
+    /// Build or refresh the partition for a request whose subtrees will be
+    /// computed by the owner and its helpers.
     pub fn stage(&mut self, x: &[f64], y: &[f64], mass: &[f64], rebuild: bool) -> bool {
         if x.len() <= 1 {
             self.order.clear();
@@ -248,76 +227,73 @@ impl Tree {
             self.refresh_moments(x, y, mass);
         }
         self.stage_local(x, y, mass);
-        self.group_roots().is_some()
+        self.subtree_roots().is_some()
     }
     /// Whether a partition for `n` bodies is held, so a refresh request can be
     /// honoured without silently building a different one.
     pub fn partitioned_for(&self, n: usize) -> bool {
         !self.nodes.is_empty() && self.order.len() + 1 == n
     }
-    /// Length of group `g`'s output buffer for the current partition.
-    pub fn group_len(&self, g: usize) -> usize {
-        let Some(roots) = self.group_roots() else {
+    /// Length of subtree `s`'s output: its bodies (ax, ay) then its nodes
+    /// (ax, ay, txx, txy, tyy).
+    pub fn subtree_len(&self, s: usize) -> usize {
+        let Some(roots) = self.subtree_roots() else {
             return 0;
         };
-        (g..GROUPS)
-            .map(|s| {
-                let n = self.nodes[roots[s]];
-                2 * (n.end - n.start) + 5 * (n.end_node - roots[s])
-            })
-            .sum()
+        let n = self.nodes[roots[s]];
+        2 * (n.end - n.start) + 5 * (n.end_node - roots[s])
     }
-    /// Contributions of task group `g`: subtree `g` interacting with subtrees
-    /// `g..GROUPS` (itself included), written into fresh scratch accumulators
-    /// and appended to `out` as [bodies of each subtree: ax, ay][nodes of each
-    /// subtree: ax, ay, txx, txy, tyy].
-    pub fn compute_group(&mut self, g: usize, soft2: f64, theta: f64, out: &mut Vec<f64>) {
-        let roots = self.group_roots().expect("staged tree with group depth");
-        self.local.fill(V2::default());
-        for n in &mut self.nodes {
-            n.a = V2::default();
-            n.tide = Tensor::default();
-        }
-        for b in g..GROUPS {
-            self.interact::<false>(roots[g], roots[b], soft2, theta * theta);
-        }
-        for &root in &roots[g..] {
-            let n = self.nodes[root];
-            for p in n.start..n.end {
-                out.push(self.local[p].x);
-                out.push(self.local[p].y);
-            }
-            for k in root..n.end_node {
-                let m = self.nodes[k];
-                out.extend([m.a.x, m.a.y, m.tide.xx, m.tide.xy, m.tide.yy]);
+    /// Run every task that touches an owned subtree, in the global row-major
+    /// order of subtree pairs, accumulating both sides into the scratch
+    /// accumulators. A body owned here therefore receives exactly the additions,
+    /// in exactly the order, the engine's own sweep of all subtrees would make.
+    pub fn sweep(&mut self, owned: &[bool; SUBTREES], soft2: f64, theta: f64) {
+        let roots = self.subtree_roots().expect("staged tree with owner depth");
+        let theta2 = theta * theta;
+        for a in 0..SUBTREES {
+            for b in a..SUBTREES {
+                if owned[a] || owned[b] {
+                    self.interact::<false>(roots[a], roots[b], soft2, theta2);
+                }
             }
         }
     }
-    /// Add group `g`'s buffer to the totals. Groups must be added in ascending
-    /// order for the reduction to be reproducible.
-    pub fn add_group(&mut self, g: usize, buffer: &[f64]) -> bool {
-        let Some(roots) = self.group_roots() else {
+    /// Append subtree `s`'s accumulated bodies and nodes to `out`.
+    pub fn extract(&self, s: usize, out: &mut Vec<f64>) {
+        let roots = self.subtree_roots().expect("staged tree with owner depth");
+        let n = self.nodes[roots[s]];
+        for p in n.start..n.end {
+            out.push(self.local[p].x);
+            out.push(self.local[p].y);
+        }
+        for k in roots[s]..n.end_node {
+            let m = self.nodes[k];
+            out.extend([m.a.x, m.a.y, m.tide.xx, m.tide.xy, m.tide.yy]);
+        }
+    }
+    /// Install a subtree computed elsewhere, replacing this tree's accumulators
+    /// for exactly those bodies and nodes.
+    pub fn install(&mut self, s: usize, buffer: &[f64]) -> bool {
+        let Some(roots) = self.subtree_roots() else {
             return false;
         };
-        if buffer.len() != self.group_len(g) {
+        if buffer.len() != self.subtree_len(s) {
             return false;
         }
+        let n = self.nodes[roots[s]];
         let mut at = 0;
-        for &root in &roots[g..] {
-            let n = self.nodes[root];
-            for p in n.start..n.end {
-                self.total_local[p] = self.total_local[p].plus(V2::new(buffer[at], buffer[at + 1]));
-                at += 2;
-            }
-            for k in root..n.end_node {
-                self.total_a[k] = self.total_a[k].plus(V2::new(buffer[at], buffer[at + 1]));
-                self.total_tide[k] = self.total_tide[k].plus(Tensor {
-                    xx: buffer[at + 2],
-                    xy: buffer[at + 3],
-                    yy: buffer[at + 4],
-                });
-                at += 5;
-            }
+        for p in n.start..n.end {
+            self.local[p] = V2::new(buffer[at], buffer[at + 1]);
+            at += 2;
+        }
+        for k in roots[s]..n.end_node {
+            self.nodes[k].a = V2::new(buffer[at], buffer[at + 1]);
+            self.nodes[k].tide = Tensor {
+                xx: buffer[at + 2],
+                xy: buffer[at + 3],
+                yy: buffer[at + 4],
+            };
+            at += 5;
         }
         true
     }
@@ -488,15 +464,15 @@ impl Tree {
         out: &mut [V2],
     ) {
         let n = self.nodes[at];
-        let a = self.total_a[at]
-            .plus(parent_a)
-            .plus(parent_t.apply(n.center.minus(parent_center)));
-        let tide = self.total_tide[at].plus(parent_t);
+        let a =
+            n.a.plus(parent_a)
+                .plus(parent_t.apply(n.center.minus(parent_center)));
+        let tide = n.tide.plus(parent_t);
         if n.leaf() {
             for at in n.start..n.end {
                 let i = self.order[at];
                 out[i] = out[i]
-                    .plus(self.total_local[at])
+                    .plus(self.local[at])
                     .plus(a)
                     .plus(tide.apply(V2::new(x[i], y[i]).minus(n.center)));
             }
@@ -506,6 +482,8 @@ impl Tree {
         }
     }
 }
+const ALL_SUBTREES: [bool; SUBTREES] = [true; SUBTREES];
+
 struct Moments {
     mass: f64,
     center: V2,

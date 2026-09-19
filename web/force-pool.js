@@ -1,13 +1,17 @@
-// Owner-side pool of gravity helpers. Group pairs (g, T-1-g) carry equal work,
-// so pairs are dealt round-robin; outputs are returned in group order.
-export const GROUPS = 16;
-export function helperCount(hardwareConcurrency = 1, max = GROUPS / 2) {
+// Owner-side pool of gravity helpers. The mutual tree is cut into SUBTREES
+// subtrees; subtree pairs (s, T-1-s) carry about equal work, so pairs are
+// dealt round-robin across the helpers and the owner, which takes the last
+// share and computes it while the helpers work. Each helper returns tagged
+// records for its own subtrees, so results may be merged in any order.
+export const SUBTREES = 16;
+export function helperCount(hardwareConcurrency = 1, max = SUBTREES / 2) {
   const cores = Number.isInteger(hardwareConcurrency) ? hardwareConcurrency : 1;
   return Math.max(0, Math.min(max, cores - 1));
 }
-export function assignments(helpers, groups = GROUPS) {
-  const lists = Array.from({ length: helpers }, () => []);
-  for (let pair = 0; pair < groups / 2; pair++) lists[pair % helpers].push(pair, groups - 1 - pair);
+export function assignments(participants, subtrees = SUBTREES) {
+  const lists = Array.from({ length: participants }, () => []);
+  for (let pair = 0; pair < subtrees / 2; pair++)
+    lists[pair % participants].push(pair, subtrees - 1 - pair);
   return lists.map((list) => list.sort((a, b) => a - b));
 }
 export class ForcePool {
@@ -18,7 +22,10 @@ export class ForcePool {
     this.sequence = 0;
     this.timeoutMs = timeoutMs;
     this.broken = false;
-    this.groups = assignments(count);
+    const shares = assignments(count + 1);
+    this.owned = shares.slice(0, count);
+    /** The subtrees the owner computes itself during every evaluation. */
+    this.owner = Uint32Array.from(shares[count]);
     for (let k = 0; k < count; k++) {
       const worker = spawn();
       const handle = (data) => {
@@ -53,47 +60,37 @@ export class ForcePool {
   get size() {
     return this.broken ? 0 : this.workers.length;
   }
-  /** Evaluate one force request; resolves to the group buffers in group order. */
-  async evaluate(state, rebuild) {
-    if (this.broken) throw new Error('Gravity helpers are unavailable');
-    const results = await Promise.all(
-      this.workers.map((worker, k) => {
-        const id = ++this.sequence;
-        const copy = state.slice();
-        return new Promise((resolve, reject) => {
-          const timer = setTimeout(
-            () => this.fail(new Error('A gravity helper did not answer')),
-            this.timeoutMs,
-          );
-          this.pending.set(id, { resolve, reject, timer });
-          worker.postMessage({ id, state: copy, rebuild, groups: this.groups[k] }, [copy.buffer]);
-        });
-      }),
-    );
-    // Each helper returns its groups concatenated in ascending order; the
-    // owner needs all groups ascending, so interleave by the assignment lists.
-    const byGroup = new Map();
-    results.forEach((output, k) => {
-      let offset = 0;
-      for (const group of this.groups[k]) {
-        const length = output[offset];
-        if (!Number.isInteger(length) || offset + 1 + length > output.length)
-          throw new Error('A gravity helper returned a malformed group');
-        byGroup.set(group, output.subarray(offset + 1, offset + 1 + length));
-        offset += 1 + length;
-      }
+  /**
+   * Post one force request to every helper. Requests leave before this
+   * returns, so the caller can compute the owner's share meanwhile; the
+   * promise resolves to every helper's records concatenated.
+   */
+  evaluate(state, rebuild) {
+    if (this.broken) return Promise.reject(new Error('Gravity helpers are unavailable'));
+    const requests = this.workers.map((worker, k) => {
+      const id = ++this.sequence;
+      const copy = state.slice();
+      return new Promise((resolve, reject) => {
+        const timer = setTimeout(
+          () => this.fail(new Error('A gravity helper did not answer')),
+          this.timeoutMs,
+        );
+        this.pending.set(id, { resolve, reject, timer });
+        worker.postMessage({ id, state: copy, rebuild, owned: this.owned[k] }, [copy.buffer]);
+      });
     });
-    let total = 0;
-    for (let g = 0; g < GROUPS; g++) total += byGroup.get(g)?.length ?? 0;
-    const merged = new Float64Array(total);
-    let at = 0;
-    for (let g = 0; g < GROUPS; g++) {
-      const buffer = byGroup.get(g);
-      if (!buffer) continue;
-      merged.set(buffer, at);
-      at += buffer.length;
-    }
-    return merged;
+    return Promise.all(requests).then((results) => {
+      if (results.length === 1) return results[0];
+      let total = 0;
+      for (const output of results) total += output.length;
+      const merged = new Float64Array(total);
+      let at = 0;
+      for (const output of results) {
+        merged.set(output, at);
+        at += output.length;
+      }
+      return merged;
+    });
   }
   terminate() {
     this.broken = true;

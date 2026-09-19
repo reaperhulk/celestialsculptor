@@ -7,8 +7,13 @@ particle swarm** in the generator; begin with 1,024. All particles both feel and
 source gravity. Missions retain the 64-body cap and exact solver. Only the current replay
 format is accepted; there are no historical physics implementations. Current systems use exact f64 SIMD below 512 bodies and a symmetric mutual
 tree with second-order cell forces and tides above that, at opening 0.35.  The star
-and nearby leaves remain direct. Ordinary systems retain four integration substeps; authored moons and disk
-migration select finer fixed resolution to meet the long-run orbital gates.
+and nearby leaves remain direct. The tree partition is built once per tick and its
+moments refreshed for the later substeps. Ordinary systems retain four integration
+substeps; swarms of 512 or more bodies without authored moons or disk migration use
+two; moons and migration select finer fixed resolution to meet the long-run orbital
+gates. Above 1,024 bodies the worker shares each force evaluation with gravity helper
+workers (one per spare core, at most eight) that own fixed subtrees of the same
+partition, so the result is bit-identical to the engine alone on any device.
 
 The first whole-engine host sweep sustained 269 ticks/s at 1,024 quiet bodies and
 108 at 2,048; 1x requests 102.4 ticks/s. Larger systems slow simulated time. Worker
@@ -71,6 +76,76 @@ are five evaluations per tick; contacts are five swept passes without merges.
 Cost grows close to N log N (about N^1.1 across this range). Gravity is the
 whole story: bookkeeping, contact search and observation are already cheap.
 
+## Measured climbs (iteration 173)
+
+Three changes landed together, each gated by exact equivalence tests and the
+600-year tree qualification: the tree partition is built once per tick and only
+its moments are refreshed for the later substeps; swarms of 512 or more bodies
+without authored moons or disk migration integrate with two substeps instead of
+four; and force evaluations above 1,024 bodies are shared with gravity helper
+workers. The physics identifier moved to
+`newton-soft1e-4-mutual035-kdk4-swarm2-moon16-disk32-edge025-v2`; saves from the
+previous identifier still load and replay.
+
+Native whole ticks (`phase_profile`, disordered swarm, review host x64 release):
+
+| Bodies | Before ms/tick | After ms/tick | Speedup | Ticks/s after |
+|---:|---:|---:|---:|---:|
+| 1,024 | 3.3 | 1.77 | 1.86× | 567 |
+| 2,048 | 7.5 | 3.82 | 1.96× | 262 |
+| 4,096 | 16.2 | 8.53 | 1.90× | 117 |
+| 8,192 | 33.8 | 18.18 | 1.86× | 55 |
+
+Node/WASM whole ticks through the worker runtime, engine alone
+(`bench:scaling`, disorder 0.8, median):
+
+| Bodies | Before ms/tick | After ms/tick | Speedup |
+|---:|---:|---:|---:|
+| 512 | 1.39 | 1.13 | 1.23× |
+| 1,024 | 3.18 | 1.77 | 1.80× |
+| 2,048 | 7.39 | 4.07 | 1.82× |
+| 4,096 | 16.13 | 8.90 | 1.81× |
+| 8,192 | 34.90 | 19.05 | 1.83× |
+
+Reusing the partition and the cached opening kick take a tick from five rebuilt
+evaluations to four with one rebuild; the two-substep schedule takes it to two.
+The two-substep schedule passed the same 600-year gates as four (energy
+within 2e-5, momentum and angular momentum within 1e-9, trajectory agreement with
+the exact solver), because the tree's approximation error, not the time step,
+bounds the long-run accuracy of a disordered swarm.
+
+### Gravity helpers
+
+The mutual tree is cut into sixteen subtrees at depth four. Each participant,
+the owner included, runs every subtree pair that touches one of its subtrees in
+the global row-major order and returns only its own bodies and nodes, so every
+body receives exactly the additions, in exactly the order, the engine's own sweep
+makes; the owner installs the returned subtrees and propagates cell forces to
+bodies. A helper that missed the tick's rebuild declines, and once an evaluation
+falls back to the engine the rest of that tick stays local, so timing never
+changes a result. `npm run bench:parallel -- 1024,2048,4096,8192 0,1,2,3 12`
+measured the review host (four cores; every helper count produced identical
+snapshots):
+
+| Bodies | Alone | 1 helper | 2 helpers | 3 helpers |
+|---:|---:|---:|---:|---:|
+| 1,024 | 1.58 ms | 1.54 | 1.82 | 1.47 |
+| 2,048 | 3.42 ms | 3.10 | 3.19 | 3.12 |
+| 4,096 | 7.63 ms | 6.61 | 6.46 | 6.67 |
+| 8,192 | 16.57 ms | 14.58 | 13.52 | 12.68 (1.31×) |
+
+Per evaluation at 8,192 bodies with three helpers: 0.15 ms to pack the request,
+4.9 ms for the owner's own share, 0.5 ms waiting for the slowest helper and 0.5
+ms to install and propagate, against 7.0 ms alone. Two costs cap the gain. Every
+participant stages the whole tree (partition rebuild or moment refresh,
+permutation and the star pass), about 2.6 ms in WASM. And the symmetric mutual
+sweep computes each pair between two owners on both sides: four participants run
+58 of the 136 subtree pairs each, eight run 31. Measured on one thread, a
+four-way share costs 4.0 ms and an eight-way share 3.2 ms per participant, so an
+eight-core device should approach 2× on the force phase. The next climb is the
+staging cost: bottom-up moment refresh and a cheaper partition would need a
+new physics identifier and re-qualification.
+
 ## Next measured climbs
 
 Iteration 165 qualifies rules 7 at opening 0.35 and retains eight-body leaves.
@@ -121,9 +196,9 @@ trajectory qualification and is used for every current world.
 3. Qualify the resident GPU prototype (166), then implement GPU collision handling
    only if moving-orbit throughput and precision justify it. Include conservation,
    close encounters, resonance and replay portability in acceptance.
-4. Evaluate deterministic shared-memory workers only after verifying the hosting
-   requirements and measuring synchronization overhead against the remaining CPU
-   bottleneck. No live multithreaded or GPU physics backend is claimed today.
+4. Deterministic gravity helpers are live (iteration 173, measured below). They
+   use message passing, not shared memory, so no cross-origin isolation headers
+   are required. No live GPU physics backend is claimed today.
 
 Run `npm run bench:gravity` for force/error curves through 8,192 bodies and
 `npm run bench:scaling` for complete simulation and snapshot workloads. Actions runs

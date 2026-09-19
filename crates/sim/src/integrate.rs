@@ -175,12 +175,16 @@ impl World {
     pub fn force_request(&mut self) -> Vec<f64> {
         gravity::Forces::request(&self.bodies)
     }
-    /// Install helper outputs as the pending request's accelerations.
-    pub fn force_reduce(&mut self, groups: &[f64], rebuild: bool) -> bool {
+    /// Stage the pending request and compute the owner's own subtrees.
+    pub fn force_compute_owned(&mut self, owned: &[u32], rebuild: bool) -> bool {
         self.pending.0.is_some()
             && self
                 .forces
-                .reduce(&self.bodies, SOFTENING.powi(2), groups, rebuild)
+                .compute_owned(&self.bodies, SOFTENING.powi(2), owned, rebuild)
+    }
+    /// Install the subtrees helpers computed as the pending request's forces.
+    pub fn force_reduce(&mut self, helpers: &[f64]) -> bool {
+        self.pending.0.is_some() && self.forces.reduce(&self.bodies, helpers)
     }
     /// Compute forces in the engine for a pending request and continue; the
     /// fallback when helpers are unavailable mid-tick.

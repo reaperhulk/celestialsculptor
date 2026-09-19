@@ -1,5 +1,5 @@
-//! Forces reduced from task groups, however they were split across helpers,
-//! are bit-identical to the engine's own evaluation.
+//! Forces reduced from subtrees, however they were split across helpers and
+//! the owner, are bit-identical to the engine's own evaluation.
 use celestial_sim::gravity::ForceHelper;
 use celestial_sim::*;
 
@@ -13,28 +13,26 @@ fn swarm(count: u32, disorder: f64) -> World {
     w
 }
 
-/// Drive a tick with forces from `helpers` independent helper kernels, each
-/// owning a fixed subset of the sixteen task groups.
+/// Drive a tick with forces from `helpers` independent helper kernels plus the
+/// owner, each owning a fixed subset of the sixteen subtrees. Helper records
+/// are merged in reverse order to show the reduction accepts any order.
 fn parallel_tick(w: &mut World, helpers: usize) {
     let mut kernels: Vec<ForceHelper> = (0..helpers).map(|_| ForceHelper::new()).collect();
+    let owner: Vec<u32> = (0..16u32)
+        .filter(|s| (*s as usize) % (helpers + 1) == helpers)
+        .collect();
     let mut request = w.tick_begin(w.substeps(), true);
     while let Some(rebuild) = request {
         let state = w.force_request();
-        let mut groups = vec![Vec::new(); 16];
-        for (k, kernel) in kernels.iter_mut().enumerate() {
+        let mut records = Vec::new();
+        for (k, kernel) in kernels.iter_mut().enumerate().rev() {
             let mine: Vec<u32> = (0..16u32)
-                .filter(|g| (*g as usize) % helpers == k)
+                .filter(|s| (*s as usize) % (helpers + 1) == k)
                 .collect();
-            let out = kernel.compute(&state, rebuild, &mine).unwrap();
-            let mut at = 0;
-            for g in mine {
-                let len = out[at] as usize;
-                groups[g as usize] = out[at + 1..at + 1 + len].to_vec();
-                at += 1 + len;
-            }
+            records.extend(kernel.compute(&state, rebuild, &mine).unwrap());
         }
-        let merged: Vec<f64> = groups.concat();
-        assert!(w.force_reduce(&merged, rebuild));
+        assert!(w.force_compute_owned(&owner, rebuild));
+        assert!(w.force_reduce(&records));
         request = w.tick_resume();
     }
 }
@@ -89,14 +87,8 @@ fn a_tick_can_fall_back_to_the_engine_mid_flight() {
                 let out = helper
                     .compute(&state, rebuild, &(0..16).collect::<Vec<u32>>())
                     .unwrap();
-                let mut merged = Vec::new();
-                let mut at = 0;
-                for _ in 0..16 {
-                    let len = out[at] as usize;
-                    merged.extend_from_slice(&out[at + 1..at + 1 + len]);
-                    at += 1 + len;
-                }
-                assert!(w.force_reduce(&merged, rebuild));
+                assert!(w.force_compute_owned(&[], rebuild));
+                assert!(w.force_reduce(&out));
                 w.tick_resume()
             };
         }
@@ -106,7 +98,15 @@ fn a_tick_can_fall_back_to_the_engine_mid_flight() {
     assert_eq!(w, reference);
     let mut bad = swarm(700, 0.3);
     let rebuild = bad.tick_begin(bad.substeps(), true).unwrap();
-    assert!(!bad.force_reduce(&[0.0; 10], rebuild));
+    // Reducing before the owner staged the request, a truncated buffer, and a
+    // record for a subtree the owner already holds are all refused.
+    assert!(!bad.force_reduce(&[0.0; 10]));
+    assert!(bad.force_compute_owned(&[3], rebuild));
+    assert!(!bad.force_reduce(&[0.0; 10]));
+    let state = bad.force_request();
+    let out = helper.compute(&state, true, &[3]).unwrap();
+    assert!(bad.force_compute_owned(&[3], rebuild));
+    assert!(!bad.force_reduce(&out));
     assert!(bad.tick_pending());
     assert!(bad.tick_local(rebuild).is_some());
 }

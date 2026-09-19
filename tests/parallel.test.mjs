@@ -29,9 +29,13 @@ async function play(r, ticks) {
   }
   return r.sim.snapshot();
 }
-test('assignments deal equal-work group pairs and helper counts leave a core for the owner', () => {
+test('assignments deal equal-work subtree pairs and helper counts leave a core for the owner', () => {
   assert.deepEqual(assignments(1), [[...Array(16).keys()]]);
   assert.deepEqual(assignments(2)[0], [0, 2, 4, 6, 9, 11, 13, 15]);
+  const pool = new ForcePool(() => ({ postMessage() {}, terminate() {} }), 3);
+  assert.deepEqual(pool.owned, assignments(4).slice(0, 3));
+  assert.deepEqual([...pool.owner], [3, 7, 8, 12]);
+  pool.terminate();
   assert.equal(helperCount(1), 0);
   assert.equal(helperCount(4), 3);
   assert.equal(helperCount(64), 8);

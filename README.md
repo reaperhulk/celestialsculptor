@@ -17,7 +17,7 @@ No claim of geological, atmospheric, or biological simulation.
 `celestial-sim` has no browser, renderer, wall clock, or OS randomness. Every action
 goes through `World::apply`, including those used by the UI and scenario tests.
 World time advances by 1/512 year per tick using four fixed leapfrog substeps, sixteen after moon creation, or thirty-two
-after applying disk migration. These choices are independent of frame rate.
+after applying disk migration; swarms of 512 or more bodies without either use two. These choices are independent of frame rate.
 The star responds to gravity. Current collisions conserve mass, material, linear momentum and angular momentum
 (unresolved spin stores angular momentum outside the resolved trajectories).
 Escape and disk-transfer ledgers support conservation checks between player edits.

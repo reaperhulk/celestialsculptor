@@ -76,7 +76,7 @@ pub struct Simulation {
     rebuild: bool,
 }
 
-/// A gravity helper's kernel: the owner's partition, a subset of task groups.
+/// A gravity helper's kernel: the owner's partition, a subset of its subtrees.
 #[wasm_bindgen]
 pub struct ForceHelper {
     inner: celestial_sim::gravity::ForceHelper,
@@ -93,9 +93,9 @@ impl ForceHelper {
         &mut self,
         state: &[f64],
         rebuild: bool,
-        groups: &[u32],
+        owned: &[u32],
     ) -> Result<Vec<f64>, JsValue> {
-        self.inner.compute(state, rebuild, groups).map_err(js_error)
+        self.inner.compute(state, rebuild, owned).map_err(js_error)
     }
 }
 impl Default for ForceHelper {
@@ -161,13 +161,24 @@ impl Simulation {
     pub fn force_request(&mut self) -> Vec<f64> {
         self.world.force_request()
     }
-    /// Continue the pending tick with every task group's output, ascending
-    /// and concatenated. Returns 1 for another request, 0 when the tick is done.
-    pub fn tick_forces(&mut self, groups: &[f64]) -> Result<u32, JsValue> {
+    /// Stage the pending request and compute the subtrees the owner keeps for
+    /// itself while helpers work on theirs. Call before `tick_forces`.
+    pub fn force_compute_owned(&mut self, owned: &[u32]) -> Result<(), JsValue> {
         if !self.world.tick_pending() {
             return Err(js_error("No tick is waiting for forces"));
         }
-        if !self.world.force_reduce(groups, self.rebuild) {
+        if !self.world.force_compute_owned(owned, self.rebuild) {
+            return Err(js_error("The request could not be staged"));
+        }
+        Ok(())
+    }
+    /// Continue the pending tick with the helpers' subtree records, in any
+    /// order. Returns 1 for another request, 0 when the tick is done.
+    pub fn tick_forces(&mut self, helpers: &[f64]) -> Result<u32, JsValue> {
+        if !self.world.tick_pending() {
+            return Err(js_error("No tick is waiting for forces"));
+        }
+        if !self.world.force_reduce(helpers) {
             return Err(js_error("Helper output does not match this request"));
         }
         Ok(self.continue_tick())
