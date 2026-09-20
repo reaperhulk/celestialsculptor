@@ -27,6 +27,14 @@ test('a thousand-body swarm renders, advances, pauses and remains navigable', as
   const tick = await page.locator('#universe').getAttribute('data-tick');
   await page.waitForTimeout(300);
   expect(await page.locator('#universe').getAttribute('data-tick')).toBe(tick);
+  // Selecting a world outside the sampled orbit set must read cleanly now and
+  // fill in once the engine reports its orbit.
+  await page.locator('#inspect-body').selectOption({ index: 200 });
+  await expect(page.locator('.body-summary')).toContainText('World');
+  await expect(page.locator('.body-orbit')).toContainText(/orbit|habitable|Escaping/i, {
+    timeout: 15000,
+  });
+  await expect(page.locator('.body-orbit')).not.toContainText('pending');
   const canvas = await page.locator('#universe').boundingBox();
   await page.mouse.move(canvas.x + canvas.width * 0.5, canvas.y + canvas.height * 0.5);
   await page.mouse.wheel(0, -300);

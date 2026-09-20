@@ -82,3 +82,22 @@ test('display sizes cap at the Hill fraction, floor at the glyph, and pass stars
   assert.equal(displayDiameter(sun, 540, 3.5, 0), bodyDiameter(sun, 540, 3.5));
   assert.ok(Math.abs(contactRadius('star', 1) - 0.055) < 1e-15);
 });
+test('a windowed orbit guide samples only the arc around the body and stays smooth there', () => {
+  const orbit = { eccentricity: 0.3, periapsis: 1, periapsis_angle: 0.8 },
+    whole = orbitPath(orbit),
+    arc = orbitPath(orbit, 192, { center: 2 + 2 * Math.PI, half: 0.05 });
+  assert.equal(arc.length, 193);
+  for (const [x, y] of arc) {
+    const f = Math.atan2(y, x) - 0.8;
+    assert.ok(Math.abs(Math.atan2(Math.sin(f - 2), Math.cos(f - 2))) <= 0.05 + 1e-9);
+  }
+  const chord = (path) =>
+    Math.max(...path.slice(1).map(([x, y], i) => Math.hypot(x - path[i][0], y - path[i][1])));
+  assert.ok(chord(arc) < chord(whole) / 50);
+  assert.deepEqual(orbitPath(orbit, 192, { center: 0, half: 4 }), whole);
+  const open = orbitPath({ eccentricity: 1.5, periapsis: 0.4, periapsis_angle: 0 }, 32, {
+    center: 1.5,
+    half: 0.5,
+  });
+  assert.ok(open.length > 0 && open.every((p) => p.every(Number.isFinite)));
+});

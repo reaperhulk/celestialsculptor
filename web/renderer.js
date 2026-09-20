@@ -326,7 +326,8 @@ export class Renderer {
     this.follow = bodyId;
     this.selected = bodyId;
     const moons = this.state.bodies.filter((m) => m.parent === bodyId),
-      host = this.state.bodies.find((p) => p.id === b.parent);
+      host = this.state.bodies.find((p) => p.id === b.parent),
+      star = this.state.bodies[0];
     const zoom = moons.length
       ? Math.max(
           b.radius * 7,
@@ -336,7 +337,15 @@ export class Renderer {
         ? Math.hypot(host.pos.x - b.pos.x, host.pos.y - b.pos.y) * 1.8
         : b.id === 0
           ? 3.5
-          : Math.max(b.radius * 4, 0.012);
+          : Math.max(
+              b.radius * 4,
+              2.5 *
+                hillRadius(
+                  b.mass,
+                  star.mass,
+                  Math.hypot(b.pos.x - star.pos.x, b.pos.y - star.pos.y),
+                ),
+            );
     this.cameraTo(b.pos, zoom);
   }
   focusEvent(event) {
@@ -435,13 +444,17 @@ export class Renderer {
           trail = (local ? this.moonTrails : this.trails).get(b.id) || [],
           c = COLORS[b.kind],
           ox = local ? localAnchor.x : 0,
-          oy = local ? localAnchor.y : 0;
+          oy = local ? localAnchor.y : 0,
+          // The newest sample is the latest physics state, which the drawn body has not
+          // reached yet while frames interpolate, so the trail ends at the drawn body.
+          drawn = this.displayPositions.get(b.id);
         for (let i = 1; i < trail.length; i++) {
+          const last = i === trail.length - 1 && drawn;
           lines.line(
             trail[i - 1][0] + ox,
             trail[i - 1][1] + oy,
-            trail[i][0] + ox,
-            trail[i][1] + oy,
+            last ? drawn.x : trail[i][0] + ox,
+            last ? drawn.y : trail[i][1] + oy,
             c,
             (i / trail.length) * 0.4,
           );
@@ -468,11 +481,25 @@ export class Renderer {
       orbit &&
       !(reference === selected.id && this.state.bodies.some((b) => b.parent === selected.id))
     ) {
-      const path = this.selectedPath || (this.selectedPath = orbitPath(orbit));
       const anchor = this.moonOrbitById.has(selected.id)
           ? this.state.bodies.find((b) => b.id === selected.parent) || star
           : star,
-        anchorPosition = this.displayPositions.get(anchor.id);
+        anchorPosition = this.displayPositions.get(anchor.id),
+        drawn = this.displayPositions.get(selected.id),
+        // Half the view's extent in AU; a magnified view samples only the arc around
+        // the body, so the guide stays smooth instead of showing one chord at a time.
+        extent = this.zoom * Math.max(r.width / r.height, 1 / this.tilt),
+        distance = Math.hypot(drawn.x - anchorPosition.x, drawn.y - anchorPosition.y),
+        half = (2.5 * extent) / Math.max(distance, 1e-9);
+      const path =
+        half >= Math.PI
+          ? this.selectedPath || (this.selectedPath = orbitPath(orbit))
+          : orbitPath(orbit, 192, {
+              center:
+                Math.atan2(drawn.y - anchorPosition.y, drawn.x - anchorPosition.x) -
+                (orbit.periapsis_angle || 0),
+              half,
+            });
       for (let i = 1; i < path.length; i++)
         lines.line(
           path[i - 1][0] + anchorPosition.x,

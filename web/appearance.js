@@ -36,13 +36,22 @@ export function displayDiameter(body, height, zoom, hill = Infinity) {
     cap = (Math.max(contact, HILL_FRACTION * hill) * pixels) / fraction;
   return Math.max(glyphDiameter(body.kind) / fraction, Math.min(base, cap));
 }
-export function orbitPath(orbit, segments = 192) {
+// The osculating path, optionally only the arc within `window.half` radians of true
+// anomaly around `window.center`, so a magnified view gets its segments where it looks.
+export function orbitPath(orbit, segments = 192, window = null) {
   const { eccentricity: e, periapsis: q, periapsis_angle: angle = 0 } = orbit || {};
   if (!Number.isFinite(e) || !Number.isFinite(q) || q <= 0) return [];
   const end = e >= 1 ? Math.acos(-1 / e) - 0.025 : Math.PI;
+  let from = -end,
+    to = end;
+  if (window && window.half < end) {
+    const center = Math.atan2(Math.sin(window.center), Math.cos(window.center));
+    from = Math.min(end, Math.max(-end, center - window.half));
+    to = Math.max(from, Math.min(end, center + window.half));
+  }
   const points = [];
   for (let i = 0; i <= segments; i++) {
-    const f = -end + (2 * end * i) / segments,
+    const f = from + ((to - from) * i) / segments,
       r = (q * (1 + e)) / (1 + e * Math.cos(f));
     if (r > 0 && r < 20) points.push([r * Math.cos(f + angle), r * Math.sin(f + angle)]);
   }

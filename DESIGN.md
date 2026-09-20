@@ -2197,3 +2197,41 @@ interpolation; and that 8,192 bodies size without allocation or reordering
 effects. The appearance suite checks the cap, the glyph, and star and unbound
 pass-through directly. The close-giants browser test keeps its separated-surface
 and selection assertions.
+
+### 177 — Smooth follow views and a button review on the largest swarm
+
+Review needs: the player reported that Follow world zoomed in too far and
+showed a wavy trajectory instead of a smooth orbit, and asked for a check that
+every button still works and behaves as expected with thousands of bodies.
+Three causes were found: the selected orbit guide is a fixed 192-segment
+polyline, so at follow magnification each chord is wider than the screen and
+the line kinks by several pixels every few ticks; trails end at the newest
+physics sample while frames interpolate towards it, so at follow magnification
+the trail of the followed world stuck out hundreds of pixels ahead of it and
+snapped back each tick; and a lone world's follow zoom was its contact radius
+times four, which for anything below a giant is the camera's minimum zoom.
+Driving all fifty-odd controls on an 8,192-body swarm found one uncaught error:
+selecting a world outside the sampled orbit set read `habitable` from an orbit
+that arrives with the next engine update.
+Implemented: `orbitPath` accepts a true-anomaly window; when the view is
+smaller than the orbit, the renderer samples only the arc within two and a
+half view extents of the drawn body, so the guide is smooth at any zoom, and
+the cached whole path is used otherwise. Trails draw their final segment to the
+body's drawn interpolated position in both inertial and parent-relative modes.
+A lone world's follow zoom is now two and a half times its Hill radius about
+the star, bounded below by the contact rule and the minimum zoom, so the view
+frames the world's gravitational neighbourhood and a moon-sized body at a
+sensible size. The inspector reports "Orbit reading pending" until a newly
+selected world's orbit arrives instead of throwing. No physics changed.
+Validation: a scripted desktop pass over every control on the 8,192-body
+swarm (play, speeds, pause, step, rewind, zoom, fit, tilt, wheel, drag, view
+dialog, selection, follow, orbit tools, spin, undo, placement, belt seeding,
+notebook, checkpoints, export, bug report, recipes, help, tabs, clear, and the
+generator) records no main-thread task over 60 ms and no page error after the
+inspector fix; the earlier run had the `habitable` error. The swarm browser
+test now selects an unsampled world and expects a clean reading that fills in.
+The appearance suite covers the windowed arc, its smoothness against the whole
+path, the whole-path fallback and an open orbit. Follow screenshots of a giant
+and of a lone world show the guide passing through the globe without kinks.
+190 Node tests, lint, format, the design audit and the dist check pass; the
+desktop and phone browser projects pass.

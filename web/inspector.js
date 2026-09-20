@@ -58,18 +58,28 @@ export class Inspector {
     }
     const moonOrbit = state.moon_orbits?.find(([id]) => id === body.id)?.[1],
       orbit = moonOrbit || state.orbits.find(([id]) => id === body.id)?.[1];
-    setText(
-      this.orbitStatus,
-      `${orbit.habitable ? 'Potentially habitable' : orbit.calm ? 'Calm orbit' : orbit.bound ? 'Eccentric orbit' : 'Escaping'} · e = ${quantity(orbit.eccentricity)}`,
-    );
-    setText(
-      this.orbit,
-      orbitReading(
-        body,
-        orbit,
-        moonOrbit ? state.bodies.find((b) => b.id === body.parent) : state.bodies[0],
-      ),
-    );
+    // Large systems report orbits for a sampled set; a newly selected world's orbit
+    // arrives with the next engine update, so the reading must not assume it.
+    if (orbit) {
+      setText(
+        this.orbitStatus,
+        `${orbit.habitable ? 'Potentially habitable' : orbit.calm ? 'Calm orbit' : orbit.bound ? 'Eccentric orbit' : 'Escaping'} · e = ${quantity(orbit.eccentricity)}`,
+      );
+      setText(
+        this.orbit,
+        orbitReading(
+          body,
+          orbit,
+          moonOrbit ? state.bodies.find((b) => b.id === body.parent) : state.bodies[0],
+        ),
+      );
+    } else {
+      setText(this.orbitStatus, 'Orbit reading pending');
+      setText(
+        this.orbit,
+        `World ${body.id} · ${body.kind}\n${quantity(body.mass / 3.003e-6)} Earth masses\nOrbit details arrive with the next update.`,
+      );
+    }
     setText(
       this.material,
       `Contact radius: ${quantity(body.radius)} AU. Material: ${(((body.material?.ice || 0) / body.mass) * 100).toFixed(0)}% ice, ${(((body.material?.gas || 0) / body.mass) * 100).toFixed(0)}% gas.`,
