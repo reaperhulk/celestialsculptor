@@ -6,6 +6,15 @@ const chromium = {
     args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
   },
 };
+// Specs whose behaviour does not depend on the viewport run once, in the
+// desktop project; layout, touch and screenshot specs run in every viewport.
+const viewportIndependent =
+  /(challenges|device|engine|fallback|generation|gpu-compute|notebook|observatory|startup)\.spec\.js/;
+const viewport = (name, use) => ({
+  name,
+  use: { ...chromium, ...use },
+  testIgnore: name === 'desktop' ? /gpu-compute\.spec\.js/ : viewportIndependent,
+});
 export default defineConfig({
   testDir: './tests/browser',
   fullyParallel: true,
@@ -61,36 +70,26 @@ export default defineConfig({
       testMatch: /engine\.spec\.js/,
       use: { browserName: 'webkit', viewport: { width: 1280, height: 720 } },
     },
-    { name: 'desktop', use: { ...chromium, viewport: { width: 1366, height: 768 } } },
-    {
-      name: 'phone',
-      use: {
-        ...chromium,
-        viewport: { width: 390, height: 844 },
-        deviceScaleFactor: 3,
-        isMobile: true,
-        hasTouch: true,
-      },
-    },
-    {
-      name: 'small-phone',
-      use: { ...chromium, viewport: { width: 320, height: 568 }, isMobile: true, hasTouch: true },
-    },
-    {
-      name: 'tablet',
-      use: {
-        ...chromium,
-        viewport: { width: 1024, height: 768 },
-        deviceScaleFactor: 2,
-        hasTouch: true,
-      },
-    },
-    { name: 'laptop', use: { ...chromium, viewport: { width: 1280, height: 720 } } },
-    { name: 'large-desktop', use: { ...chromium, viewport: { width: 1920, height: 1080 } } },
-    {
-      name: 'landscape-phone',
-      use: { ...chromium, viewport: { width: 844, height: 390 }, hasTouch: true },
-    },
+    viewport('desktop', { viewport: { width: 1366, height: 768 } }),
+    viewport('phone', {
+      viewport: { width: 390, height: 844 },
+      deviceScaleFactor: 3,
+      isMobile: true,
+      hasTouch: true,
+    }),
+    viewport('small-phone', {
+      viewport: { width: 320, height: 568 },
+      isMobile: true,
+      hasTouch: true,
+    }),
+    viewport('tablet', {
+      viewport: { width: 1024, height: 768 },
+      deviceScaleFactor: 2,
+      hasTouch: true,
+    }),
+    viewport('laptop', { viewport: { width: 1280, height: 720 } }),
+    viewport('large-desktop', { viewport: { width: 1920, height: 1080 } }),
+    viewport('landscape-phone', { viewport: { width: 844, height: 390 }, hasTouch: true }),
   ],
   webServer: {
     command: 'node scripts/serve.mjs',

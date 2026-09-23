@@ -1,0 +1,68 @@
+name: Long-run numerical qualification
+# The 600-year qualifications take 25-40 minutes, so they run when the physics
+# changes on main, nightly, and on demand rather than gating every PR and deploy.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'crates/sim/**'
+      - 'Cargo.lock'
+      - 'rust-toolchain.toml'
+      - 'scripts/qualify-*.mjs'
+      - 'scripts/qualification-*'
+      - '.github/workflows/qualification.yml'
+  schedule:
+    - cron: '23 5 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: qualification-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  numerical-qualification:
+    name: 600-year and independent numerical qualification
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: dtolnay/rust-toolchain@49fda20b3f489226feadfba7767be1db54e2cee1 # 1.90.0
+        with:
+          toolchain: 1.90.0
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+      - run: python3 -m venv .qualification-env
+      - run: .qualification-env/bin/pip install -r scripts/qualification-requirements.txt
+      - run: node scripts/qualify-numerics.mjs
+        env:
+          QUALIFICATION_PYTHON: .qualification-env/bin/python
+          # The near/far split gate runs as its own job below.
+          QUALIFY_SKIP_SPLIT: '1'
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: long-run-numerical-evidence
+          path: |
+            numerical-raw.json
+            numerical-qualification.json
+            tree-raw.json
+            tree-qualification.json
+          retention-days: 30
+  split-qualification:
+    name: 600-year near/far split qualification
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: dtolnay/rust-toolchain@49fda20b3f489226feadfba7767be1db54e2cee1 # 1.90.0
+        with:
+          toolchain: 1.90.0
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+      - run: npm run qualify:split
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: split-qualification-evidence
+          path: |
+            split-raw.json
+            split-qualification.json
+          retention-days: 30

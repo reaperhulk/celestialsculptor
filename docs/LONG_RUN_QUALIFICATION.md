@@ -86,8 +86,10 @@ resolution would take hours). The moons' elements relative to their host must
 stay within the moon-family budgets (axis 2e-3, eccentricity 2e-3, phase 0.2
 rad, apsis 0.1 rad) in both comparisons, and every run's balances within the
 tree budgets. The fixture takes about three quarters of an hour on four cores,
-so CI runs it as its own job (`npm run qualify:split`) beside the numerics job;
-the local release gate runs both. Its debris mass is
+so it runs as its own job (`npm run qualify:split`) beside the numerics job in the
+Long-run numerical qualification workflow. That workflow runs when main's physics
+changes, nightly, and on demand, not on every PR or deploy; the local release gate
+runs both. Its debris mass is
 0.016 Earth masses to isolate accumulated force approximation from unresolved
 hard encounters. The full-world swarm uses 16 Earth masses and collisions;
 mergers eventually reduce that case below the tree threshold. These are distinct
