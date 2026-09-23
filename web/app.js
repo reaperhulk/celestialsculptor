@@ -559,40 +559,49 @@ function renderState(next) {
 }
 if (worker)
   worker.onmessage = async ({ data }) => {
-    if (data.type === 'state' && data.frame) data = bodyFrames.decode(data);
-    if (data.type === 'ready') {
-      clearTimeout(startupTimer);
-      missions = data.missions;
-      ready = true;
-      if (renderer) $('loading').hidden = true;
-      document.body.dataset.ready = 'true';
-      let restored = false;
-      for (const replay of savedExperiments(storage)) {
-        try {
-          const data = parseReplay(replay);
-          if (data.config.mission !== null && !canPlay(profile, data.config.mission)) continue;
-          await send('reset', { config: data.config });
-          await send('import', { replay });
-          toast('Your experiment is restored, paused.');
-          restored = true;
-          break;
-        } catch {
-          /* Try backup before starting fresh. */
-        }
-      }
-      if (!restored) await reset(nextMission(profile));
-      restoring = false;
-      if (state) renderState(state);
-      await autosave();
-    } else if (data.type === 'state') {
-      renderState(data);
-    } else if (data.type === 'fatal') {
-      workerFailed(data.message);
-    } else if (data.type === 'progress')
-      $('playback-note').textContent =
-        `Rebuilding experiment · ${(data.tick / 512).toFixed(1)} / ${(data.end_tick / 512).toFixed(1)} years`;
-    if (!channel.receive(data) && data.type === 'error') toast(data.message);
+    try {
+      if (data.type === 'state' && data.frame) data = bodyFrames.decode(data);
+      await handleWorkerMessage(data);
+    } catch (error) {
+      // A display failure must not hold back the reply a request is awaiting.
+      console.error(error);
+    } finally {
+      if (!channel.receive(data) && data.type === 'error') toast(data.message);
+    }
   };
+async function handleWorkerMessage(data) {
+  if (data.type === 'ready') {
+    clearTimeout(startupTimer);
+    missions = data.missions;
+    ready = true;
+    if (renderer) $('loading').hidden = true;
+    document.body.dataset.ready = 'true';
+    let restored = false;
+    for (const replay of savedExperiments(storage)) {
+      try {
+        const data = parseReplay(replay);
+        if (data.config.mission !== null && !canPlay(profile, data.config.mission)) continue;
+        await send('reset', { config: data.config });
+        await send('import', { replay });
+        toast('Your experiment is restored, paused.');
+        restored = true;
+        break;
+      } catch {
+        /* Try backup before starting fresh. */
+      }
+    }
+    if (!restored) await reset(nextMission(profile));
+    restoring = false;
+    if (state) renderState(state);
+    await autosave();
+  } else if (data.type === 'state') {
+    renderState(data);
+  } else if (data.type === 'fatal') {
+    workerFailed(data.message);
+  } else if (data.type === 'progress')
+    $('playback-note').textContent =
+      `Rebuilding experiment · ${(data.tick / 512).toFixed(1)} / ${(data.end_tick / 512).toFixed(1)} years`;
+}
 if (worker) {
   // Before the worker reports ready, any error is a startup failure. Afterwards
   // the worker is still alive and the experiment is intact, so keep the session.

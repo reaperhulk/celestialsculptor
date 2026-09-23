@@ -162,3 +162,21 @@ fn helpers_failing_after_the_owner_staged_fall_back_to_whole_forces() {
     }
     assert_eq!(w, reference);
 }
+
+#[test]
+fn commands_wait_for_a_pending_tick() {
+    let mut w = swarm(600, 0.0);
+    let rebuild = w.tick_begin(w.substeps(), true).unwrap();
+    let launch = Command::Launch {
+        kind: Kind::Rocky,
+        radius: 1.5,
+        angle: 0.0,
+        speed: 1.0,
+    };
+    assert!(w.apply(launch.clone()).is_err());
+    let mut request = Some(rebuild);
+    while let Some(rebuild) = request {
+        request = w.tick_local(rebuild);
+    }
+    w.apply(launch).unwrap();
+}

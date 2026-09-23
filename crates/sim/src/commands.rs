@@ -6,6 +6,13 @@ use std::f64::consts::TAU;
 
 impl World {
     pub fn apply(&mut self, command: Command) -> Result<(), SimError> {
+        // A command inside a tick would be recorded at its start but act on
+        // part-way positions, so a replay could not reproduce it.
+        if self.tick_pending() {
+            return Err(SimError::Sequence(
+                "Wait for the current step to finish before editing".into(),
+            ));
+        }
         if self.commands.len() >= 2048 {
             return Err(SimError::Capacity(
                 "This experiment has reached its 2048-action limit".into(),
