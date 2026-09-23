@@ -4,16 +4,24 @@ import { CheckpointCache, IndexedCheckpointStore } from './checkpoints.js';
 import { workDelay } from './work-schedule.js';
 import { ForcePool, helperCount } from './force-pool.js';
 
-try {
-  await init();
-  let provenance = null;
+// Compile once: the engine and every gravity helper instantiate this module.
+async function compileEngine(url) {
   try {
-    const build = await (await fetch('./build-info.json')).json();
-    const wasm = build.assets['pkg/celestial_wasm_bg.wasm']?.sha256;
-    if (wasm) provenance = JSON.stringify({ revision: build.revision, wasm });
+    return await WebAssembly.compileStreaming(fetch(url));
   } catch {
-    /* Portable replays remain available without build metadata. */
+    return WebAssembly.compile(await (await fetch(url)).arrayBuffer());
   }
+}
+try {
+  const build = fetch('./build-info.json')
+    .then((response) => response.json())
+    .catch(() => null);
+  const module = await compileEngine(new URL('./pkg/celestial_wasm_bg.wasm', import.meta.url));
+  await init({ module_or_path: module });
+  // Portable replays remain available without build metadata.
+  const info = await build;
+  const wasm = info?.assets?.['pkg/celestial_wasm_bg.wasm']?.sha256;
+  const provenance = wasm ? JSON.stringify({ revision: info.revision, wasm }) : null;
   const checkpoints =
     provenance && globalThis.indexedDB
       ? new CheckpointCache({ provenance, store: new IndexedCheckpointStore() })
@@ -25,6 +33,7 @@ try {
       forcePool = new ForcePool(
         () => new Worker(new URL('./force-helper.js', import.meta.url), { type: 'module' }),
         count,
+        { module },
       );
   } catch {
     forcePool = null; // Physics runs in this worker alone.

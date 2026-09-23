@@ -387,9 +387,12 @@ export class Runtime {
     }
   }
   usesHelpers() {
-    return (
-      Boolean(this.forcePool?.size) && (this.sim?.body_count?.() || 0) >= this.parallelThreshold
-    );
+    const pool = this.forcePool;
+    if (!pool || (this.sim?.body_count?.() || 0) < this.parallelThreshold) return false;
+    // The first large system starts the helpers; the engine works alone
+    // until every helper has loaded.
+    pool.start();
+    return pool.size > 0;
   }
   /** One tick with gravity evaluated by the helper pool; falls back to the engine on failure. */
   async parallelTick() {

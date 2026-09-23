@@ -8,8 +8,11 @@ import init, { ForceHelper } from './pkg/celestial_wasm.js';
 const node = typeof self === 'undefined';
 const port = node ? (await import('node:worker_threads')).parentPort : self;
 let helper = null;
-async function load() {
-  if (node) {
+let ready = null;
+// The pool's first message carries the owner's compiled module, if any.
+async function load(module) {
+  if (module) await init({ module_or_path: module });
+  else if (node) {
     const { readFile } = await import('node:fs/promises');
     await init({
       module_or_path: await readFile(new URL('./pkg/celestial_wasm_bg.wasm', import.meta.url)),
@@ -17,8 +20,17 @@ async function load() {
   } else await init();
   helper = new ForceHelper();
 }
-const ready = load();
 const receive = async (message) => {
+  if (!ready) {
+    ready = load(message?.init);
+    try {
+      await ready;
+      port.postMessage({ ready: true });
+    } catch (error) {
+      port.postMessage({ ready: false, error: String(error?.message || error) });
+    }
+    return;
+  }
   try {
     await ready;
     const { id, state, rebuild, owned } = message;

@@ -15,20 +15,43 @@ export function assignments(participants, subtrees = SUBTREES) {
   return lists.map((list) => list.sort((a, b) => a - b));
 }
 export class ForcePool {
-  /** `spawn()` returns an object with postMessage and an onmessage/on('message') hook. */
-  constructor(spawn, count, { timeoutMs = 5000 } = {}) {
+  /**
+   * `spawn()` returns an object with postMessage and an onmessage/on('message')
+   * hook. Helpers start on the first `start()`, so sessions that never reach
+   * the helper threshold never pay for their threads or WASM instances.
+   * `module`, a compiled WebAssembly.Module, spares each helper a compile.
+   */
+  constructor(spawn, count, { timeoutMs = 5000, module = null } = {}) {
+    this.spawn = spawn;
+    this.count = count;
+    this.module = module;
     this.workers = [];
     this.pending = new Map();
     this.sequence = 0;
     this.timeoutMs = timeoutMs;
     this.broken = false;
+    this.ready = 0;
+    this.started = null;
+    this.waiting = [];
     const shares = assignments(count + 1);
     this.owned = shares.slice(0, count);
     /** The subtrees the owner computes itself during every evaluation. */
     this.owner = Uint32Array.from(shares[count]);
-    for (let k = 0; k < count; k++) {
-      const worker = spawn();
+  }
+  /** Spawn the helpers once; resolves when every helper has loaded, or the pool failed. */
+  start() {
+    if (this.started) return this.started;
+    const loaded = [];
+    for (let k = 0; k < this.count && !this.broken; k++) {
+      const worker = this.spawn();
+      loaded.push(new Promise((resolve) => this.waiting.push(resolve)));
       const handle = (data) => {
+        if (data && 'ready' in data) {
+          if (!data.ready) return fail(data.error);
+          this.ready++;
+          this.waiting.shift()?.();
+          return;
+        }
         const request = this.pending.get(data.id);
         if (!request) return;
         this.pending.delete(data.id);
@@ -45,20 +68,27 @@ export class ForcePool {
         worker.onmessage = (event) => handle(event.data);
         worker.onerror = (event) => fail(event?.message);
       }
+      worker.postMessage({ init: this.module });
       this.workers.push(worker);
     }
+    this.started = Promise.all(loaded);
+    return this.started;
   }
   /** A pool that failed once stays out of the loop; the engine carries on alone. */
   fail(error) {
     this.broken = true;
+    for (const resolve of this.waiting.splice(0)) resolve();
+    // A broken pool never recovers, so release its threads and memory.
+    for (const worker of this.workers.splice(0)) worker.terminate?.();
     for (const request of this.pending.values()) {
       clearTimeout(request.timer);
       request.reject(error);
     }
     this.pending.clear();
   }
+  /** Helpers ready to take work: none until every spawned helper has loaded. */
   get size() {
-    return this.broken ? 0 : this.workers.length;
+    return this.broken || this.ready < this.count ? 0 : this.count;
   }
   /**
    * Post one force request to every helper. Requests leave before this
@@ -93,9 +123,6 @@ export class ForcePool {
     });
   }
   terminate() {
-    this.broken = true;
-    for (const worker of this.workers) worker.terminate?.();
-    this.workers = [];
     this.fail(new Error('Gravity helpers stopped'));
   }
 }

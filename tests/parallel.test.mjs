@@ -44,10 +44,15 @@ test('helper workers reproduce the engine tick for tick, for any pool size', asy
   const reference = runtime(null);
   const expected = await play(reference.r, 5);
   reference.r.sim.free();
+  const bytes = await readFile(new URL('../dist/pkg/celestial_wasm_bg.wasm', import.meta.url));
   for (const size of [1, 3]) {
-    const pool = new ForcePool(spawn, size);
+    // The larger pool shares the owner's compiled module instead of compiling.
+    const module = size > 1 ? await WebAssembly.compile(bytes) : null;
+    const pool = new ForcePool(spawn, size, { module });
     try {
       const { r } = runtime(pool);
+      assert.ok(!r.usesHelpers(), 'helpers start with the first large system');
+      await pool.start();
       assert.ok(r.usesHelpers());
       const actual = await play(r, 5);
       assert.equal(actual, expected, `${size} helpers`);
@@ -61,6 +66,7 @@ test('messages wait while a tick is in flight and a failing helper falls back to
   const pool = new ForcePool(spawn, 2);
   try {
     const { r, messages } = runtime(pool);
+    await pool.start();
     r.handle({ type: 'play', value: true });
     const turn = r.advanceElapsed(0.05);
     assert.ok(turn?.then, 'large systems advance asynchronously');
@@ -95,6 +101,7 @@ test('small systems never wait for helpers', () => {
     r.handle({ type: 'play', value: true });
     assert.equal(r.advanceElapsed(0.1), undefined);
     assert.equal(JSON.parse(r.sim.snapshot()).tick, 10);
+    assert.equal(pool.workers.length, 0, 'small systems never start helpers');
     r.sim.free();
   } finally {
     pool.terminate();
