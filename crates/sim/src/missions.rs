@@ -166,6 +166,7 @@ impl World {
         }
     }
     pub fn status(&self) -> Status {
+        let zone = self.zone();
         let mut s = Status {
             collisions: self.collisions,
             grazes: self.grazes,
@@ -199,11 +200,11 @@ impl World {
             progress: 0.0,
             condition: false,
             completed: self.completed,
-            zone_inner: self.zone().0,
-            zone_outer: self.zone().1,
+            zone_inner: zone.0,
+            zone_outer: zone.1,
         };
         for body in self.bodies.iter().skip(1) {
-            let o = self.orbit(body);
+            let o = Self::orbit_in_zone(body, &self.bodies[0], zone);
             if self.moon_orbit(body).is_some() {
                 s.moons += 1;
                 continue;

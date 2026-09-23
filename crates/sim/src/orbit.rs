@@ -32,6 +32,11 @@ impl World {
         self.orbit_around(body, &self.bodies[0])
     }
     pub(crate) fn orbit_around(&self, body: &Body, star: &Body) -> Orbit {
+        Self::orbit_in_zone(body, star, self.zone())
+    }
+    /// Elements about `star` with the habitable zone already known, for loops
+    /// over many bodies that would otherwise recompute it for each.
+    pub(crate) fn orbit_in_zone(body: &Body, star: &Body, (inner, outer): (f64, f64)) -> Orbit {
         let r = body.pos.minus(star.pos);
         let v = body.vel.minus(star.vel);
         let distance = r.norm().max(1e-12);
@@ -52,7 +57,6 @@ impl World {
         } else {
             1e12
         };
-        let (inner, outer) = self.zone();
         let habitable = body.kind != Kind::Giant
             && body.kind != Kind::Dust
             && bound
