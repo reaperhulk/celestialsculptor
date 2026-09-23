@@ -53,6 +53,8 @@ void main(){
  outColor=vec4(color,1.);
 }`;
 
+const COOL_STAR = [1, 0.48, 0.19],
+  HOT_STAR = [0.65, 0.8, 1];
 const COLORS = {
   star: [1, 0.65, 0.22],
   rocky: [0.9, 0.49, 0.3],
@@ -73,6 +75,8 @@ export class Renderer {
     this.maxDpr = 2;
     this.lineStream = new VertexStream(LINE_CAPACITY);
     this.pointStream = new PlanetStream(65 * 16);
+    this.styleScratch = new Float64Array(4);
+    this.lightScratch = new Float64Array(3);
     this.center = { x: 0, y: 0 };
     this.follow = null;
     this.inputMode = 'navigate';
@@ -583,14 +587,24 @@ export class Renderer {
     gl.drawArrays(gl.LINES, 0, lines.length / 6);
     const points = this.pointStream.reset();
     points.ensure((this.state.bodies.length + 1) * 16);
+    // At most a dozen impacts glow at once; look each body's heat up once.
+    const heats = new Map();
+    for (const impact of this.impacts)
+      heats.set(
+        impact.body,
+        Math.max(heats.get(impact.body) || 0, Math.max(0, 1 - (time - impact.time) / 3)),
+      );
+    // point() copies these immediately, so one pair serves every body.
+    const style = this.styleScratch,
+      light = this.lightScratch;
+    light[2] = 0.45;
     for (const b of this.sortedBodies) {
-      const o = this.orbitById.get(b.id);
       const c =
         b.kind === 'star'
           ? b.mass < 0.85
-            ? [1, 0.48, 0.19]
+            ? COOL_STAR
             : b.mass > 1.2
-              ? [0.65, 0.8, 1]
+              ? HOT_STAR
               : COLORS.star
           : COLORS[b.kind];
       const size = this.bodyScale.diameter(b.id),
@@ -604,9 +618,12 @@ export class Renderer {
       const dx = starPosition.x - position.x,
         dy = (starPosition.y - position.y) * this.tilt,
         dist = Math.hypot(dx, dy) || 1;
-      const heat = this.impacts
-        .filter((impact) => impact.body === b.id)
-        .reduce((h, impact) => Math.max(h, Math.max(0, 1 - (time - impact.time) / 3)), 0);
+      style[0] = (b.id * 0.6180339) % 1;
+      style[1] = b.kind === 'giant' ? this.bodyScale.rings(b.id) : (b.material?.ice || 0) / b.mass;
+      style[2] = Number(this.orbitById.get(b.id)?.habitable || false);
+      style[3] = position.rotation;
+      light[0] = dx / dist;
+      light[1] = dy / dist;
       points.point(
         position.x,
         position.y,
@@ -614,14 +631,9 @@ export class Renderer {
         c,
         KINDS[b.kind],
         Number(this.selected === b.id),
-        [
-          (b.id * 0.6180339) % 1,
-          b.kind === 'giant' ? this.bodyScale.rings(b.id) : (b.material?.ice || 0) / b.mass,
-          Number(o?.habitable || false),
-          position.rotation,
-        ],
-        [dx / dist, dy / dist, 0.45],
-        heat,
+        style,
+        light,
+        heats.get(b.id) || 0,
       );
     }
     if (this.draft && this.previewVisible) {

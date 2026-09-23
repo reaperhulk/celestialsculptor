@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { VertexStream } from '../web/vertices.js';
+import { PlanetStream, VertexStream } from '../web/vertices.js';
 test('maximum world trails and preview fit the reusable vertex allocation', () => {
   const v = new VertexStream(64 * 192 * 12 + 241 * 12),
     backing = v.data.buffer;
@@ -12,7 +12,7 @@ test('maximum world trails and preview fit the reusable vertex allocation', () =
   assert.equal(v.view().length, 12);
 });
 test('capacity errors fail before corrupting an existing vertex stream', () => {
-  const v = new VertexStream(8);
+  const v = new PlanetStream(16);
   v.point(1, 2, 20, [1, 0, 0], 1, 0);
   const before = [...v.view()];
   assert.throws(() => v.point(2, 3, 20, [0, 1, 0], 1, 0), RangeError);
