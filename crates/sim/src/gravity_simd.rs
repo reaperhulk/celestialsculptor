@@ -8,7 +8,8 @@ pub fn accelerations(x: &[f64], y: &[f64], mass: &[f64], softening2: f64, a: &mu
         range(x, y, mass, &[], softening2, a, i, i + 1, x.len());
     }
 }
-/// Far parts only, for a system with near/far cutoffs.
+/// Far parts only, for a system with near/far cutoffs. The star's row takes
+/// the star rule of `split::pair_cut`, which the vector rows cannot express.
 pub fn accelerations_cut(
     x: &[f64],
     y: &[f64],
@@ -17,7 +18,10 @@ pub fn accelerations_cut(
     softening2: f64,
     a: &mut [V2],
 ) {
-    for i in 0..x.len() {
+    for j in 1..x.len() {
+        crate::gravity_tree::direct_pair_cut(0, j, x, y, mass, cut, softening2, a);
+    }
+    for i in 1..x.len() {
         range(x, y, mass, cut, softening2, a, i, i + 1, x.len());
     }
 }
@@ -100,7 +104,8 @@ fn range_plain(
     }
 }
 /// The far kernel for a row with cutoffs: the same operations per lane as the
-/// scalar `direct_pair_cut`, so scalar and SIMD builds stay bit-identical.
+/// scalar `direct_pair_far` with `cut[i].max(cut[j])`, so scalar and SIMD
+/// builds stay bit-identical. Rows never belong to the star.
 #[inline]
 #[allow(clippy::too_many_arguments)]
 fn range_cut(

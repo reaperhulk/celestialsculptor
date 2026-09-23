@@ -145,6 +145,29 @@ try {
       for (const s of [a, b]) s.advance(32);
       equal(a, b, `swarm/${count}/advanced`);
     });
+  // Tree-sized systems with giants take the near/far split: the far kernel's
+  // cutoffs must agree in tree leaves and in the exact solver's star row.
+  pair(config, (a, b) => {
+    for (const s of [a, b]) {
+      s.command(JSON.stringify({ type: 'seed_swarm', count: 700, disorder: 0.2 }));
+      for (const [radius, angle] of [
+        [1.2, 0.3],
+        [2.5, 2.1],
+        [4.0, 4.4],
+      ])
+        s.command(JSON.stringify({ type: 'launch', kind: 'giant', radius, angle, speed: 1 }));
+    }
+    for (let round = 0; round < 3; round++) {
+      for (const s of [a, b]) s.advance(16);
+      equal(a, b, `split/${round}`);
+      for (const exact of [false, true])
+        assert.deepEqual(
+          a.force_snapshot(exact),
+          b.force_snapshot(exact),
+          `split/${round}: scalar/SIMD ${exact ? 'exact' : 'tree'} forces`,
+        );
+    }
+  });
   const cases = [];
   for (const fixture of native('bench').cases) {
     const samples = [[], []];

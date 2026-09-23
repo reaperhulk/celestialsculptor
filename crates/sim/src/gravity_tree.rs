@@ -484,15 +484,16 @@ impl Tree {
             end,
         );
         #[cfg(not(all(target_arch = "wasm32", target_feature = "simd128")))]
-        if weighted {
+        if !cut.is_empty() {
+            // Tree order excludes the star, so no index here is the star's.
             for j in start..end {
-                direct_pair_cut(
+                direct_pair_far(
                     i,
                     j,
                     &self.x,
                     &self.y,
                     &self.mass,
-                    cut,
+                    cut[i].max(cut[j]),
                     soft2,
                     &mut self.local,
                 );
@@ -578,8 +579,9 @@ fn moments(order: &[usize], x: &[f64], y: &[f64], mass: &[f64]) -> Moments {
         hi,
     }
 }
-/// The far part of one pair: the plain force weighted by `far_weight` when the
-/// pair has cutoffs, so near pairs contribute here only beyond `r_in`.
+/// The far part of one pair in world order (the star first): the plain force
+/// weighted by `far_weight` when the system has cutoffs, so near pairs
+/// contribute here only beyond `r_in`.
 #[inline]
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn direct_pair_cut(
@@ -595,9 +597,34 @@ pub(crate) fn direct_pair_cut(
     if cut.is_empty() {
         return direct_pair(i, j, x, y, mass, soft2, a);
     }
+    direct_pair_far(
+        i,
+        j,
+        x,
+        y,
+        mass,
+        crate::split::pair_cut(cut, i, j),
+        soft2,
+        a,
+    );
+}
+/// The far part of one pair whose cutoff `r_out` the caller resolved. Tree
+/// order never holds the star, so leaf pairs pass `cut[i].max(cut[j])`.
+#[inline]
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn direct_pair_far(
+    i: usize,
+    j: usize,
+    x: &[f64],
+    y: &[f64],
+    mass: &[f64],
+    r_out: f64,
+    soft2: f64,
+    a: &mut [V2],
+) {
     let d = V2::new(x[j] - x[i], y[j] - y[i]);
     let raw = d.norm2();
-    let w = crate::split::far_weight(raw, crate::split::pair_cut(cut, i, j));
+    let w = crate::split::far_weight(raw, r_out);
     let r2 = raw + soft2;
     let f = d.scale(G * w / (r2 * r2.sqrt()));
     a[i] = a[i].plus(f.scale(mass[j]));
@@ -611,4 +638,39 @@ fn direct_pair(i: usize, j: usize, x: &[f64], y: &[f64], mass: &[f64], soft2: f6
     let f = d.scale(G / (r2 * r2.sqrt()));
     a[i] = a[i].plus(f.scale(mass[j]));
     a[j] = a[j].minus(f.scale(mass[i]));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn leaf_pairs_never_take_the_star_rule_by_position() {
+        // Five bodies share one leaf, so the first body in tree order is a
+        // giant rather than the star. Its pair with nearby dust must keep the
+        // giant's cutoff, exactly as a direct sum in world order does.
+        let x = [0.0, 1.0, 1.02, 2.0, -1.5];
+        let y = [0.0, 0.0, 0.01, 0.5, -0.2];
+        let mass = [1.0, 1.0e-3, 1.0e-9, 2.0e-9, 3.0e-9];
+        let mut cuts = Vec::new();
+        crate::split::cutoffs(&x, &y, &mass, &mut cuts);
+        assert!(
+            cuts[1] > 0.1 && cuts[2] == 0.0,
+            "fixture needs a giant and dust"
+        );
+        let soft2 = crate::SOFTENING.powi(2);
+        let mut direct = vec![V2::default(); x.len()];
+        crate::gravity::direct_cut(&x, &y, &mass, &cuts, soft2, &mut direct);
+        let mut tree = Tree::default();
+        tree.set_cutoffs(&cuts);
+        let mut a = vec![V2::default(); x.len()];
+        tree.compute(&x, &y, &mass, soft2, 0.35, &mut a, true);
+        for (i, (t, d)) in a.iter().zip(&direct).enumerate() {
+            let scale = d.norm2().sqrt().max(1e-300);
+            assert!(
+                t.minus(*d).norm2().sqrt() <= 1e-12 * scale,
+                "body {i}: tree {t:?} direct {d:?}"
+            );
+        }
+    }
 }
