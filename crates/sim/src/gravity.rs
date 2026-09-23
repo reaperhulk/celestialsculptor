@@ -13,6 +13,9 @@ pub(crate) struct Forces {
     owned: [bool; crate::gravity_tree::SUBTREES],
     /// Near/far cutoffs the cached far forces were evaluated with (empty: none).
     cuts: Vec<f64>,
+    /// Whether `output` holds whole forces for the staged positions. A shared
+    /// request staged by the owner holds only a partial sum until `reduce`.
+    complete: bool,
 }
 // Cache contents do not change the meaning of a physical state.
 impl PartialEq for Forces {
@@ -24,6 +27,7 @@ impl Forces {
     fn stage(&mut self, bodies: &[Body], softening2: f64, use_tree: bool, cuts: &[f64]) {
         self.softening2 = softening2;
         self.use_tree = use_tree;
+        self.complete = false;
         self.x.clear();
         self.y.clear();
         self.mass.clear();
@@ -142,6 +146,7 @@ impl Forces {
             return false;
         }
         self.tree.finish(&self.x, &self.y, &mut self.output);
+        self.complete = true;
         true
     }
     /// Whether `output` already holds the accelerations for these bodies.
@@ -150,7 +155,8 @@ impl Forces {
     /// only by the fraction each body's host distance moved in one tick.
     pub fn current(&self, bodies: &[Body], softening2: f64, tree_allowed: bool) -> bool {
         let use_tree = tree_allowed && Self::tree_for(bodies.len());
-        self.use_tree == use_tree
+        self.complete
+            && self.use_tree == use_tree
             && self.x.len() == bodies.len()
             && self.output.len() == bodies.len()
             && self.softening2.to_bits() == softening2.to_bits()
@@ -175,6 +181,8 @@ impl Forces {
             return;
         }
         self.stage(bodies, softening2, use_tree, cuts);
+        // Every path below computes the whole force.
+        self.complete = true;
         if use_tree {
             self.tree.compute(
                 &self.x,

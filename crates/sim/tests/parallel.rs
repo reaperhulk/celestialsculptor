@@ -141,3 +141,24 @@ fn a_merge_inside_a_tick_keeps_helpers_in_step() {
     }
     assert_eq!(w, reference);
 }
+
+#[test]
+#[cfg_attr(
+    debug_assertions,
+    ignore = "large-system workload runs in the release profile"
+)]
+fn helpers_failing_after_the_owner_staged_fall_back_to_whole_forces() {
+    // The owner's share succeeds, then the helpers' round trip fails: the
+    // engine must not mistake the owner's partial output for the whole force.
+    let mut reference = swarm(700, 0.3);
+    reference.advance(3);
+    let mut w = swarm(700, 0.3);
+    for _ in 0..3 {
+        let mut request = w.tick_begin(w.substeps(), true);
+        while let Some(rebuild) = request {
+            assert!(w.force_compute_owned(&[0, 5], rebuild));
+            request = w.tick_local(rebuild);
+        }
+    }
+    assert_eq!(w, reference);
+}
