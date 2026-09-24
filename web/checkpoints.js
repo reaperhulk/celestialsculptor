@@ -5,7 +5,8 @@ const MAX_BYTES = 48_000_000,
   INTERVAL = 2048;
 const bytes = (value) => new TextEncoder().encode(value);
 async function digest(value) {
-  return [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes(value)))]
+  const data = typeof value === 'string' ? bytes(value) : value;
+  return [...new Uint8Array(await crypto.subtle.digest('SHA-256', data))]
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('');
 }
@@ -183,7 +184,9 @@ export class CheckpointCache {
     this.lastCommands = replay.commands.length;
     this.pending = (async () => {
       try {
-        const hash = await digest(text),
+        // A large swarm's checkpoint is megabytes; encode it once.
+        const encoded = bytes(text),
+          hash = await digest(encoded),
           key = await digest(this.provenance + JSON.stringify(replay));
         await this.store.put(
           {
@@ -191,7 +194,7 @@ export class CheckpointCache {
             provenance: this.provenance,
             replay,
             digest: hash,
-            bytes: bytes(text).length,
+            bytes: encoded.length,
             saved: Date.now(),
           },
           text,
