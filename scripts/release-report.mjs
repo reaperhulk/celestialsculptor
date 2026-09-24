@@ -1,7 +1,7 @@
 import { readFile, writeFile, appendFile } from 'node:fs/promises';
 import init, { missions } from '../dist/pkg/celestial_wasm.js';
 import { verifyToolchainContracts } from './contracts.mjs';
-import { aggregateDevices } from '../web/device-qualification.js';
+import { aggregateDevices } from './device-qualification.mjs';
 import { verifyAssetBudget } from './budget.mjs';
 await init({ module_or_path: await readFile('dist/pkg/celestial_wasm_bg.wasm') });
 const build = JSON.parse(await readFile('dist/build-info.json', 'utf8'));

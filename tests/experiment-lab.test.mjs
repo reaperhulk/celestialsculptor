@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { variations, lineage, orbitPath } from '../web/experiment-lab.js';
 import { deviceScenario } from '../web/device-test.js';
-import { aggregateDevices } from '../web/device-qualification.js';
+import { aggregateDevices } from '../scripts/device-qualification.mjs';
 const replay = {
   version: 7,
   config: { mission: null, seed: 42, star_mass: 1 },

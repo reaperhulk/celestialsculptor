@@ -1,5 +1,5 @@
 import { readFile, writeFile } from 'node:fs/promises';
-import { aggregateDevices } from '../web/device-qualification.js';
+import { aggregateDevices } from './device-qualification.mjs';
 const [manifest, ...files] = process.argv.slice(2);
 if (!manifest)
   throw new Error('Usage: node scripts/qualify-devices.mjs build-info.json [report.json ...]');

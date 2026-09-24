@@ -1,5 +1,5 @@
-import { deviceScenario } from './device-test.js';
-import { SAVE_VERSION } from './version.js';
+import { deviceScenario } from '../web/device-test.js';
+import { SAVE_VERSION } from '../web/version.js';
 const canonical = (value) =>
   JSON.stringify(value, (_, v) =>
     v && typeof v === 'object' && !Array.isArray(v)
