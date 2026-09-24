@@ -1,2 +1,6 @@
 [target.wasm32-unknown-unknown]
 rustflags = ["-C", "target-feature=+simd128"]
+
+# Qualification runs the shipped kernel: the same SIMD WebAssembly, under WASI.
+[target.wasm32-wasip1]
+rustflags = ["-C", "target-feature=+simd128"]

@@ -67,7 +67,6 @@ fn evolving(name: &str, mut w: World) -> Value {
     json!({"name":name,"initial":initial,"seconds":start.elapsed().as_secs_f64(),"samples":samples})
 }
 fn main() {
-    eprintln!("gravity kernel: {}", selected_kernel());
     let mut eccentric = world();
     launch(&mut eccentric, 1., 1., 0., 0.9);
     let mut moons = world();

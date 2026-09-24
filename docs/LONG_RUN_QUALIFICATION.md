@@ -9,10 +9,11 @@ Every long run is independent, so the gate runs them concurrently: locally as
 one process each, and in CI each on its own machine (the numerics job and the
 `long-run` matrix), after which the `qualification` job merges their raw outputs
 and applies the tree and split budgets. The longest, the uniform sixteen-substep
-reference for the split, sets the gate's duration. Native builds evaluate pair
-forces with vector kernels that are bit-identical to the scalar reference and to
-the shipped WebAssembly build (`crates/sim/tests/kernels.rs` checks this), so the
-gate qualifies exactly the arithmetic players run. Passing these fixtures does not certify arbitrary close encounters, all
+reference for the split, sets the gate's duration. Every run is the shipped
+physics: the examples are built as SIMD WebAssembly for WASI and run under V8,
+the engine behind Chrome (`node scripts/qualify-run.mjs <example> [args]`), so
+the gate qualifies exactly the arithmetic players run. Native builds use the
+scalar kernel, which gives the same results as the SIMD WebAssembly kernel. Passing these fixtures does not certify arbitrary close encounters, all
 possible moons, or a scientifically exact history of the actual Solar System.
 
 ## Physics contract

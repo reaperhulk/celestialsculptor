@@ -197,7 +197,11 @@ jobs:
       - uses: dtolnay/rust-toolchain@49fda20b3f489226feadfba7767be1db54e2cee1 # 1.90.0
         with:
           toolchain: 1.90.0
+          targets: wasm32-wasip1
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
       - run: python3 -m venv .qualification-env
       - run: .qualification-env/bin/pip install -r scripts/qualification-requirements.txt
       - run: node scripts/qualify-numerics.mjs numerics
@@ -212,7 +216,8 @@ jobs:
             numerical-qualification.json
           retention-days: 30
   long-run:
-    # Each 600-year run on its own machine; the qualification job gates them.
+    # Each 600-year run on its own machine, as the shipped SIMD WebAssembly
+    # under V8; the qualification job gates them.
     name: 600-year ${{ matrix.run }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -230,10 +235,14 @@ jobs:
       - uses: dtolnay/rust-toolchain@49fda20b3f489226feadfba7767be1db54e2cee1 # 1.90.0
         with:
           toolchain: 1.90.0
+          targets: wasm32-wasip1
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
         with:
           shared-key: long-run
-      - run: cargo run --release --locked -p celestial-sim --example ${{ matrix.example }} -- ${{ matrix.args }} > ${{ matrix.output }}
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - run: node scripts/qualify-run.mjs ${{ matrix.example }} ${{ matrix.args }} > ${{ matrix.output }}
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: long-run-${{ matrix.run }}

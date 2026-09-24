@@ -9,5 +9,6 @@ libm = "=0.2.15"
 serde.workspace = true
 serde_json.workspace = true
 
-[dev-dependencies]
+# Property tests run natively; the qualification examples also build for WASI.
+[target.'cfg(not(target_os = "wasi"))'.dev-dependencies]
 proptest = "1.6"

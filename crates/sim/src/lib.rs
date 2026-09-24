@@ -14,13 +14,10 @@ pub mod generator;
 pub mod gravity;
 #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
 mod gravity_simd;
-// Native builds batch the same per-pair operations with the CPU's own vectors.
+// Other builds run the same operations in the same order one pair at a time.
 #[cfg(not(all(target_arch = "wasm32", target_feature = "simd128")))]
-#[path = "gravity_native.rs"]
+#[path = "gravity_scalar.rs"]
 mod gravity_simd;
-#[cfg(not(all(target_arch = "wasm32", target_feature = "simd128")))]
-#[doc(hidden)]
-pub use gravity_simd::{kernel_names, select_kernel, selected_kernel, set_scalar_kernels};
 mod gravity_tree;
 pub mod history;
 mod integrate;

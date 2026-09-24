@@ -1,7 +1,7 @@
 //! Persistent collisionless population: the solver cannot drop below the tree threshold.
 //! Optional arguments `tree` and/or `exact` run only those solvers, so CI can
 //! run each on its own machine; `scripts/qualify-tree.mjs` merges the outputs.
-//! With neither, both run concurrently.
+//! With neither, both run in turn.
 use celestial_sim::{benchmark::OrbitProbe, *};
 use serde_json::json;
 fn balances(s: &[f64]) -> [f64; 4] {
@@ -19,7 +19,6 @@ fn balances(s: &[f64]) -> [f64; 4] {
     out
 }
 fn main() {
-    eprintln!("gravity kernel: {}", selected_kernel());
     let mut w = World::new(Config {
         mission: None,
         ..Default::default()
@@ -53,28 +52,24 @@ fn main() {
         })
         .collect();
     assert!(!solvers.is_empty(), "unknown solver: {selected:?}");
-    let runs: Vec<_> = std::thread::scope(|scope| {
-        let handles: Vec<_> = solvers
-            .iter()
-            .map(|&exact| {
-                let initial = &initial;
-                scope.spawn(move || {
-                    let mut p = OrbitProbe::new(initial, exact).unwrap();
-                    let mut samples = vec![];
-                    for year in 1..=600 {
-                        p.advance(512);
-                        if year % 25 == 0 {
-                            let s = p.state();
-                            samples.push(json!({"year":year,"balances":balances(&s),"state":s}));
-                            eprintln!("persistent 512, exact={exact}: {year} years");
-                        }
-                    }
-                    json!({"exact":exact,"samples":samples})
-                })
-            })
-            .collect();
-        handles.into_iter().map(|h| h.join().unwrap()).collect()
-    });
+    // One solver per process in CI and in the release script, which run them
+    // concurrently; WebAssembly under WASI has no threads.
+    let runs: Vec<_> = solvers
+        .iter()
+        .map(|&exact| {
+            let mut p = OrbitProbe::new(&initial, exact).unwrap();
+            let mut samples = vec![];
+            for year in 1..=600 {
+                p.advance(512);
+                if year % 25 == 0 {
+                    let s = p.state();
+                    samples.push(json!({"year":year,"balances":balances(&s),"state":s}));
+                    eprintln!("persistent 512, exact={exact}: {year} years");
+                }
+            }
+            json!({"exact":exact,"samples":samples})
+        })
+        .collect();
     println!(
         "{}",
         json!({"schema":1,"physics":checkpoint::PHYSICS_ID,"bodies":512,"debris_earth_masses":0.016,"initial_balances":balances(&initial),"runs":runs})

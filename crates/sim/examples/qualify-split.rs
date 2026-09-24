@@ -26,7 +26,6 @@ fn balances(s: &[f64]) -> [f64; 4] {
     out
 }
 fn main() {
-    eprintln!("gravity kernel: {}", selected_kernel());
     let mut w = World::new(Config {
         mission: None,
         ..Default::default()
@@ -114,29 +113,25 @@ fn main() {
     .filter(|(name, ..)| selected.is_empty() || selected.iter().any(|s| s == name))
     .collect();
     assert!(!plans.is_empty(), "unknown plan: {selected:?}");
-    let runs: Vec<_> = std::thread::scope(|scope| {
-        let handles: Vec<_> = plans
-            .iter()
-            .map(|&(name, exact, uniform, substeps)| {
-                let initial = &initial;
-                scope.spawn(move || {
-                    let mut p = OrbitProbe::new(initial, exact).unwrap();
-                    p.set_uniform(uniform);
-                    let mut samples = vec![];
-                    for year in 1..=years {
-                        p.advance_refined(512, substeps);
-                        if year % 25 == 0 || year == years {
-                            let s = p.state();
-                            samples.push(json!({"year":year,"balances":balances(&s),"state":s}));
-                            eprintln!("{name}: {year} years");
-                        }
-                    }
-                    json!({"name":name,"exact":exact,"uniform":uniform,"substeps":substeps,"samples":samples})
-                })
-            })
-            .collect();
-        handles.into_iter().map(|h| h.join().unwrap()).collect()
-    });
+    // One plan per process in CI and in the release script, which run them
+    // concurrently; WebAssembly under WASI has no threads.
+    let runs: Vec<_> = plans
+        .iter()
+        .map(|&(name, exact, uniform, substeps)| {
+            let mut p = OrbitProbe::new(&initial, exact).unwrap();
+            p.set_uniform(uniform);
+            let mut samples = vec![];
+            for year in 1..=years {
+                p.advance_refined(512, substeps);
+                if year % 25 == 0 || year == years {
+                    let s = p.state();
+                    samples.push(json!({"year":year,"balances":balances(&s),"state":s}));
+                    eprintln!("{name}: {year} years");
+                }
+            }
+            json!({"name":name,"exact":exact,"uniform":uniform,"substeps":substeps,"samples":samples})
+        })
+        .collect();
     println!(
         "{}",
         json!({"schema":1,"physics":checkpoint::PHYSICS_ID,"bodies":512,"years":years,"host":host,"moons":moons,"debris_earth_masses":0.016,"initial_balances":balances(&initial),"runs":runs})
