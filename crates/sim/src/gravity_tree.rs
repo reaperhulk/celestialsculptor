@@ -185,10 +185,11 @@ impl Tree {
             self.order.extend(1..x.len());
             self.nodes.clear();
             self.build::<LEAF_SIZE, CONTROLLED>(0, self.order.len(), x, y, mass);
+            self.stage_local(x, y, mass);
         } else {
-            self.refresh_moments(x, y, mass);
+            self.stage_local(x, y, mass);
+            self.refresh_moments();
         }
-        self.stage_local(x, y, mass);
         if LEAF_SIZE == 8 && !CONTROLLED && self.subtree_roots().is_some() {
             // Live rules: the same task sweep helpers run, every side kept.
             self.sweep(&ALL_SUBTREES, soft2, theta);
@@ -248,10 +249,11 @@ impl Tree {
         }
         if rebuild || self.nodes.is_empty() || self.order.len() + 1 != x.len() {
             self.prepare(x, y, mass);
+            self.stage_local(x, y, mass);
         } else {
-            self.refresh_moments(x, y, mass);
+            self.stage_local(x, y, mass);
+            self.refresh_moments();
         }
-        self.stage_local(x, y, mass);
         self.subtree_roots().is_some()
     }
     /// Whether a partition for `n` bodies is held, so a refresh request can be
@@ -345,7 +347,11 @@ impl Tree {
         y: &[f64],
         mass: &[f64],
     ) -> usize {
-        let m = moments(&self.order[start..end], x, y, mass);
+        let order = &self.order[start..end];
+        let m = moments(end - start, |k| {
+            let i = order[k];
+            (x[i], y[i], mass[i])
+        });
         let mut n = Node {
             start,
             end,
@@ -382,13 +388,20 @@ impl Tree {
         at
     }
     /// Same partition, current positions: recompute every cell's mass, centre,
-    /// bounding radius and quadrupole, and clear the accumulators.
-    fn refresh_moments(&mut self, x: &[f64], y: &[f64], mass: &[f64]) {
-        let order = &self.order;
-        let cut_in = &self.cut_in;
+    /// bounding radius and quadrupole, and clear the accumulators. Reads the
+    /// staged tree-order copies, so a cell's bodies are one contiguous run;
+    /// the values and their order are those `build` reads through `order`.
+    fn refresh_moments(&mut self) {
+        let (x, y, mass, cut) = (&self.x, &self.y, &self.mass, &self.cut);
         for n in &mut self.nodes {
-            let m = moments(&order[n.start..n.end], x, y, mass);
-            n.max_cut = Self::max_cut(cut_in, &order[n.start..n.end]);
+            let (s, e) = (n.start, n.end);
+            let (xs, ys, ms) = (&x[s..e], &y[s..e], &mass[s..e]);
+            let m = moments(e - s, |k| (xs[k], ys[k], ms[k]));
+            n.max_cut = if cut.is_empty() {
+                0.0
+            } else {
+                cut[s..e].iter().copied().fold(0.0, f64::max)
+            };
             n.mass = m.mass;
             n.center = m.center;
             n.radius = m.radius;
@@ -535,29 +548,35 @@ struct Moments {
     hi: V2,
 }
 /// Cell moments in the same arithmetic order as the original single-pass build.
-fn moments(order: &[usize], x: &[f64], y: &[f64], mass: &[f64]) -> Moments {
-    let origin = V2::new(x[order[0]], y[order[0]]);
+/// Mass, centre, bounding box, radius and quadrupole of `n` bodies, where
+/// `at(k)` gives the k-th body's position and mass.
+#[inline(always)]
+fn moments(n: usize, at: impl Fn(usize) -> (f64, f64, f64)) -> Moments {
+    let (x0, y0, _) = at(0);
+    let origin = V2::new(x0, y0);
     let mut lo = origin;
     let mut hi = origin;
     let mut total = 0.;
     let mut center = V2::default();
-    for &i in order {
-        total += mass[i];
-        center = center.plus(V2::new(x[i] - origin.x, y[i] - origin.y).scale(mass[i]));
-        lo.x = lo.x.min(x[i]);
-        lo.y = lo.y.min(y[i]);
-        hi.x = hi.x.max(x[i]);
-        hi.y = hi.y.max(y[i]);
+    for k in 0..n {
+        let (xi, yi, mi) = at(k);
+        total += mi;
+        center = center.plus(V2::new(xi - origin.x, yi - origin.y).scale(mi));
+        lo.x = lo.x.min(xi);
+        lo.y = lo.y.min(yi);
+        hi.x = hi.x.max(xi);
+        hi.y = hi.y.max(yi);
     }
     let center = origin.plus(center.scale(1. / total));
     let mut radius = 0.;
     let mut q = Tensor::default();
-    for &i in order {
-        let d = V2::new(x[i], y[i]).minus(center);
+    for k in 0..n {
+        let (xi, yi, mi) = at(k);
+        let d = V2::new(xi, yi).minus(center);
         radius = f64::max(radius, d.norm2());
-        q.xx += mass[i] * d.x * d.x;
-        q.xy += mass[i] * d.x * d.y;
-        q.yy += mass[i] * d.y * d.y;
+        q.xx += mi * d.x * d.x;
+        q.xy += mi * d.x * d.y;
+        q.yy += mi * d.y * d.y;
     }
     Moments {
         mass: total,

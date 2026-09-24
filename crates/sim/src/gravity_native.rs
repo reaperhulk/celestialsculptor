@@ -34,24 +34,51 @@ pub fn accelerations_cut(
 
 const UNSET: u8 = 0;
 const SCALAR: u8 = 1;
+/// Two lanes everywhere (SSE2 or NEON, part of the baseline).
 const BASE: u8 = 2;
+/// Four AVX lanes on long direct rows, two on short (tree leaf) rows.
 #[cfg(target_arch = "x86_64")]
-const AVX: u8 = 3;
+const AVX_LONG: u8 = 3;
+/// Four AVX lanes on every row.
+#[cfg(target_arch = "x86_64")]
+const AVX_ALL: u8 = 4;
 static KERNEL: AtomicU8 = AtomicU8::new(UNSET);
 
-/// Use the one-lane scalar reference (`true`) or the widest kernel this CPU
-/// supports (`false`). Results are identical either way; tests use this to
-/// prove it.
+/// Use the one-lane scalar reference (`true`) or the fastest kernel for this
+/// CPU (`false`). Results are identical either way; tests use this to prove it.
 #[doc(hidden)]
 pub fn set_scalar_kernels(scalar: bool) {
     KERNEL.store(if scalar { SCALAR } else { detect() }, Ordering::Relaxed);
 }
+/// Every kernel this CPU can run, by name, for tests that compare each with
+/// the scalar reference. Selecting one returns false if it is unsupported.
+#[doc(hidden)]
+pub fn kernel_names() -> &'static [&'static str] {
+    &["scalar", "base", "avx-long", "avx-all"]
+}
+#[doc(hidden)]
+pub fn select_kernel(name: &str) -> bool {
+    let kernel = match name {
+        "scalar" => SCALAR,
+        "base" => BASE,
+        #[cfg(target_arch = "x86_64")]
+        "avx-long" if std::is_x86_feature_detected!("avx") => AVX_LONG,
+        #[cfg(target_arch = "x86_64")]
+        "avx-all" if std::is_x86_feature_detected!("avx") => AVX_ALL,
+        _ => return false,
+    };
+    KERNEL.store(kernel, Ordering::Relaxed);
+    true
+}
+/// The kernel in use, as named by `kernel_names`, for logs.
+#[doc(hidden)]
+pub fn selected_kernel() -> &'static str {
+    kernel_names()[usize::from(kernel()) - 1]
+}
 fn detect() -> u8 {
     #[cfg(target_arch = "x86_64")]
-    {
-        if std::is_x86_feature_detected!("avx") {
-            return AVX;
-        }
+    if std::is_x86_feature_detected!("avx") {
+        return x86::calibrate();
     }
     BASE
 }
@@ -118,16 +145,22 @@ pub(crate) fn block(
         "a row never pairs a body with itself"
     );
     match kernel() {
-        // Four lanes pay off on long direct rows; tree leaf rows (at most
-        // eight bodies) run faster two at a time. Wider vectors measured slower.
+        // Four lanes always pay off on long direct rows. On short tree leaf
+        // rows it depends on the CPU's divide and square-root units (four lanes
+        // win on AMD Zen 4, two on recent Intel), so `x86::calibrate` measures.
         #[cfg(target_arch = "x86_64")]
         // SAFETY: selected only after runtime detection of the feature.
-        AVX if cols.1 - cols.0 >= 16 => unsafe {
+        AVX_ALL => unsafe { x86::block_avx(x, y, mass, cut, softening2, a, rows, cols, triangle) },
+        #[cfg(target_arch = "x86_64")]
+        // SAFETY: as above.
+        AVX_LONG if cols.1 - cols.0 >= 16 => unsafe {
             x86::block_avx(x, y, mass, cut, softening2, a, rows, cols, triangle)
         },
         #[cfg(target_arch = "x86_64")]
         // SSE2 is part of the x86_64 baseline.
-        BASE | AVX => rows_of::<x86::Sse2>(x, y, mass, cut, softening2, a, rows, cols, triangle),
+        BASE | AVX_LONG => {
+            rows_of::<x86::Sse2>(x, y, mass, cut, softening2, a, rows, cols, triangle)
+        }
         #[cfg(target_arch = "aarch64")]
         // NEON is part of the AArch64 baseline.
         BASE => rows_of::<arm::Neon>(x, y, mass, cut, softening2, a, rows, cols, triangle),
@@ -370,6 +403,53 @@ mod x86 {
         _mm256_storeu_pd
     );
 
+    /// Four lanes on every row, or only on long ones: whichever runs a
+    /// synthetic set of tree leaf blocks faster here. Results do not depend
+    /// on the choice, so timing noise can only cost speed.
+    pub(super) fn calibrate() -> u8 {
+        use std::time::Instant;
+        let n = 64;
+        let mut state = 0x9e37_79b9_7f4a_7c15_u64;
+        let mut random = || {
+            state = state.wrapping_mul(6364136223846793005).wrapping_add(1);
+            (state >> 11) as f64 / (1_u64 << 53) as f64
+        };
+        let x: Vec<f64> = (0..n).map(|_| random()).collect();
+        let y: Vec<f64> = (0..n).map(|_| random()).collect();
+        let mass: Vec<f64> = (0..n).map(|_| 1e-6 * (1.0 + random())).collect();
+        let mut a = vec![V2::default(); n];
+        let mut run = |wide: bool| {
+            let start = Instant::now();
+            for _ in 0..40 {
+                for leaf in (0..n).step_by(8) {
+                    let rows = (leaf, leaf + 8);
+                    let next = ((leaf + 8) % n, (leaf + 8) % n + 8);
+                    for (cols, triangle) in [(rows, true), (next, false)] {
+                        if wide {
+                            // SAFETY: only called after AVX was detected.
+                            unsafe {
+                                block_avx(&x, &y, &mass, &[], 1e-8, &mut a, rows, cols, triangle)
+                            }
+                        } else {
+                            rows_of::<Sse2>(&x, &y, &mass, &[], 1e-8, &mut a, rows, cols, triangle)
+                        }
+                    }
+                }
+            }
+            start.elapsed()
+        };
+        let (mut narrow, mut wide) = (std::time::Duration::MAX, std::time::Duration::MAX);
+        for _ in 0..5 {
+            narrow = narrow.min(run(false));
+            wide = wide.min(run(true));
+        }
+        std::hint::black_box(&a);
+        if wide < narrow {
+            super::AVX_ALL
+        } else {
+            super::AVX_LONG
+        }
+    }
     #[target_feature(enable = "avx")]
     #[allow(clippy::too_many_arguments)]
     pub(super) unsafe fn block_avx(

@@ -19,6 +19,7 @@ fn balances(s: &[f64]) -> [f64; 4] {
     out
 }
 fn main() {
+    eprintln!("gravity kernel: {}", selected_kernel());
     let mut w = World::new(Config {
         mission: None,
         ..Default::default()

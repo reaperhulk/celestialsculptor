@@ -20,7 +20,7 @@ mod gravity_simd;
 mod gravity_simd;
 #[cfg(not(all(target_arch = "wasm32", target_feature = "simd128")))]
 #[doc(hidden)]
-pub use gravity_simd::set_scalar_kernels;
+pub use gravity_simd::{kernel_names, select_kernel, selected_kernel, set_scalar_kernels};
 mod gravity_tree;
 pub mod history;
 mod integrate;

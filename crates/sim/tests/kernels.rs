@@ -68,12 +68,24 @@ fn vector_kernels_match_the_scalar_reference_bit_for_bit() {
         }
         w
     };
-    for (name, build, ticks) in [
+    let cases = [
         ("direct", &small as &dyn Fn() -> World, 256),
         ("split", &split, 24),
-    ] {
-        let reference = run(build, ticks, true);
-        assert_eq!(run(build, ticks, false), reference, "{name}");
+    ];
+    let references: Vec<_> = cases
+        .iter()
+        .map(|(_, build, ticks)| run(*build, *ticks, true))
+        .collect();
+    // Every kernel this CPU supports, not only the one it would choose.
+    for kernel in kernel_names() {
+        if !select_kernel(kernel) {
+            continue;
+        }
+        for ((name, build, ticks), reference) in cases.iter().zip(&references) {
+            let mut w = build();
+            w.advance(*ticks);
+            assert_eq!((bits(&w), w.collisions), *reference, "{name} with {kernel}");
+        }
     }
     // The qualification probes: exact and tree far fields, and the uniform reference.
     let mut w = split();
@@ -84,11 +96,19 @@ fn vector_kernels_match_the_scalar_reference_bit_for_bit() {
         .flat_map(|b| [b.pos.x, b.pos.y, b.vel.x, b.vel.y, b.mass])
         .collect();
     for (exact, uniform) in [(true, false), (false, false), (false, true)] {
-        assert_eq!(
-            probe(&initial, exact, uniform, false),
-            probe(&initial, exact, uniform, true),
-            "probe exact={exact} uniform={uniform}"
-        );
+        let reference = probe(&initial, exact, uniform, true);
+        for kernel in kernel_names() {
+            if select_kernel(kernel) {
+                let mut p = OrbitProbe::new(&initial, exact).unwrap();
+                p.set_uniform(uniform);
+                p.advance_refined(24, if uniform { 16 } else { 4 });
+                let bits: Vec<u64> = p.state().into_iter().map(f64::to_bits).collect();
+                assert_eq!(
+                    bits, reference,
+                    "probe exact={exact} uniform={uniform} with {kernel}"
+                );
+            }
+        }
     }
     set_scalar_kernels(false);
 }
