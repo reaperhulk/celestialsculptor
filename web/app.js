@@ -112,8 +112,11 @@ try {
   fail(error.message + ' You can still sculpt, run, inspect and export using the controls.');
 }
 let worker, startupError;
+// boot.js normally started the worker already; start one here if it did not run.
+const boot = self.celestialBoot || {};
 try {
-  worker = new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
+  if (boot.error) throw boot.error;
+  worker = boot.worker || new Worker(new URL('./worker.js', import.meta.url), { type: 'module' });
 } catch (error) {
   startupError = 'The simulation worker could not start. Reload to try again. ' + error.message;
 }
@@ -562,18 +565,17 @@ function renderState(next) {
   }
   inspect();
 }
-if (worker)
-  worker.onmessage = async ({ data }) => {
-    try {
-      if (data.type === 'state' && data.frame) data = bodyFrames.decode(data);
-      await handleWorkerMessage(data);
-    } catch (error) {
-      // A display failure must not hold back the reply a request is awaiting.
-      console.error(error);
-    } finally {
-      if (!channel.receive(data) && data.type === 'error') toast(data.message);
-    }
-  };
+const onWorkerMessage = async ({ data }) => {
+  try {
+    if (data.type === 'state' && data.frame) data = bodyFrames.decode(data);
+    await handleWorkerMessage(data);
+  } catch (error) {
+    // A display failure must not hold back the reply a request is awaiting.
+    console.error(error);
+  } finally {
+    if (!channel.receive(data) && data.type === 'error') toast(data.message);
+  }
+};
 async function handleWorkerMessage(data) {
   if (data.type === 'ready') {
     clearTimeout(startupTimer);
@@ -608,18 +610,37 @@ async function handleWorkerMessage(data) {
     $('playback-note').textContent =
       `Rebuilding experiment · ${(data.tick / 512).toFixed(1)} / ${(data.end_tick / 512).toFixed(1)} years`;
 }
-if (worker) {
-  // Before the worker reports ready, any error is a startup failure. Afterwards
-  // the worker is still alive and the experiment is intact, so keep the session.
-  worker.onerror = (event) => {
-    if (!ready) return workerFailed('The simulation could not start. Reload to try again.');
-    event?.preventDefault?.();
-    recover(
-      `The simulation reported an error: ${event?.message || 'unexpected failure'}. Your experiment is autosaved. Reload to recover it, or keep going if the system still responds.`,
-    );
-  };
-  worker.onmessageerror = () => toast('A simulation message could not be decoded.');
+// Before the worker reports ready, any error is a startup failure. Afterwards
+// the worker is still alive and the experiment is intact, so keep the session.
+const onWorkerError = (event) => {
+  if (!ready) return workerFailed('The simulation could not start. Reload to try again.');
+  event?.preventDefault?.();
+  recover(
+    `The simulation reported an error: ${event?.message || 'unexpected failure'}. Your experiment is autosaved. Reload to recover it, or keep going if the system still responds.`,
+  );
+};
+const onWorkerMessageError = () => toast('A simulation message could not be decoded.');
+function listen() {
+  worker.onmessage = onWorkerMessage;
+  worker.onerror = onWorkerError;
+  worker.onmessageerror = onWorkerMessageError;
 }
+if (worker && !boot.early) listen();
+else if (worker)
+  // Take over from boot.js once this module has finished evaluating: until
+  // then its buffer keeps collecting, so events stay in the order they came.
+  setTimeout(() => {
+    listen();
+    const handlers = {
+      message: onWorkerMessage,
+      error: onWorkerError,
+      messageerror: onWorkerMessageError,
+    };
+    const deliver = (event) => handlers[event.type](event);
+    boot.early.splice(0).forEach(deliver);
+    // Anything still addressed to boot.js's buffer goes straight through.
+    boot.early.push = deliver;
+  });
 let confirming = false;
 async function confirmReset(callback, onCancel = () => {}) {
   if (confirming) return;
