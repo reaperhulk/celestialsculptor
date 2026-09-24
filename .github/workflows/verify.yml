@@ -188,9 +188,84 @@ jobs:
             test-results-gpu
             playwright-report
           retention-days: 14
+  numerical-qualification:
+    name: 600-year and independent numerical qualification
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: dtolnay/rust-toolchain@49fda20b3f489226feadfba7767be1db54e2cee1 # 1.90.0
+        with:
+          toolchain: 1.90.0
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+      - run: python3 -m venv .qualification-env
+      - run: .qualification-env/bin/pip install -r scripts/qualification-requirements.txt
+      - run: node scripts/qualify-numerics.mjs numerics
+        env:
+          QUALIFICATION_PYTHON: .qualification-env/bin/python
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: long-run-numerical-evidence
+          path: |
+            numerical-raw.json
+            numerical-qualification.json
+          retention-days: 30
+  long-run:
+    # Each 600-year run on its own machine; the qualification job gates them.
+    name: 600-year ${{ matrix.run }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { run: tree, example: qualify-tree, args: tree, output: tree-raw-tree.json }
+          - { run: exact, example: qualify-tree, args: exact, output: tree-raw-exact.json }
+          - { run: split-tree, example: qualify-split, args: 600 split-tree, output: split-raw-split-tree.json }
+          - { run: split-direct, example: qualify-split, args: 600 split-direct, output: split-raw-split-direct.json }
+          - { run: uniform-tree, example: qualify-split, args: 600 uniform-tree, output: split-raw-uniform-tree.json }
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: dtolnay/rust-toolchain@49fda20b3f489226feadfba7767be1db54e2cee1 # 1.90.0
+        with:
+          toolchain: 1.90.0
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2
+        with:
+          shared-key: long-run
+      - run: cargo run --release --locked -p celestial-sim --example ${{ matrix.example }} -- ${{ matrix.args }} > ${{ matrix.output }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: long-run-${{ matrix.run }}
+          path: ${{ matrix.output }}
+          retention-days: 30
+  qualification:
+    name: 600-year tree and near/far split qualification
+    needs: long-run
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: long-run-*
+          merge-multiple: true
+      - run: node scripts/qualify-tree.mjs tree-raw-tree.json tree-raw-exact.json
+      - run: node scripts/qualify-split.mjs split-raw-split-tree.json split-raw-split-direct.json split-raw-uniform-tree.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: long-run-qualification
+          path: |
+            tree-qualification.json
+            split-qualification.json
+          retention-days: 30
   deploy:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-    needs: [simulation, web, arm64]
+    needs: [simulation, web, arm64, numerical-qualification, qualification]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

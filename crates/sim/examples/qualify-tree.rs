@@ -1,4 +1,7 @@
 //! Persistent collisionless population: the solver cannot drop below the tree threshold.
+//! Optional arguments `tree` and/or `exact` run only those solvers, so CI can
+//! run each on its own machine; `scripts/qualify-tree.mjs` merges the outputs.
+//! With neither, both run concurrently.
 use celestial_sim::{benchmark::OrbitProbe, *};
 use serde_json::json;
 fn balances(s: &[f64]) -> [f64; 4] {
@@ -40,20 +43,37 @@ fn main() {
             ]
         })
         .collect();
-    let mut runs = vec![];
-    for exact in [false, true] {
-        let mut p = OrbitProbe::new(&initial, exact).unwrap();
-        let mut samples = vec![];
-        for year in 1..=600 {
-            p.advance(512);
-            if year % 25 == 0 {
-                let s = p.state();
-                samples.push(json!({"year":year,"balances":balances(&s),"state":s}));
-                eprintln!("persistent 512, exact={exact}: {year} years");
-            }
-        }
-        runs.push(json!({"exact":exact,"samples":samples}));
-    }
+    let selected: Vec<String> = std::env::args().skip(1).collect();
+    let solvers: Vec<bool> = [false, true]
+        .into_iter()
+        .filter(|&exact| {
+            let name = if exact { "exact" } else { "tree" };
+            selected.is_empty() || selected.iter().any(|s| s == name)
+        })
+        .collect();
+    assert!(!solvers.is_empty(), "unknown solver: {selected:?}");
+    let runs: Vec<_> = std::thread::scope(|scope| {
+        let handles: Vec<_> = solvers
+            .iter()
+            .map(|&exact| {
+                let initial = &initial;
+                scope.spawn(move || {
+                    let mut p = OrbitProbe::new(initial, exact).unwrap();
+                    let mut samples = vec![];
+                    for year in 1..=600 {
+                        p.advance(512);
+                        if year % 25 == 0 {
+                            let s = p.state();
+                            samples.push(json!({"year":year,"balances":balances(&s),"state":s}));
+                            eprintln!("persistent 512, exact={exact}: {year} years");
+                        }
+                    }
+                    json!({"exact":exact,"samples":samples})
+                })
+            })
+            .collect();
+        handles.into_iter().map(|h| h.join().unwrap()).collect()
+    });
     println!(
         "{}",
         json!({"schema":1,"physics":checkpoint::PHYSICS_ID,"bodies":512,"debris_earth_masses":0.016,"initial_balances":balances(&initial),"runs":runs})

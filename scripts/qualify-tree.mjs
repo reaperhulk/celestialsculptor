@@ -1,6 +1,16 @@
-import { readFile, writeFile } from 'node:fs/promises';
-const raw = JSON.parse(await readFile(process.argv[2], 'utf8')),
-  initial = raw.initial_balances,
+import { writeFile } from 'node:fs/promises';
+import assert from 'node:assert/strict';
+import { readRaw } from './merge-raw.mjs';
+// One raw file with both solvers, or one per solver from separate machines;
+// the tree run comes first and the exact reference second.
+const raw = await readRaw(process.argv.slice(2), (run) => String(run.exact));
+raw.runs.sort((a, b) => Number(a.exact) - Number(b.exact));
+assert.deepEqual(
+  raw.runs.map((run) => run.exact),
+  [false, true],
+  'Both the tree and the exact reference must be qualified',
+);
+const initial = raw.initial_balances,
   failures = [];
 const rows = raw.runs.map((run) => ({
   exact: run.exact,

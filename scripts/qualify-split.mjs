@@ -6,8 +6,11 @@
 // of the same tree forces isolates the integrator. The moons' elements are
 // measured relative to their host with the same budgets as the small moon
 // family; balances use the tree budgets.
-import { readFile, writeFile } from 'node:fs/promises';
-const raw = JSON.parse(await readFile(process.argv[2], 'utf8')),
+import { writeFile } from 'node:fs/promises';
+import assert from 'node:assert/strict';
+import { readRaw } from './merge-raw.mjs';
+// One raw file with every plan, or one per plan from separate machines.
+const raw = await readRaw(process.argv.slice(2), (run) => run.name),
   budgets = {
     axis_relative: 2e-3,
     eccentricity: 2e-3,
@@ -61,6 +64,11 @@ function moonErrors(candidate, reference) {
   }
   return worst;
 }
+assert.deepEqual(
+  raw.runs.map((run) => run.name).sort(),
+  ['split-direct', 'split-tree', 'uniform-tree'],
+  'Every split plan must be qualified',
+);
 const initial = raw.initial_balances,
   reference = raw.runs.find((run) => run.name === 'uniform-tree'),
   production = raw.runs.find((run) => run.name === 'split-tree');

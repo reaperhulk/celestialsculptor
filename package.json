@@ -27,7 +27,7 @@
     "profile:scaling": "node scripts/profile-scaling.mjs",
     "bench:tuning": "node scripts/tune-gravity.mjs",
     "qualify:numerics": "node scripts/qualify-numerics.mjs",
-    "qualify:split": "cargo run --release --locked -p celestial-sim --example qualify-split > split-raw.json && node scripts/qualify-split.mjs split-raw.json",
+    "qualify:split": "node scripts/qualify-numerics.mjs split",
     "qualify:devices": "node scripts/qualify-devices.mjs",
     "compare:swarm": "node scripts/compare-swarm.mjs"
   },

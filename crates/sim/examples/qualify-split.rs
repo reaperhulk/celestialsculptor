@@ -6,7 +6,9 @@
 //! giant's orbit: the probe is collisionless, and a grain diving inside what
 //! would be the giant's contact radius is an unresolved encounter in any
 //! scheme, not a property of the split. Writes JSON to stdout, progress to
-//! stderr (an optional argument shortens the horizon for quick checks).
+//! stderr. Arguments: an optional horizon in years (shorter for quick checks),
+//! then optional plan names to run only those, so CI can run each plan on
+//! its own machine; `scripts/qualify-split.mjs` merges the outputs.
 use celestial_sim::{benchmark::OrbitProbe, *};
 use serde_json::json;
 fn balances(s: &[f64]) -> [f64; 4] {
@@ -101,11 +103,16 @@ fn main() {
         .collect();
     assert_eq!(moons.len(), 2);
     // (name, exact far forces, uniform reference, coarse substeps)
-    let plans = [
+    let selected: Vec<String> = std::env::args().skip(2).collect();
+    let plans: Vec<_> = [
         ("split-tree", false, false, 4u32),
         ("split-direct", true, false, 4),
         ("uniform-tree", false, true, 16),
-    ];
+    ]
+    .into_iter()
+    .filter(|(name, ..)| selected.is_empty() || selected.iter().any(|s| s == name))
+    .collect();
+    assert!(!plans.is_empty(), "unknown plan: {selected:?}");
     let runs: Vec<_> = std::thread::scope(|scope| {
         let handles: Vec<_> = plans
             .iter()

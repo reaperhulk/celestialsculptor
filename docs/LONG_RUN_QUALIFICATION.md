@@ -3,7 +3,16 @@
 The release gate is `npm run qualify:numerics`. It exercises the entire 600-year
 sandbox horizon, a longer collisionless orbit, timestep refinement and an
 independently implemented force/integration reference. It is a required deployment
-job. Passing these fixtures does not certify arbitrary close encounters, all
+job.
+
+Every long run is independent, so the gate runs them concurrently: locally as
+one process each, and in CI each on its own machine (the numerics job and the
+`long-run` matrix), after which the `qualification` job merges their raw outputs
+and applies the tree and split budgets. The longest, the uniform sixteen-substep
+reference for the split, sets the gate's duration. Native builds evaluate pair
+forces with vector kernels that are bit-identical to the scalar reference and to
+the shipped WebAssembly build (`crates/sim/tests/kernels.rs` checks this), so the
+gate qualifies exactly the arithmetic players run. Passing these fixtures does not certify arbitrary close encounters, all
 possible moons, or a scientifically exact history of the actual Solar System.
 
 ## Physics contract
@@ -85,11 +94,7 @@ forces (isolating the integrator; a direct-summation reference at that
 resolution would take hours). The moons' elements relative to their host must
 stay within the moon-family budgets (axis 2e-3, eccentricity 2e-3, phase 0.2
 rad, apsis 0.1 rad) in both comparisons, and every run's balances within the
-tree budgets. The fixture takes about three quarters of an hour on four cores,
-so it runs as its own job (`npm run qualify:split`) beside the numerics job in the
-Long-run numerical qualification workflow. That workflow runs when main's physics
-changes, nightly, and on demand, not on every PR or deploy; the local release gate
-runs both. Its debris mass is
+tree budgets. `npm run qualify:split` runs just this gate. Its debris mass is
 0.016 Earth masses to isolate accumulated force approximation from unresolved
 hard encounters. The full-world swarm uses 16 Earth masses and collisions;
 mergers eventually reduce that case below the tree threshold. These are distinct

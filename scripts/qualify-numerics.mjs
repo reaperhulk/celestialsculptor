@@ -1,37 +1,56 @@
-import { spawnSync } from 'node:child_process';
+// Release qualification: `node scripts/qualify-numerics.mjs [numerics] [tree] [split]`
+// runs the named parts (all three by default). Every long run is its own
+// process and they run concurrently; CI instead runs each on its own machine
+// and merges their raw outputs in the gate job.
+import { spawn } from 'node:child_process';
 import { openSync, closeSync } from 'node:fs';
 function run(command, args, output) {
   const fd = output ? openSync(output, 'w') : null;
-  try {
-    const r = spawnSync(command, args, { stdio: ['ignore', fd ?? 'inherit', 'inherit'] });
-    if (r.error) throw r.error;
-    if (r.status !== 0) throw new Error(`${command} qualification failed (${r.status})`);
-  } finally {
-    if (fd !== null) closeSync(fd);
-  }
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, { stdio: ['ignore', fd ?? 'inherit', 'inherit'] });
+    child.on('error', reject);
+    child.on('exit', (status) => {
+      if (fd !== null) closeSync(fd);
+      if (status === 0) resolve();
+      else reject(new Error(`${command} ${args.join(' ')} failed (${status})`));
+    });
+  });
 }
-run(
+const example = (name, ...args) => [
   'cargo',
-  ['run', '--release', '--locked', '-p', 'celestial-sim', '--example', 'qualify'],
-  'numerical-raw.json',
+  ['run', '--release', '--locked', '-p', 'celestial-sim', '--example', name, '--', ...args],
+];
+const parts = new Set(
+  process.argv.slice(2).length ? process.argv.slice(2) : ['numerics', 'tree', 'split'],
 );
-run(process.env.QUALIFICATION_PYTHON || 'python3', [
-  'scripts/qualify-numerics.py',
-  'numerical-raw.json',
-]);
-run(
-  'cargo',
-  ['run', '--release', '--locked', '-p', 'celestial-sim', '--example', 'qualify-tree'],
-  'tree-raw.json',
-);
-run(process.execPath, ['scripts/qualify-tree.mjs', 'tree-raw.json']);
-// CI runs the near/far split gate as a parallel job (`npm run qualify:split`);
-// the local release gate includes it.
-if (!process.env.QUALIFY_SKIP_SPLIT) {
-  run(
-    'cargo',
-    ['run', '--release', '--locked', '-p', 'celestial-sim', '--example', 'qualify-split'],
-    'split-raw.json',
-  );
-  run(process.execPath, ['scripts/qualify-split.mjs', 'split-raw.json']);
-}
+for (const part of parts)
+  if (!['numerics', 'tree', 'split'].includes(part)) throw new Error(`Unknown part ${part}`);
+// Build once, so the concurrent runs do not race to compile.
+await run('cargo', ['build', '--release', '--locked', '-p', 'celestial-sim', '--examples']);
+const runs = [];
+if (parts.has('numerics')) runs.push(run(...example('qualify'), 'numerical-raw.json'));
+if (parts.has('tree'))
+  for (const solver of ['tree', 'exact'])
+    runs.push(run(...example('qualify-tree', solver), `tree-raw-${solver}.json`));
+if (parts.has('split'))
+  for (const plan of ['split-tree', 'split-direct', 'uniform-tree'])
+    runs.push(run(...example('qualify-split', '600', plan), `split-raw-${plan}.json`));
+await Promise.all(runs);
+if (parts.has('numerics'))
+  await run(process.env.QUALIFICATION_PYTHON || 'python3', [
+    'scripts/qualify-numerics.py',
+    'numerical-raw.json',
+  ]);
+if (parts.has('tree'))
+  await run(process.execPath, [
+    'scripts/qualify-tree.mjs',
+    'tree-raw-tree.json',
+    'tree-raw-exact.json',
+  ]);
+if (parts.has('split'))
+  await run(process.execPath, [
+    'scripts/qualify-split.mjs',
+    'split-raw-split-tree.json',
+    'split-raw-split-direct.json',
+    'split-raw-uniform-tree.json',
+  ]);
