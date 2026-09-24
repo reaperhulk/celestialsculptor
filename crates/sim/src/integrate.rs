@@ -225,8 +225,14 @@ impl World {
                     }
                 }
                 if self.near.active {
-                    // Overlaps the candidate list could not anticipate.
+                    // Overlaps the candidate list could not anticipate. A merge
+                    // or disruption renumbers bodies, so the near set is rebuilt
+                    // as after a near contact.
+                    let contacts = self.contact_serial();
                     self.merge_contacts(0.0);
+                    if self.contact_serial() != contacts {
+                        self.near.prepare(&self.bodies);
+                    }
                 }
                 let rebuild = state.rebuild_next || self.contact_serial() != state.contacts;
                 state.rebuild_next = false;

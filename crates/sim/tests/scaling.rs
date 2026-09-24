@@ -152,3 +152,35 @@ fn thousand_body_swarm_runs_past_forty_years_with_bounded_history() {
         );
     }
 }
+
+#[test]
+#[cfg_attr(
+    debug_assertions,
+    ignore = "large-system workload runs in the release profile"
+)]
+fn a_contact_found_by_the_full_sweep_renumbers_the_near_set() {
+    // Dust merging after the near steps once left the near set pointing past
+    // the end of the body list, and the next substep's kick panicked.
+    let mut w = World::new(Config {
+        mission: None,
+        ..Config::default()
+    })
+    .unwrap();
+    w.apply(Command::SeedSwarm {
+        count: 4095,
+        disorder: 0.3,
+    })
+    .unwrap();
+    for (radius, angle) in [(1.2, 0.3), (2.5, 2.1), (4.0, 4.4)] {
+        w.apply(Command::Launch {
+            kind: Kind::Giant,
+            radius,
+            angle,
+            speed: 1.0,
+        })
+        .unwrap();
+    }
+    w.advance(48);
+    assert_eq!(w.tick, 48);
+    assert!(w.collisions > 2, "fixture must merge inside the split");
+}
