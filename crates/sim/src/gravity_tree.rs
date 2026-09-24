@@ -51,7 +51,7 @@ struct Node {
     max_cut: f64,
 }
 impl Node {
-    fn leaf(self) -> bool {
+    fn leaf(&self) -> bool {
         self.left == usize::MAX
     }
 }
@@ -413,15 +413,17 @@ impl Tree {
     }
     #[allow(clippy::too_many_arguments)]
     fn interact<const CONTROLLED: bool>(&mut self, ai: usize, bi: usize, soft2: f64, theta2: f64) {
-        let a = self.nodes[ai];
-        let b = self.nodes[bi];
+        // Read the two cells through references: a node is large, and most
+        // visits only need its geometry.
+        let (a, b) = (&self.nodes[ai], &self.nodes[bi]);
         if ai == bi {
-            if a.leaf() {
-                self.leaf_block((a.start, a.end), (a.start, a.end), true, soft2, true);
+            let (leaf, range, left, right) = (a.leaf(), (a.start, a.end), a.left, a.right);
+            if leaf {
+                self.leaf_block(range, range, true, soft2, true);
             } else {
-                self.interact::<CONTROLLED>(a.left, a.left, soft2, theta2);
-                self.interact::<CONTROLLED>(a.left, a.right, soft2, theta2);
-                self.interact::<CONTROLLED>(a.right, a.right, soft2, theta2);
+                self.interact::<CONTROLLED>(left, left, soft2, theta2);
+                self.interact::<CONTROLLED>(left, right, soft2, theta2);
+                self.interact::<CONTROLLED>(right, right, soft2, theta2);
             }
             return;
         }
@@ -458,24 +460,29 @@ impl Tree {
                 xy: G * 3. * d.x * d.y * inv5,
                 yy: G * (3. * d.y * d.y * inv5 - inv3),
             };
-            self.nodes[ai].a = self.nodes[ai].a.plus(force.scale(1. / a.mass));
-            self.nodes[bi].a = self.nodes[bi].a.minus(force.scale(1. / b.mass));
-            self.nodes[ai].tide = self.nodes[ai].tide.plus(tide.scale(b.mass));
-            self.nodes[bi].tide = self.nodes[bi].tide.plus(tide.scale(a.mass));
+            let (a_mass, b_mass) = (a.mass, b.mass);
+            self.nodes[ai].a = self.nodes[ai].a.plus(force.scale(1. / a_mass));
+            self.nodes[bi].a = self.nodes[bi].a.minus(force.scale(1. / b_mass));
+            self.nodes[ai].tide = self.nodes[ai].tide.plus(tide.scale(b_mass));
+            self.nodes[bi].tide = self.nodes[bi].tide.plus(tide.scale(a_mass));
             self.cell_pairs += 1;
             return;
         }
-        if a.leaf() && b.leaf() {
+        let (a_leaf, b_leaf) = (a.leaf(), b.leaf());
+        if a_leaf && b_leaf {
             // Pairs beyond every cutoff weigh exactly one: the plain kernel is
             // bit-identical there and skips the weight arithmetic.
             let weighted = cut != 0.0 && d2 < (extent + cut).powi(2);
-            self.leaf_block((a.start, a.end), (b.start, b.end), false, soft2, weighted);
-        } else if !a.leaf() && (b.leaf() || a.radius >= b.radius) {
-            self.interact::<CONTROLLED>(a.left, bi, soft2, theta2);
-            self.interact::<CONTROLLED>(a.right, bi, soft2, theta2);
+            let (rows, cols) = ((a.start, a.end), (b.start, b.end));
+            self.leaf_block(rows, cols, false, soft2, weighted);
+        } else if !a_leaf && (b_leaf || a.radius >= b.radius) {
+            let (left, right) = (a.left, a.right);
+            self.interact::<CONTROLLED>(left, bi, soft2, theta2);
+            self.interact::<CONTROLLED>(right, bi, soft2, theta2);
         } else {
-            self.interact::<CONTROLLED>(ai, b.left, soft2, theta2);
-            self.interact::<CONTROLLED>(ai, b.right, soft2, theta2);
+            let (left, right) = (b.left, b.right);
+            self.interact::<CONTROLLED>(ai, left, soft2, theta2);
+            self.interact::<CONTROLLED>(ai, right, soft2, theta2);
         }
     }
     /// Every pair of leaf rows against leaf columns (or within one leaf, each
