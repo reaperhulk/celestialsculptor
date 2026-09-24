@@ -17,7 +17,7 @@ and publishes only after its native, WASM and browser gates pass.
 - [x] Bounded collision outcomes with headless conservation and convergence checks.
 - [x] Sustained device scenarios and native/WASM/browser release gates.
 
-The detailed requirements and acceptance criteria are in DESIGN.md under
+The detailed requirements and acceptance criteria are in [the iteration log](ITERATIONS.md) under
 “Review after iteration 110”. Record evidence and the next analysis here as work
 lands; do not mark a cycle complete merely because its implementation was pushed.
 

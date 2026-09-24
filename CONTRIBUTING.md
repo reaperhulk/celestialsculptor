@@ -83,7 +83,7 @@ use **Help → Export bug report**, then run `sculptor replay FILE`. The JSON ou
 includes orbits, energy, momenta, mass accounting and work usage. Preserve the
 smallest reproducing replay as a regression before changing physics.
 
-`DESIGN.md` records the original 100 review/implementation iterations and follow-up releases and their verification
+`docs/ITERATIONS.md` records the original 100 review/implementation iterations and follow-up releases and their verification
 evidence. Every numbered iteration is committed and pushed with its corresponding
 entry. The campaign and sandbox run entirely locally; exports stay on the player's
 device unless they choose to share a file.

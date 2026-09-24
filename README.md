@@ -112,7 +112,8 @@ cargo run --release --locked -p celestial-sim --bin sculptor -- replay celestial
 cargo run --release --locked -p celestial-sim --bin sculptor -- sweep > sweep-results.json
 ```
 
-[DESIGN.md](DESIGN.md) records architecture, scientific limits and every review iteration.
+[DESIGN.md](DESIGN.md) records architecture and scientific limits;
+[the iteration log](docs/ITERATIONS.md) keeps every review iteration.
 [The ten development cycles](docs/DEVELOPMENT_CYCLES.md) group the latest review
 lists and delivery evidence separately from individual commits.
 

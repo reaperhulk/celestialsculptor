@@ -22,5 +22,5 @@ export function auditIterations(text, minimum = 100) {
 }
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url))
   console.log(
-    `Audited ${auditIterations(await readFile('DESIGN.md', 'utf8'))} completed review / implementation / verification records.`,
+    `Audited ${auditIterations(await readFile('docs/ITERATIONS.md', 'utf8'))} completed review / implementation / verification records.`,
   );
