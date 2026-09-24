@@ -52,6 +52,7 @@ import { GeneratorControls } from './generation.js';
 const $ = (id) => document.getElementById(id);
 let state = null,
   missions = [],
+  launchSpeed = null,
   mission = 0,
   renderer,
   selectedBody = null,
@@ -253,10 +254,14 @@ function setMissionUI() {
     m?.hint ||
     'Try a crowded belt, a giant on an eccentric orbit, or a system around a smaller star. Save checkpoints in the notebook and compare runs under Observe.';
   $('reward').textContent = m?.unlock || 'Every tool is available';
-  const speedLimit = mission === 6 ? 135 : 220;
-  $('speed').max = String(speedLimit);
-  $('speed-range').max = String(speedLimit);
-  if (Number($('speed').value) > speedLimit) $('speed').value = String(speedLimit);
+  // The engine owns launch limits; the controls only mirror them.
+  const cap = m?.launch_speed ?? launchSpeed;
+  if (cap) {
+    const speedLimit = String(Math.round(cap * 100));
+    $('speed').max = speedLimit;
+    $('speed-range').max = speedLimit;
+    if (Number($('speed').value) > Number(speedLimit)) $('speed').value = speedLimit;
+  }
   $('launch-form').hidden = Boolean(
     mission !== null && ((mission >= 3 && mission <= 5) || mission === 7),
   );
@@ -573,6 +578,7 @@ async function handleWorkerMessage(data) {
   if (data.type === 'ready') {
     clearTimeout(startupTimer);
     missions = data.missions;
+    launchSpeed = data.launchSpeed;
     ready = true;
     if (renderer) $('loading').hidden = true;
     document.body.dataset.ready = 'true';

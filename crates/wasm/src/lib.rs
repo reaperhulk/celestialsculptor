@@ -357,6 +357,12 @@ impl Simulation {
 pub fn missions() -> String {
     serde_json::to_string(&MISSIONS).expect("mission data")
 }
+/// Launch speed limit, as a fraction of circular speed, outside challenges
+/// that set a lower one.
+#[wasm_bindgen]
+pub fn launch_speed() -> f64 {
+    celestial_sim::LAUNCH_SPEED
+}
 
 /// Isolated force-kernel benchmark; it cannot modify a live simulation.
 #[cfg(feature = "benchmarks")]

@@ -27,7 +27,7 @@ pub mod scenarios;
 pub mod split;
 pub mod sweep;
 pub use error::SimError;
-pub use missions::{Mission, MISSIONS};
+pub use missions::{Mission, LAUNCH_SPEED, MISSIONS};
 
 pub const G: f64 = 39.478_417_604_357_43; // AU, solar masses, years
 pub const EARTH: f64 = 3.003e-6;

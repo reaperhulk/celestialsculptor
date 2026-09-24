@@ -491,17 +491,19 @@ impl World {
                 "That body is not unlocked in this challenge".into(),
             ));
         }
-        if self.config.mission == Some(6) && speed.abs() > 1.35 {
-            return Err(SimError::Locked(
-                "This challenge caps launch speed at 135%; use the giant's gravity".into(),
-            ));
+        let cap = self.mission().map_or(LAUNCH_SPEED, |m| m.launch_speed);
+        if cap < LAUNCH_SPEED && speed.abs() > cap {
+            return Err(SimError::Locked(format!(
+                "This challenge caps launch speed at {:.0}%; use the giant's gravity",
+                cap * 100.0
+            )));
         }
         if !radius.is_finite()
             || !(0.25..=6.0).contains(&radius)
             || !angle.is_finite()
             || angle.abs() > TAU * 100.0
             || !speed.is_finite()
-            || !(-2.2..=2.2).contains(&speed)
+            || !(-LAUNCH_SPEED..=LAUNCH_SPEED).contains(&speed)
         {
             return Err(SimError::Invalid(
                 "Choose a radius of 0.25–6 AU and speed of 0–220%".into(),

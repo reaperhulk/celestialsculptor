@@ -1,4 +1,4 @@
-import init, { Simulation, missions } from './pkg/celestial_wasm.js';
+import init, { Simulation, launch_speed, missions } from './pkg/celestial_wasm.js';
 import { Runtime } from './runtime.js';
 import { CheckpointCache, IndexedCheckpointStore } from './checkpoints.js';
 import { workDelay } from './work-schedule.js';
@@ -100,7 +100,11 @@ try {
   };
   turns.port1.onmessage = pump;
   setTimeout(pump, 16);
-  self.postMessage({ type: 'ready', missions: JSON.parse(missions()) });
+  self.postMessage({
+    type: 'ready',
+    missions: JSON.parse(missions()),
+    launchSpeed: launch_speed(),
+  });
 } catch (error) {
   self.postMessage({
     type: 'fatal',

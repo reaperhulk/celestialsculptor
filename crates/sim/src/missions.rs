@@ -10,7 +10,11 @@ pub struct Mission {
     pub budget: f64,
     pub hold_years: f64,
     pub unlock: &'static str,
+    /// Largest launch speed, as a fraction of circular speed.
+    pub launch_speed: f64,
 }
+/// Launch speed limit outside challenges that set a lower one.
+pub const LAUNCH_SPEED: f64 = 2.2;
 
 /// The first three lessons introduce orbits; the next five form a physical
 /// formation chapter. The final challenges combine the unlocked mechanics.
@@ -25,6 +29,7 @@ pub const MISSIONS: [Mission; 10] = [
         budget: 8.0,
         hold_years: 2.0,
         unlock: "Ice worlds",
+        launch_speed: LAUNCH_SPEED,
     },
     Mission {
         name: "A place for life",
@@ -36,6 +41,7 @@ pub const MISSIONS: [Mission; 10] = [
         budget: 12.0,
         hold_years: 3.0,
         unlock: "Stellar mass control",
+        launch_speed: LAUNCH_SPEED,
     },
     Mission {
         name: "A powerful neighbor",
@@ -47,6 +53,7 @@ pub const MISSIONS: [Mission; 10] = [
         budget: 10.0,
         hold_years: 8.0,
         unlock: "Formation chapter",
+        launch_speed: LAUNCH_SPEED,
     },
     Mission {
         name: "From dust to worlds",
@@ -61,6 +68,7 @@ pub const MISSIONS: [Mission; 10] = [
         budget: 8.0,
         hold_years: 4.0,
         unlock: "Garden formation",
+        launch_speed: LAUNCH_SPEED,
     },
     Mission {
         name: "A garden from dust",
@@ -75,6 +83,7 @@ pub const MISSIONS: [Mission; 10] = [
         budget: 8.0,
         hold_years: 6.0,
         unlock: "Giant sculpting",
+        launch_speed: LAUNCH_SPEED,
     },
     Mission {
         name: "The giant's nursery",
@@ -89,6 +98,7 @@ pub const MISSIONS: [Mission; 10] = [
         budget: 10.0,
         hold_years: 8.0,
         unlock: "Gravity assists",
+        launch_speed: LAUNCH_SPEED,
     },
     Mission {
         name: "Borrowed momentum",
@@ -103,6 +113,7 @@ pub const MISSIONS: [Mission; 10] = [
         budget: 8.0,
         hold_years: 0.0,
         unlock: "Moon creation",
+        launch_speed: 1.35,
     },
     Mission {
         name: "A family of moons",
@@ -114,6 +125,7 @@ pub const MISSIONS: [Mission; 10] = [
         budget: 2.0,
         hold_years: 10.0,
         unlock: "Resonance observatory",
+        launch_speed: LAUNCH_SPEED,
     },
     Mission {
         name: "Celestial clockwork",
@@ -125,6 +137,7 @@ pub const MISSIONS: [Mission; 10] = [
         budget: 800.0,
         hold_years: 3.0,
         unlock: "System synthesis",
+        launch_speed: LAUNCH_SPEED,
     },
     Mission {
         name: "A system of your own",
@@ -139,6 +152,7 @@ pub const MISSIONS: [Mission; 10] = [
         budget: 500.0,
         hold_years: 10.0,
         unlock: "Master sculptor",
+        launch_speed: LAUNCH_SPEED,
     },
 ];
 

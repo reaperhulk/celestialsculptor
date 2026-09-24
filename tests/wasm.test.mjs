@@ -2,7 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
-import init, { Simulation, missions, save_version } from '../dist/pkg/celestial_wasm.js';
+import init, {
+  Simulation,
+  launch_speed,
+  missions,
+  save_version,
+} from '../dist/pkg/celestial_wasm.js';
 import { SAVE_VERSION } from '../web/version.js';
 
 import { importReplay } from '../scripts/replay.mjs';
@@ -61,6 +66,12 @@ test('WASM rejects bad commands and imports without damaging the running state',
   assert.throws(() => sim.advance(513));
   assert.equal(sim.snapshot(), before);
   assert.equal(JSON.parse(missions()).length, 10);
+  // The controls mirror the engine's launch limits rather than restating them.
+  assert.deepEqual(
+    JSON.parse(missions()).map((m) => m.launch_speed),
+    [2.2, 2.2, 2.2, 2.2, 2.2, 2.2, 1.35, 2.2, 2.2, 2.2],
+  );
+  assert.equal(launch_speed(), 2.2);
   sim.free();
 });
 test('disk creation crosses the real WASM command boundary and evolves finite state', () => {
