@@ -25,6 +25,25 @@ pub fn accelerations_cut(
         range(x, y, mass, cut, softening2, a, i, i + 1, x.len());
     }
 }
+/// Rows `rows.0..rows.1` in order, each against `cols` or, for a `triangle`,
+/// against the bodies after it up to `cols.1`: `range` row by row.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn block(
+    x: &[f64],
+    y: &[f64],
+    mass: &[f64],
+    cut: &[f64],
+    softening2: f64,
+    a: &mut [V2],
+    rows: (usize, usize),
+    cols: (usize, usize),
+    triangle: bool,
+) {
+    for i in rows.0..rows.1 {
+        let start = if triangle { i + 1 } else { cols.0 };
+        range(x, y, mass, cut, softening2, a, i, start, cols.1);
+    }
+}
 #[inline]
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn range(

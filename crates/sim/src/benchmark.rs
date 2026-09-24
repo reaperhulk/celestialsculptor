@@ -78,7 +78,6 @@ impl ForceProbe {
                     rebuild,
                 );
             } else if !self.cuts.is_empty() {
-                #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
                 crate::gravity_simd::accelerations_cut(
                     &self.x,
                     &self.y,
@@ -87,29 +86,15 @@ impl ForceProbe {
                     1e-8,
                     &mut self.output,
                 );
-                #[cfg(not(all(target_arch = "wasm32", target_feature = "simd128")))]
-                crate::gravity::direct_cut(
+            } else if theta == 0. {
+                crate::gravity_simd::accelerations(
                     &self.x,
                     &self.y,
                     &self.mass,
-                    &self.cuts,
                     1e-8,
                     &mut self.output,
                 );
             } else {
-                #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
-                if theta == 0. {
-                    crate::gravity_simd::accelerations(
-                        &self.x,
-                        &self.y,
-                        &self.mass,
-                        1e-8,
-                        &mut self.output,
-                    );
-                } else {
-                    crate::gravity::direct(&self.x, &self.y, &self.mass, 1e-8, &mut self.output);
-                }
-                #[cfg(not(all(target_arch = "wasm32", target_feature = "simd128")))]
                 crate::gravity::direct(&self.x, &self.y, &self.mass, 1e-8, &mut self.output);
             }
             std::hint::black_box(&self.output);
@@ -130,20 +115,15 @@ impl ForceProbe {
                     &mut self.output,
                     leaf_size,
                 );
+            } else if theta == 0. {
+                crate::gravity_simd::accelerations(
+                    &self.x,
+                    &self.y,
+                    &self.mass,
+                    1e-8,
+                    &mut self.output,
+                );
             } else {
-                #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
-                if theta == 0. {
-                    crate::gravity_simd::accelerations(
-                        &self.x,
-                        &self.y,
-                        &self.mass,
-                        1e-8,
-                        &mut self.output,
-                    );
-                } else {
-                    crate::gravity::direct(&self.x, &self.y, &self.mass, 1e-8, &mut self.output);
-                }
-                #[cfg(not(all(target_arch = "wasm32", target_feature = "simd128")))]
                 crate::gravity::direct(&self.x, &self.y, &self.mass, 1e-8, &mut self.output);
             }
             std::hint::black_box(&self.output);

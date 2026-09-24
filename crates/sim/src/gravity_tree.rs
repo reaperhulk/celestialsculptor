@@ -404,9 +404,7 @@ impl Tree {
         let b = self.nodes[bi];
         if ai == bi {
             if a.leaf() {
-                for p in a.start..a.end {
-                    self.leaf_row(p, p + 1, a.end, soft2, true);
-                }
+                self.leaf_block((a.start, a.end), (a.start, a.end), true, soft2, true);
             } else {
                 self.interact::<CONTROLLED>(a.left, a.left, soft2, theta2);
                 self.interact::<CONTROLLED>(a.left, a.right, soft2, theta2);
@@ -458,9 +456,7 @@ impl Tree {
             // Pairs beyond every cutoff weigh exactly one: the plain kernel is
             // bit-identical there and skips the weight arithmetic.
             let weighted = cut != 0.0 && d2 < (extent + cut).powi(2);
-            for p in a.start..a.end {
-                self.leaf_row(p, b.start, b.end, soft2, weighted);
-            }
+            self.leaf_block((a.start, a.end), (b.start, b.end), false, soft2, weighted);
         } else if !a.leaf() && (b.leaf() || a.radius >= b.radius) {
             self.interact::<CONTROLLED>(a.left, bi, soft2, theta2);
             self.interact::<CONTROLLED>(a.right, bi, soft2, theta2);
@@ -469,41 +465,34 @@ impl Tree {
             self.interact::<CONTROLLED>(ai, b.right, soft2, theta2);
         }
     }
-    fn leaf_row(&mut self, i: usize, start: usize, end: usize, soft2: f64, weighted: bool) {
+    /// Every pair of leaf rows against leaf columns (or within one leaf, each
+    /// body against those after it), rows in order.
+    fn leaf_block(
+        &mut self,
+        rows: (usize, usize),
+        cols: (usize, usize),
+        triangle: bool,
+        soft2: f64,
+        weighted: bool,
+    ) {
         let cut: &[f64] = if weighted { &self.cut } else { &[] };
-        #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
-        crate::gravity_simd::range(
+        crate::gravity_simd::block(
             &self.x,
             &self.y,
             &self.mass,
             cut,
             soft2,
             &mut self.local,
-            i,
-            start,
-            end,
+            rows,
+            cols,
+            triangle,
         );
-        #[cfg(not(all(target_arch = "wasm32", target_feature = "simd128")))]
-        if !cut.is_empty() {
-            // Tree order excludes the star, so no index here is the star's.
-            for j in start..end {
-                direct_pair_far(
-                    i,
-                    j,
-                    &self.x,
-                    &self.y,
-                    &self.mass,
-                    cut[i].max(cut[j]),
-                    soft2,
-                    &mut self.local,
-                );
-            }
+        let n = rows.1 - rows.0;
+        self.direct_pairs += if triangle {
+            n * n.saturating_sub(1) / 2
         } else {
-            for j in start..end {
-                direct_pair(i, j, &self.x, &self.y, &self.mass, soft2, &mut self.local);
-            }
-        }
-        self.direct_pairs += end - start;
+            n * (cols.1 - cols.0)
+        };
     }
     #[allow(clippy::too_many_arguments)]
     fn propagate(

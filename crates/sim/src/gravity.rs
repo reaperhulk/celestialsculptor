@@ -195,7 +195,6 @@ impl Forces {
             );
             return;
         }
-        #[cfg(all(target_arch = "wasm32", target_feature = "simd128"))]
         if self.cuts.is_empty() {
             crate::gravity_simd::accelerations(
                 &self.x,
@@ -206,19 +205,6 @@ impl Forces {
             );
         } else {
             crate::gravity_simd::accelerations_cut(
-                &self.x,
-                &self.y,
-                &self.mass,
-                &self.cuts,
-                softening2,
-                &mut self.output,
-            );
-        }
-        #[cfg(not(all(target_arch = "wasm32", target_feature = "simd128")))]
-        if self.cuts.is_empty() {
-            direct(&self.x, &self.y, &self.mass, softening2, &mut self.output);
-        } else {
-            direct_cut(
                 &self.x,
                 &self.y,
                 &self.mass,
