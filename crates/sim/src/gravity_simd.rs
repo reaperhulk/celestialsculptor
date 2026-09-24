@@ -154,12 +154,16 @@ fn range_cut(
         );
         let raw = f64x2_add(f64x2_mul(dx, dx), f64x2_mul(dy, dy));
         let r2 = f64x2_add(raw, f64x2_splat(softening2));
-        let w0 = crate::split::far_weight(f64x2_extract_lane::<0>(raw), cut[i].max(cut[j]));
-        let w1 = crate::split::far_weight(f64x2_extract_lane::<1>(raw), cut[i].max(cut[j + 1]));
-        let scale = f64x2_div(
-            f64x2_mul(f64x2_splat(G), f64x2(w0, w1)),
-            f64x2_mul(r2, f64x2_sqrt(r2)),
-        );
+        // Pairs where neither body has a cutoff have weight exactly 1, and
+        // G * 1.0 is G: such pairs skip the per-lane weight.
+        let numerator = if cut[i] != 0.0 || cut[j] != 0.0 || cut[j + 1] != 0.0 {
+            let w0 = crate::split::far_weight(f64x2_extract_lane::<0>(raw), cut[i].max(cut[j]));
+            let w1 = crate::split::far_weight(f64x2_extract_lane::<1>(raw), cut[i].max(cut[j + 1]));
+            f64x2_mul(f64x2_splat(G), f64x2(w0, w1))
+        } else {
+            f64x2_splat(G)
+        };
+        let scale = f64x2_div(numerator, f64x2_mul(r2, f64x2_sqrt(r2)));
         let fx = f64x2_mul(dx, scale);
         let fy = f64x2_mul(dy, scale);
         let m = unsafe { v128_load(mass.as_ptr().add(j).cast()) };
