@@ -92,15 +92,14 @@ evidence. Every numbered iteration is committed and pushed with its correspondin
 entry. The campaign and sandbox run entirely locally; exports stay on the player's
 device unless they choose to share a file.
 
-## Payload and runtime budgets
+## Payload size and runtime budgets
 
-`performance-budget.json` caps uncompressed runtime assets at 1.2 MB, WASM at
-800 KB, and all JavaScript at 256 KB. The static gate checks these deterministic
-sizes against the minified `dist/` output. The WASM cap rose from 740 KB when the
-gravity-helper API landed: about 18 KB of engine for a multi-core force
-evaluation that scales large sandboxes with the device's cores.
-A deliberate budget change should explain its player benefit and expected loading
-cost. Timing benchmarks remain informational because CI runners vary: compare
+Speed comes before download size. `payload-targets.json` sets targets for the
+uncompressed runtime assets (1.2 MB in all, WASM 800 KB, JavaScript 256 KB);
+`npm run check` and the release report measure the minified `dist/` output
+against them and warn, without failing, when one is exceeded. Keep size down by
+review: prefer the smaller of two equally fast changes, and never trade speed for
+bytes. Timing benchmarks remain informational because CI runners vary: compare
 8/32/64-body stepping and snapshot costs in the Actions summary and downloaded
 `performance-results` artifact. The game separately bounds bodies, ticks, commands,
 work units, trail vertices, request lifetime and audio voices.

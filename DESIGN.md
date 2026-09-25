@@ -33,7 +33,8 @@ to the device, with explicit portable exports. No accounts or server are require
   smoke / viewport tests → publish the exact tested artifact to Pages on `main`.
 
 The simulation never reads elapsed real time. A tick is 1/512 year, with four
-fixed kick-drift-kick substeps. UI speed changes tick throughput only. The star
+fixed kick-drift-kick substeps below 512 bodies and a Wisdom–Holman splitting
+(exact Kepler drifts about the star) above. UI speed changes tick throughput only. The star
 moves, collisions preserve mass and momenta, and escape accounting is explicit.
 The current simulation supports 8,192 mutually gravitating sandbox bodies.
 Missions use a 64-body capacity limit. Below 512 bodies gravity is exact; larger

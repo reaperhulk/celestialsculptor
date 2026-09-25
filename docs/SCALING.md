@@ -12,10 +12,12 @@ moments refreshed for the later substeps. Systems below 512 bodies retain four
 integration substeps, with authored moons and disk migration selecting finer fixed
 resolution to meet the long-run orbital gates. In tree-sized systems every pair
 involving a body above the dust boundary is split at a Hill-scaled cutoff, and dust
-pairs at a fixed 0.002 AU: the tree sums the far parts at two substeps while the few
-near pairs (a moon and its host, a body at the inner disk edge, dust passing a giant,
-two grains passing each other) are integrated directly at thirty-two, so moons and
-migration no longer multiply the whole swarm's cost. Above 1,024 bodies the worker shares each force evaluation with gravity helper
+pairs at a fixed 0.002 AU. Tree-sized systems integrate with a Wisdom–Holman
+splitting: every body follows its exact Kepler orbit about the star, the tree sums
+the far parts once per four ticks, and the few near pairs (a moon and its host, dust
+passing a giant, two grains passing each other) are integrated at thirty-two fine
+steps per tick inside the Kepler drift, so moons and migration no longer multiply
+the whole swarm's cost. Above 1,024 bodies the worker shares each force evaluation with gravity helper
 workers (one per spare core, at most eight) that own fixed subtrees of the same
 partition, so the result is bit-identical to the engine alone on any device.
 
@@ -103,6 +105,17 @@ sweep, and the kernels test "beyond every cutoff" per vector, so ordinary pairs
 keep the unweighted path. Under V8, 512-body split and tree runs are 1.55× faster
 (0.61 → 0.39 and 0.57 → 0.37 s per simulated year) and a 1,024-body swarm
 1.64× (1.57 → 0.96).
+
+The next iteration replaces the inertial kick-drift-kick with a Wisdom–Holman
+splitting in democratic heliocentric coordinates, the method of WHFast,
+MERCURY/MERCURIUS, SyMBA, GENGA and TRACE, which our leapfrog had missed: the
+star's pull is integrated exactly by a Kepler solver, leaving only the weak
+body–body forces as kicks. That removes the reason for coarse substeps; the far
+field is evaluated once per four ticks and is still about 20 times more accurate
+than two substeps. Under V8 the split and tree runs fall to 0.12 and 0.11 s per
+simulated year (3.2× and 3.4×) and the 1,024-body swarm to 0.34 (2.8×); in the
+swarm, tree leaf kernels remain a third of the time, near-pair bookkeeping about
+an eighth and Kepler solves (about 160 ns each) a tenth.
 
 Native whole ticks on the review host, the same disordered swarm with and
 without a giant carrying an authored moon, before (e1b51cf) and after:

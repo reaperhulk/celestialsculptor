@@ -1,8 +1,8 @@
 {
   "schema": 1,
-  "physics": "newton-soft1e-4-mutual035-kdk2-near2hill16-dust2e-3-moon16-disk32-edge025-v4",
+  "physics": "newton-soft1e-4-mutual035-dhwh2-near2hill32-dust2e-3-moon16-disk32-edge025-v5",
   "bodies": 512,
-  "scope": "Giant with two authored moons inside a 512-body low-mass disk for 600 years: the production near/far split with the mutual tree, compared with the same split on direct far forces (tree approximation) and with a uniform sixteen-substep integration of the same tree forces (integrator). Moon elements are relative to the host.",
+  "scope": "Giant with two authored moons inside a 512-body low-mass disk for 600 years: the production near/far split with the mutual tree, compared with the same split on direct far forces (tree approximation) and with a uniform eight-substep kick-drift-kick of the same tree forces (an independent integrator). Moon elements are relative to the host.",
   "budgets": {
     "axis_relative": 0.002,
     "eccentricity": 0.002,
@@ -16,31 +16,31 @@
     {
       "name": "split-tree",
       "years": 600,
-      "relative_energy": 8.286559611833954e-12,
-      "angular_residual": 2.6506574712925612e-15,
-      "momentum_residual": 1.221533427505798e-15,
+      "relative_energy": 2.027060353833716e-11,
+      "angular_residual": 1.404293348272745e-13,
+      "momentum_residual": 2.3273795651165982e-11,
       "moonsBound": true,
       "compared_with": "uniform-tree",
       "moon_errors": {
-        "axis_relative": 0.0009692979975162558,
-        "eccentricity": 0.001374520808336211,
-        "phase_radians": 0.06190021811055358,
-        "apsis_radians": 0.0700158326113529
+        "axis_relative": 0.0007589428229368223,
+        "eccentricity": 0.001223610301800451,
+        "phase_radians": 0.048807347144981805,
+        "apsis_radians": 0.05250221698425861
       }
     },
     {
       "name": "split-direct",
       "years": 600,
-      "relative_energy": 1.5071245059755692e-12,
-      "angular_residual": 7.542577673547157e-15,
-      "momentum_residual": 1.1144342790395136e-15,
+      "relative_energy": 1.3186924926597017e-11,
+      "angular_residual": 1.328208376616402e-13,
+      "momentum_residual": 2.3273908855739826e-11,
       "moonsBound": true,
       "compared_with": "split-tree",
       "moon_errors": {
-        "axis_relative": 1.9129028660614007e-8,
-        "eccentricity": 2.474426559311016e-8,
-        "phase_radians": 1.713867174291117e-7,
-        "apsis_radians": 0.0000025190746870684677
+        "axis_relative": 6.261873808238758e-8,
+        "eccentricity": 9.007696737638182e-8,
+        "phase_radians": 4.1870308065128375e-7,
+        "apsis_radians": 0.000010171774423750612
       }
     },
     {
@@ -52,10 +52,10 @@
       "moonsBound": true,
       "compared_with": "split-tree",
       "moon_errors": {
-        "axis_relative": 0.0009702384477007255,
-        "eccentricity": 0.001374520808336211,
-        "phase_radians": 0.06190021811055358,
-        "apsis_radians": 0.0700158326113529
+        "axis_relative": 0.0007595192546240015,
+        "eccentricity": 0.001223610301800451,
+        "phase_radians": 0.048807347144981805,
+        "apsis_radians": 0.05250221698425861
       }
     }
   ],
