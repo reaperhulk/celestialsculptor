@@ -237,39 +237,65 @@ impl OrbitProbe {
             self.field.evaluate(self.theta, 1, rebuild);
         }
     }
-    /// Gameplay cadence: the same substep policy as a live world of this size.
+    /// Gameplay cadence: the same integration as a live world of this size.
     pub fn advance(&mut self, ticks: u32) {
-        let substeps = if crate::split::applies(self.velocity.len()) {
-            crate::split::COARSE_SUBSTEPS
+        if self.wisdom_holman() {
+            for _ in 0..ticks {
+                self.wh_tick();
+            }
         } else {
-            4
-        };
-        self.advance_refined(ticks, substeps);
+            self.advance_refined(ticks, 4);
+        }
     }
-    /// Qualification only: refine a fixed physical interval, independent of
-    /// rendering. Tree-sized systems integrate with the near/far split exactly
-    /// as a live world does: `substeps` coarse far substeps, each with
-    /// `split::NEAR_STEPS` fine near steps.
+    /// Tree-sized systems integrate with the Wisdom–Holman near/far split,
+    /// unless a qualification reference asked otherwise; `advance_refined`
+    /// does not apply to them.
+    pub fn wisdom_holman(&self) -> bool {
+        !self.uniform && self.active_bodies.is_none() && crate::split::applies(self.velocity.len())
+    }
+    /// One Wisdom–Holman tick, operation for operation as a live world's.
+    fn wh_tick(&mut self) {
+        let k = crate::split::STEP_TICKS;
+        let h = crate::DT * k as f64;
+        let start = self.ticks.is_multiple_of(k);
+        let vx: Vec<f64> = self.velocity.iter().map(|v| v.x).collect();
+        let vy: Vec<f64> = self.velocity.iter().map(|v| v.y).collect();
+        if start {
+            self.near
+                .prepare_slices(&self.field.x, &self.field.y, &vx, &vy, &self.field.mass);
+            self.field.cuts.clear();
+            self.field.cuts.extend_from_slice(&self.near.cuts);
+            if !self.ready {
+                self.update_probe_forces(true);
+                self.ready = true;
+            }
+            for (i, v) in self.velocity.iter_mut().enumerate() {
+                *v = v.plus(self.field.output[i].scale(h / 2.0));
+            }
+        } else {
+            self.near
+                .refresh_slices(&self.field.x, &self.field.y, &vx, &vy, &self.field.mass);
+        }
+        crate::wh::drift(self, crate::DT);
+        if (self.ticks + 1).is_multiple_of(k) {
+            self.update_probe_forces(true);
+            for (i, v) in self.velocity.iter_mut().enumerate() {
+                *v = v.plus(self.field.output[i].scale(h / 2.0));
+            }
+        }
+        self.ticks += 1;
+    }
+    /// Qualification only: kick-drift-kick at `substeps` per tick for every
+    /// pair, the small-system scheme and the uniform reference tree-sized
+    /// systems are qualified against.
     pub fn advance_refined(&mut self, ticks: u32, substeps: u32) {
         assert!([2, 4, 8, 16, 32, 64].contains(&substeps));
-        if ticks == 0 {
-            return;
-        }
-        let split = !self.uniform
-            && self.active_bodies.is_none()
-            && crate::split::applies(self.velocity.len());
+        assert!(
+            !self.wisdom_holman(),
+            "tree-sized systems advance with `advance`"
+        );
         let h = crate::DT / f64::from(substeps);
         for _ in 0..ticks {
-            if split {
-                self.prepare_near();
-            }
-            // Like a live tick: fine near steps only when a candidate pair exists.
-            let fine = if split && self.near.active {
-                crate::split::NEAR_STEPS
-            } else {
-                1
-            };
-            let delta = h / f64::from(fine);
             if !self.ready {
                 self.update_probe_forces(true);
                 self.ready = true;
@@ -278,18 +304,9 @@ impl OrbitProbe {
                 for (i, v) in self.velocity.iter_mut().enumerate() {
                     *v = v.plus(self.field.output[i].scale(h / 2.));
                 }
-                for _ in 0..fine {
-                    if self.near.active {
-                        self.near_kick(delta / 2.);
-                    }
-                    for (i, v) in self.velocity.iter().enumerate() {
-                        self.field.x[i] += v.x * delta;
-                        self.field.y[i] += v.y * delta;
-                    }
-                    if self.near.active {
-                        self.near.stale = true;
-                        self.near_kick(delta / 2.);
-                    }
+                for (i, v) in self.velocity.iter().enumerate() {
+                    self.field.x[i] += v.x * h;
+                    self.field.y[i] += v.y * h;
                 }
                 // Like a live tick: the first evaluation inside a tick re-partitions
                 // (the opening forces are reused), later ones refresh moments. The
@@ -301,22 +318,6 @@ impl OrbitProbe {
                 }
             }
             self.ticks += 1;
-        }
-    }
-    fn prepare_near(&mut self) {
-        let vx: Vec<f64> = self.velocity.iter().map(|v| v.x).collect();
-        let vy: Vec<f64> = self.velocity.iter().map(|v| v.y).collect();
-        self.near
-            .prepare_slices(&self.field.x, &self.field.y, &vx, &vy, &self.field.mass);
-        self.field.cuts.clear();
-        self.field.cuts.extend_from_slice(&self.near.cuts);
-    }
-    fn near_kick(&mut self, dt: f64) {
-        self.near
-            .evaluate_slices(&self.field.x, &self.field.y, &self.field.mass, 1e-8);
-        for &i in &self.near.members {
-            let v = &mut self.velocity[i as usize];
-            *v = v.plus(self.near.accel[i as usize].scale(dt));
         }
     }
     pub fn state(&self) -> Vec<f64> {
@@ -403,6 +404,48 @@ pub fn phase_profile(count: u32, ticks: u32) -> serde_json::Value {
         },
         "ticks_per_second": (f64::from(ticks) / (total / 1000.)).round(),
     })
+}
+
+impl crate::wh::Phase for OrbitProbe {
+    fn count(&self) -> usize {
+        self.velocity.len()
+    }
+    fn id(&self, i: usize) -> u32 {
+        i as u32
+    }
+    fn mass(&self, i: usize) -> f64 {
+        self.field.mass[i]
+    }
+    fn pos(&self, i: usize) -> crate::V2 {
+        crate::V2::new(self.field.x[i], self.field.y[i])
+    }
+    fn vel(&self, i: usize) -> crate::V2 {
+        self.velocity[i]
+    }
+    fn set(&mut self, i: usize, pos: crate::V2, vel: crate::V2) {
+        self.field.x[i] = pos.x;
+        self.field.y[i] = pos.y;
+        self.velocity[i] = vel;
+    }
+    /// Collisionless: no contacts.
+    fn star_contact(&self, _: usize) -> f64 {
+        0.0
+    }
+    fn near(&self) -> &crate::split::Near {
+        &self.near
+    }
+    fn near_accelerations(&mut self) {
+        self.near.stale = true;
+        self.near
+            .evaluate_slices(&self.field.x, &self.field.y, &self.field.mass, 1e-8);
+    }
+    fn near_contact_pending(&self, _: f64) -> bool {
+        false
+    }
+    fn near_contacts(&mut self, _: f64) -> bool {
+        false
+    }
+    fn end_contacts(&mut self, _: &[u32]) {}
 }
 
 #[cfg(test)]

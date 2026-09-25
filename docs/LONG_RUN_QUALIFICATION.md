@@ -27,24 +27,37 @@ order as the engine. Commands reproduce these changes, including moons created
 by the generator. Naturally captured satellites do not automatically change the
 resolution.
 
-Worlds of 512 or more bodies integrate with a near/far split (iteration 174).
+Worlds of 512 or more bodies integrate with a Wisdom–Holman splitting in
+democratic heliocentric coordinates (Duncan, Levison & Lee 1998; Rein & Tamayo
+2015), combined with a near/far split of the body–body forces (iteration 174).
+The Hamiltonian is split into each body's Kepler motion about the star, a
+linear "jump" from the star's momentum, and the body–body interaction. Kepler
+motion is advanced exactly by a universal-variable solver (`kepler.rs`), so the
+star's pull carries no step error at all; the remaining error scales with the
+body–star mass ratio instead of the star's force.
+
 Every body above the dust boundary (0.5 Earth masses) carries a cutoff of twice
 its Hill radius and dust a fixed 0.002 AU; a pair's cutoff is the larger of
-the two, 0.6 AU for a massive body against the star, and zero for dust against
-the star. Each pair force with a cutoff is divided by a smooth C² step into a near
-part inside the cutoff and a far part beyond it, the step spanning the outer
-half. The far parts are evaluated by the mutual tree, or by direct summation in
-exact runs, at two coarse substeps; the near parts, the few pairs inside their
-cutoffs, are integrated directly at sixteen fine steps per coarse substep,
-1/16384 year. Both parts are central pair forces, so each is
-Hamiltonian and pairwise symmetric: the composition is symplectic, momentum is
-conserved to rounding, and a moon, a migrating body near the inner disk edge or
-dust passing a giant or two grains passing each other is resolved at the fine
-step without slowing the swarm around it. Candidate near pairs are listed once per tick with a margin covering
-twice the distance a pair can close in a tick, so membership never depends on
-timing, and a tick with no candidate pair runs the plain two-substep scheme.
-Two coarse substeps (four before) halve the far-field work, about 1.6× faster
-per tick; the dust near field keeps close grain encounters at the fine step.
+the two, and every pair with the star belongs to the Kepler part. Each
+body–body pair force is divided by a smooth C² step into a near part inside the
+cutoff and a far part beyond it, the step spanning the outer half. The far
+parts are evaluated by the mutual tree, or by direct summation in exact runs,
+once per step of four ticks and applied as kicks at its ends; the near parts,
+the few pairs inside their cutoffs, are integrated inside each tick's Kepler
+drift at 32 fine steps of near kicks and Kepler drifts (as MERCURIUS and TRACE
+do with close encounters). Every part is Hamiltonian and pairwise symmetric:
+the composition is symplectic, momentum is conserved to rounding, and a moon, a
+migrating body or two grains passing each other are resolved at the fine step
+without slowing the swarm around it. Cutoffs are fixed for a step and candidate
+near pairs are refreshed every tick with a margin covering twice the distance a
+pair can close in a tick. Contacts use only relative positions and velocities,
+so they resolve unchanged inside the drift; star impacts are found exactly from
+each Kepler arc's periapsis.
+
+Against the kick-drift-kick scheme at two substeps, one far evaluation per four
+ticks is about 20 times more accurate in 5-year comparisons against independent
+references (2.3e-6 against 4.4e-5 AU RMS) and, under V8, 3.2–3.4 times faster
+for 512-body disks and 2.8 times for a 1,024-body swarm.
 
 Disk torque tapers smoothly between 0.35 and 0.25 AU and vanishes inside that
 inner edge. Disk impulses are split symmetrically around the gravitational step,

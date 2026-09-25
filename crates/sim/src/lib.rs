@@ -21,6 +21,7 @@ mod gravity_simd;
 mod gravity_tree;
 pub mod history;
 mod integrate;
+pub mod kepler;
 mod missions;
 mod orbit;
 pub mod replay;
@@ -30,6 +31,7 @@ pub mod satellites;
 pub mod scenarios;
 pub mod split;
 pub mod sweep;
+mod wh;
 pub use error::SimError;
 pub use missions::{Mission, LAUNCH_SPEED, MISSIONS};
 

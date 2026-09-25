@@ -61,6 +61,11 @@ impl OrbitProbe {
         if ticks > 512 || ![2, 4, 8, 16, 32, 64].contains(&substeps) {
             return Err(js_error("Invalid orbital refinement"));
         }
+        if self.inner.wisdom_holman() {
+            return Err(js_error(
+                "Tree-sized probes integrate with the Wisdom–Holman split; use advance",
+            ));
+        }
         self.inner.advance_refined(ticks, substeps);
         Ok(())
     }
