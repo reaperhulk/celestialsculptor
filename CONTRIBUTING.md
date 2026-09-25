@@ -33,7 +33,8 @@ One-time repository setting: **Settings → Pages → Build and deployment → S
 GitHub Actions**. The workflow token can deploy an enabled Pages site but cannot
 enable Pages for a new repository. No personal token is stored in this project.
 
-Every pull request and push to `main` runs these gates in order:
+Every pull request and push to `main` runs these gates, in parallel jobs where
+they are independent; deployment waits for all of them:
 
 1. Rust format, warning-free Clippy, native physics/property/CLI tests in the
    release profile and again in the debug profile (integer overflow and debug
@@ -44,7 +45,10 @@ Every pull request and push to `main` runs these gates in order:
    native parity, replay, memory and worker behavior.
 3. Chromium integration at seven viewports, Firefox and WebKit engine tests,
    graphics fallback/recovery, keyboard and touch-related controls, persistence,
-   and representative desktop/phone screenshots.
+   and representative desktop/phone screenshots, split across four machines
+   that each serve the exact build from step 2. Benchmarks and the scalar/SIMD
+   bit-for-bit comparison run on their own machine, as does each 600-year
+   qualification run.
 4. A release inventory and upload of the exact tested Pages artifact.
 5. On a successful `main` build, OIDC Pages deployment and verification of the
    public directory entrypoint, revision, every asset hash and WASM MIME type.
