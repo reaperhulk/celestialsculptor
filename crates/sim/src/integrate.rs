@@ -1,5 +1,7 @@
-//! Time integration: fixed kick-drift-kick substeps, contact resolution,
-//! disk torque, escapes and mission hold timers. Display speed never enters.
+//! Time integration: fixed kick-drift-kick substeps below the tree threshold,
+//! the Wisdom–Holman splitting with the near/far split above it (`wh`),
+//! contact resolution, disk torque, escapes and mission hold timers. Display
+//! speed never enters.
 use crate::*;
 use std::f64::consts::TAU;
 
@@ -8,9 +10,9 @@ use std::f64::consts::TAU;
 pub(crate) struct TickState {
     substeps: u32,
     h: f64,
-    /// Fine near steps per substep: `split::NEAR_STEPS` with a split, else one.
-    fine: u32,
     tree_allowed: bool,
+    /// A Wisdom–Holman tick: `next` 1 marks a closing kick still owed.
+    wh: bool,
     next: u32,
     contacts: u64,
     drifted: bool,
@@ -42,22 +44,14 @@ impl World {
         );
     }
     /// Substeps per tick. Small systems use the finest schedule a command has
-    /// selected. Tree-sized systems integrate with the near/far split:
-    /// `split::COARSE_SUBSTEPS` coarse substeps for the far field and `split::NEAR_STEPS` fine near
-    /// steps inside each, whatever moons or migration they hold.
+    /// selected. Tree-sized systems integrate with the Wisdom–Holman near/far
+    /// split, one far step per `split::STEP_TICKS` ticks, whatever moons or
+    /// migration they hold.
     pub fn substeps(&self) -> u32 {
         if split::applies(self.bodies.len()) {
-            split::COARSE_SUBSTEPS
+            1
         } else {
             self.minimum_substeps
-        }
-    }
-    /// Kick every body by its near acceleration over `dt`.
-    fn near_kick(&mut self, dt: f64) {
-        self.near.evaluate(&self.bodies, SOFTENING.powi(2));
-        for &i in &self.near.members {
-            let b = &mut self.bodies[i as usize];
-            b.vel = b.vel.plus(self.near.accel[i as usize].scale(dt));
         }
     }
     /// Contacts among the near candidate pairs after one fine drift. Every pair
@@ -153,22 +147,17 @@ impl World {
         }
         self.work_units += self.tick_work();
         self.merge_contacts(0.0);
-        // Cutoffs and near pairs for this tick. The opening kick may reuse far
-        // forces evaluated with last tick's cutoffs: the weights of pairs in a
-        // transition zone move by the fraction their host distance moved in a
-        // tick, far below the tree's own approximation error.
+        if split::applies(self.bodies.len()) {
+            return self.wh_begin(tree_allowed);
+        }
         self.near.prepare(&self.bodies);
         // One partition per tick; a contact within the tick changes the body
         // set or moves bodies discontinuously, so it forces a fresh partition.
         self.pending.0 = Some(TickState {
             substeps,
             h: DT / f64::from(substeps),
-            fine: if self.near.active {
-                split::NEAR_STEPS
-            } else {
-                1
-            },
             tree_allowed,
+            wh: false,
             next: 0,
             contacts: self.contact_serial(),
             drifted: false,
@@ -192,49 +181,23 @@ impl World {
     /// the next request, or `None` once the tick is complete.
     pub fn tick_resume(&mut self) -> Option<bool> {
         let mut state = self.pending.0.take()?;
+        if state.wh {
+            return self.wh_resume(state);
+        }
         let h = state.h;
         loop {
             if !state.drifted {
-                // First half of a substep with far forces at its start, then the
-                // near field integrated across the substep in fine steps.
+                // First half of a substep with forces at its start, then the drift
+                // with swept contacts.
                 self.apply_disk_torque(h / 2.);
                 for (i, b) in self.bodies.iter_mut().enumerate() {
                     b.vel = b.vel.plus(self.forces.output[i].scale(h / 2.0));
                 }
-                let delta = h / f64::from(state.fine);
-                for step in 0..state.fine {
-                    if self.near.active {
-                        self.near_kick(delta / 2.0);
-                    }
-                    // Rotation is display state on the unresolved spin: advance
-                    // it once per substep, ahead of that substep's contacts.
-                    let turn = if step == 0 { h } else { 0.0 };
-                    for b in self.bodies.iter_mut() {
-                        b.pos = b.pos.plus(b.vel.scale(delta));
-                        if b.id != 0 && step == 0 {
-                            b.rotation = (b.rotation
-                                + b.spin / (0.4 * b.mass * b.radius * b.radius) * turn)
-                                .rem_euclid(TAU);
-                        }
-                    }
-                    if self.near.active {
-                        self.near.stale = true;
-                        self.merge_near_contacts(delta);
-                        self.near_kick(delta / 2.0);
-                    } else {
-                        self.merge_contacts(delta);
-                    }
+                self.rotate(h);
+                for b in self.bodies.iter_mut() {
+                    b.pos = b.pos.plus(b.vel.scale(h));
                 }
-                if self.near.active {
-                    // Overlaps the candidate list could not anticipate. A merge
-                    // or disruption renumbers bodies, so the near set is rebuilt
-                    // as after a near contact.
-                    let contacts = self.contact_serial();
-                    self.merge_contacts(0.0);
-                    if self.contact_serial() != contacts {
-                        self.near.prepare(&self.bodies);
-                    }
-                }
+                self.merge_contacts(h);
                 let rebuild = state.rebuild_next || self.contact_serial() != state.contacts;
                 state.rebuild_next = false;
                 state.contacts = self.contact_serial();
@@ -251,6 +214,80 @@ impl World {
             state.drifted = false;
             if state.next >= state.substeps {
                 break;
+            }
+        }
+        self.finish_tick();
+        None
+    }
+    /// Rotation is display state on the unresolved spin.
+    fn rotate(&mut self, dt: f64) {
+        for b in self.bodies.iter_mut().skip(1) {
+            b.rotation =
+                (b.rotation + b.spin / (0.4 * b.mass * b.radius * b.radius) * dt).rem_euclid(TAU);
+        }
+    }
+    /// A Wisdom–Holman tick. The first tick of a step kicks with far forces
+    /// at its start; the last one requests forces at its end for the closing
+    /// kick. Cutoffs are fixed for a step, so far and near parts stay a
+    /// partition of every pair force; candidate pairs are refreshed each tick.
+    fn wh_begin(&mut self, tree_allowed: bool) -> Option<bool> {
+        let start = self.tick.is_multiple_of(split::STEP_TICKS);
+        if start {
+            self.near.prepare(&self.bodies);
+        } else {
+            self.near.refresh(&self.bodies);
+        }
+        self.pending.0 = Some(TickState {
+            substeps: 1,
+            h: DT * split::STEP_TICKS as f64,
+            tree_allowed,
+            wh: true,
+            next: 0,
+            contacts: self.contact_serial(),
+            drifted: false,
+            rebuild_next: true,
+        });
+        if start
+            && !self
+                .forces
+                .current(&self.bodies, SOFTENING.powi(2), tree_allowed)
+        {
+            return Some(true);
+        }
+        self.tick_resume()
+    }
+    fn wh_resume(&mut self, mut state: TickState) -> Option<bool> {
+        let h = state.h;
+        if !state.drifted {
+            if self.tick.is_multiple_of(split::STEP_TICKS) {
+                for (i, b) in self.bodies.iter_mut().enumerate() {
+                    b.vel = b.vel.plus(self.forces.output[i].scale(h / 2.0));
+                }
+            }
+            self.apply_disk_torque(DT / 2.);
+            self.rotate(DT);
+            let recorded = self.events.len();
+            let shift = wh::drift(self, DT);
+            for event in &mut self.events[recorded..] {
+                if let Some(p) = &mut event.position {
+                    *p = p.plus(shift);
+                }
+                if let Some(impact) = &mut event.impact {
+                    impact.position = impact.position.plus(shift);
+                    if let Some(anchor) = &mut impact.anchor {
+                        *anchor = anchor.plus(shift);
+                    }
+                }
+            }
+            self.apply_disk_torque(DT / 2.);
+            state.drifted = true;
+            if (self.tick + 1).is_multiple_of(split::STEP_TICKS) {
+                self.pending.0 = Some(state);
+                return Some(true);
+            }
+        } else {
+            for (i, b) in self.bodies.iter_mut().enumerate() {
+                b.vel = b.vel.plus(self.forces.output[i].scale(h / 2.0));
             }
         }
         self.finish_tick();
@@ -491,6 +528,63 @@ impl World {
             }
         }
         self.collision_energy += energy_before - self.affected_energy(&[id]);
+    }
+}
+impl wh::Phase for World {
+    fn count(&self) -> usize {
+        self.bodies.len()
+    }
+    fn id(&self, i: usize) -> u32 {
+        self.bodies[i].id
+    }
+    fn mass(&self, i: usize) -> f64 {
+        self.bodies[i].mass
+    }
+    fn pos(&self, i: usize) -> V2 {
+        self.bodies[i].pos
+    }
+    fn vel(&self, i: usize) -> V2 {
+        self.bodies[i].vel
+    }
+    fn set(&mut self, i: usize, pos: V2, vel: V2) {
+        self.bodies[i].pos = pos;
+        self.bodies[i].vel = vel;
+    }
+    fn star_contact(&self, i: usize) -> f64 {
+        self.bodies[0].radius + self.bodies[i].radius
+    }
+    fn near(&self) -> &split::Near {
+        &self.near
+    }
+    fn near_accelerations(&mut self) {
+        self.near.stale = true;
+        self.near.evaluate(&self.bodies, SOFTENING.powi(2));
+    }
+    fn near_contact_pending(&self, sweep: f64) -> bool {
+        self.near
+            .pairs
+            .iter()
+            .any(|&(i, j)| swept_overlap(&self.bodies[i as usize], &self.bodies[j as usize], sweep))
+    }
+    fn near_contacts(&mut self, sweep: f64) -> bool {
+        let before = self.contact_serial();
+        self.merge_near_contacts(sweep);
+        self.contact_serial() != before
+    }
+    fn end_contacts(&mut self, star_hits: &[u32]) {
+        let before = self.contact_serial();
+        for &id in star_hits {
+            if let Some(j) = self.bodies.iter().position(|b| b.id == id) {
+                if j != 0 {
+                    self.merge_pair(0, j);
+                }
+            }
+        }
+        // Overlaps the candidate list could not anticipate.
+        self.merge_contacts(0.0);
+        if self.contact_serial() != before {
+            self.near.prepare(&self.bodies);
+        }
     }
 }
 /// Closest point on the relative drift segment catches fast bodies that pass

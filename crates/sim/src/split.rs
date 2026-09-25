@@ -1,36 +1,39 @@
 //! Near/far force split for tree-sized systems, after P3T (Oshino, Funato &
 //! Makino 2011) with GPLUM-style individual cutoffs.
 //!
-//! Every pair force is cut into a near part, `F·W(r)`, and a far part,
-//! `F·(1−W(r))`, with `W` a smooth step that is 1 inside `r_in` and 0 beyond
-//! `r_out`. The far part of every pair is evaluated by the mutual tree (or
-//! direct summation) at the coarse substep; the near part, only nonzero for the
-//! few pairs inside their cutoff, is integrated directly at a finer step. Both
-//! parts are central pair forces, so each is Hamiltonian and pairwise
+//! Tree-sized systems integrate with a Wisdom–Holman splitting in democratic
+//! heliocentric coordinates (`wh`): every body follows its exact Kepler orbit
+//! about the star, and the body–body forces are kicks. Every body–body pair
+//! force is cut into a near part, `F·W(r)`, and a far part, `F·(1−W(r))`, with
+//! `W` a smooth step that is 1 inside `r_in` and 0 beyond `r_out`. The far part
+//! of every pair is evaluated by the mutual tree (or direct summation) once per
+//! step of `STEP_TICKS` ticks; the near part, only nonzero for the few pairs
+//! inside their cutoff, is integrated inside the Kepler drift at a fine step.
+//! Both parts are central pair forces, so each is Hamiltonian and pairwise
 //! symmetric: the composition stays symplectic and conserves momentum exactly,
 //! and with fixed schedules it replays bit for bit.
 //!
 //! Cutoffs scale with each massive body's Hill radius, so a moon orbiting a
 //! giant, or dust passing it, is a near pair. Dust carries a small fixed
 //! cutoff, stored negated, so close dust–dust encounters also take fine
-//! steps while the star's pairs with dust stay entirely far. Pairs between
-//! the star and a massive body use a fixed cutoff so the inner disk keeps
-//! fine steps.
+//! steps. The star's cutoff is effectively infinite: its pairs are neither
+//! near nor far, but the Kepler drift itself.
 use crate::{Body, DT, G, V2};
 
-/// Coarse substeps per tick: the far (tree) evaluations.
-pub const COARSE_SUBSTEPS: u32 = 2;
-/// Fine near steps per coarse substep: 32 near steps per tick, the resolution
-/// the migration world needed to keep its energy balance inside 2e-5.
-pub const NEAR_STEPS: u32 = 16;
+/// Ticks per far-field step: one tree evaluation per step.
+pub const STEP_TICKS: u64 = 4;
+/// Fine near steps per tick, the resolution the migration world needed to
+/// keep its energy balance inside 2e-5.
+pub const FINE_STEPS: u32 = 32;
 /// `r_out` as a multiple of the Hill radius; `r_in` is half of `r_out`, so an
 /// authored moon (apoapsis below 0.7 Hill radii) is fully a near pair.
 pub const CUT_SCALE: f64 = 2.0;
-/// `r_out` for pairs between the star and a massive body: the inner disk edge
-/// (0.25–0.35 AU) sits inside `r_in = 0.3`.
-pub const STAR_CUT: f64 = 0.6;
 /// Bodies below this mass (the dust boundary) carry the dust cutoff.
 pub const FINE_MASS: f64 = 0.5 * crate::EARTH;
+/// The star's cutoff: every pair with it has far weight exactly zero (its
+/// square overflows), so the star's pairs are wholly the Kepler drift. Finite,
+/// so force requests stay finite.
+pub const STAR_CUT: f64 = f64::MAX;
 /// `r_out` for dust–dust pairs: close encounters between grains take the
 /// fine steps, far beyond the softening length.
 pub const DUST_CUT: f64 = 2e-3;
@@ -41,8 +44,8 @@ pub fn applies(bodies: usize) -> bool {
     crate::gravity::Forces::tree_for(bodies)
 }
 
-/// Per-body cutoff radii `r_out` from positions and masses (the star first);
-/// dust carries `-DUST_CUT`, the sign marking it for the star rule.
+/// Per-body cutoff radii `r_out` from positions and masses (the star first,
+/// with `STAR_CUT`); dust carries `-DUST_CUT`.
 pub fn cutoffs(x: &[f64], y: &[f64], mass: &[f64], out: &mut Vec<f64>) {
     out.clear();
     if x.is_empty() {
@@ -59,16 +62,12 @@ pub fn cutoffs(x: &[f64], y: &[f64], mass: &[f64], out: &mut Vec<f64>) {
     }
 }
 
-/// A pair's cutoff: the larger of the two magnitudes, except that the star
-/// and dust never form a near pair. Every kernel and the pair search use this.
+/// A pair's cutoff: the larger of the two magnitudes. Every pair with the
+/// star takes `STAR_CUT`, so its far weight is zero. Every kernel and the pair
+/// search use this.
 #[inline]
 pub fn pair_cut(cut: &[f64], i: usize, j: usize) -> f64 {
-    let (a, b) = (cut[i], cut[j]);
-    if (i == 0 && b < 0.0) || (j == 0 && a < 0.0) {
-        0.0
-    } else {
-        a.abs().max(b.abs())
-    }
+    cut[i].abs().max(cut[j].abs())
 }
 
 /// Weight of the far part at squared separation `r2` for a pair whose cutoff
@@ -150,13 +149,34 @@ impl Near {
             return;
         }
         cutoffs(x, y, mass, &mut self.cuts);
-        near_pairs(x, y, vx, vy, &self.cuts, &mut self.pairs);
-        if self.pairs.is_empty() {
-            // Nothing to integrate finely: the tick runs the plain scheme.
-            self.cuts.clear();
-            return;
+        self.find_pairs(x, y, vx, vy);
+    }
+    /// New candidate pairs for the current positions, keeping the cutoffs: the
+    /// far forces of a step were evaluated with them. Recomputes everything if
+    /// the body set changed.
+    pub fn refresh(&mut self, bodies: &[Body]) {
+        if self.cuts.len() != bodies.len() {
+            return self.prepare(bodies);
         }
-        self.active = true;
+        self.stage(bodies);
+        let vx: Vec<f64> = bodies.iter().map(|b| b.vel.x).collect();
+        let vy: Vec<f64> = bodies.iter().map(|b| b.vel.y).collect();
+        let (x, y) = (std::mem::take(&mut self.x), std::mem::take(&mut self.y));
+        self.stale = true;
+        self.find_pairs(&x, &y, &vx, &vy);
+        (self.x, self.y) = (x, y);
+    }
+    /// `refresh` for slices.
+    pub fn refresh_slices(&mut self, x: &[f64], y: &[f64], vx: &[f64], vy: &[f64], mass: &[f64]) {
+        if self.cuts.len() != x.len() {
+            return self.prepare_slices(x, y, vx, vy, mass);
+        }
+        self.stale = true;
+        self.find_pairs(x, y, vx, vy);
+    }
+    fn find_pairs(&mut self, x: &[f64], y: &[f64], vx: &[f64], vy: &[f64]) {
+        near_pairs(x, y, vx, vy, &self.cuts, &mut self.pairs);
+        self.active = !self.pairs.is_empty();
         self.members.clear();
         self.members
             .extend(self.pairs.iter().flat_map(|&(i, j)| [i, j]));
@@ -205,17 +225,18 @@ pub fn near_pairs(
     if n < 2 {
         return;
     }
-    let cut_max = cuts.iter().fold(0.0, |a: f64, &b| a.max(b.abs()));
+    // The star's pairs are the Kepler drift: never candidates.
+    let cut_max = cuts[1..].iter().fold(0.0, |a: f64, &b| a.max(b.abs()));
     let speed: Vec<f64> = (0..n).map(|i| V2::new(vx[i], vy[i]).norm()).collect();
     let speed_max = speed.iter().fold(0.0, |a: f64, &b| a.max(b));
     let mut order: Vec<usize> = (0..n).collect();
     order.sort_unstable_by(|&a, &b| x[a].total_cmp(&x[b]).then(a.cmp(&b)));
     let xs: Vec<f64> = order.iter().map(|&i| x[i]).collect();
     let check = |i: usize, j: usize, out: &mut Vec<(u32, u32)>| {
-        let cut = pair_cut(cuts, i, j);
-        if cut == 0.0 {
+        if j == 0 {
             return;
         }
+        let cut = pair_cut(cuts, i, j);
         let closing = V2::new(vx[j] - vx[i], vy[j] - vy[i]).norm();
         let limit = cut + 2.0 * DT * closing;
         let d = V2::new(x[j] - x[i], y[j] - y[i]);
@@ -305,11 +326,12 @@ mod tests {
         }
         // Zero cutoff: everything is far, so the split is the identity.
         assert_eq!(far_weight(1e-30, 0.0), 1.0);
-        // Star–dust pairs have no cutoff; every other pair the larger magnitude.
+        // The star's pairs are wholly the Kepler drift: no far part at all.
+        assert_eq!(far_weight(1e30, STAR_CUT), 0.0);
+        // Every other pair takes the larger magnitude.
         let cuts = [STAR_CUT, -DUST_CUT, 0.4, 0.001, -DUST_CUT];
-        assert_eq!(pair_cut(&cuts, 0, 1), 0.0);
-        assert_eq!(pair_cut(&cuts, 1, 0), 0.0);
-        assert_eq!(pair_cut(&cuts, 0, 2), STAR_CUT);
+        assert_eq!(pair_cut(&cuts, 0, 1), STAR_CUT);
+        assert_eq!(pair_cut(&cuts, 2, 0), STAR_CUT);
         assert_eq!(pair_cut(&cuts, 1, 2), 0.4);
         assert_eq!(pair_cut(&cuts, 2, 3), 0.4);
         assert_eq!(pair_cut(&cuts, 1, 3), DUST_CUT);
@@ -387,8 +409,9 @@ mod tests {
         let mi = b.iter().position(|x| x.parent == Some(giant)).unwrap();
         assert!(near.pairs.contains(&(gi.min(mi) as u32, gi.max(mi) as u32)));
         // Brute force: every pair inside its cutoff + closing margin is listed,
-        // and star–dust pairs never are.
-        for i in 0..b.len() {
+        // and the star's pairs never are.
+        assert!(near.pairs.iter().all(|&(i, _)| i != 0));
+        for i in 1..b.len() {
             for j in i + 1..b.len() {
                 let cut = pair_cut(&near.cuts, i, j);
                 let limit = cut + 2.0 * DT * b[i].vel.minus(b[j].vel).norm();
@@ -396,14 +419,12 @@ mod tests {
                 if cut > 0.0 && b[i].pos.minus(b[j].pos).norm() <= limit {
                     assert!(listed, "{i} {j}");
                 }
-                if cut == 0.0 {
-                    assert!(!listed, "{i} {j} is a star–dust pair");
-                }
             }
         }
         assert!(near.pairs.windows(2).all(|p| p[0] < p[1]), "sorted, unique");
         assert!(near.members.contains(&(gi as u32)) && near.members.contains(&(mi as u32)));
-        // Far weights plus near weights reproduce the full force for every pair.
+        // Far weights plus near weights reproduce every body–body force; the
+        // star's pairs are left to the Kepler drift.
         near.evaluate(&w.bodies, crate::SOFTENING.powi(2));
         let mut far = vec![V2::default(); b.len()];
         let x: Vec<f64> = b.iter().map(|p| p.pos.x).collect();
@@ -411,8 +432,10 @@ mod tests {
         let m: Vec<f64> = b.iter().map(|p| p.mass).collect();
         crate::gravity::direct_cut(&x, &y, &m, &near.cuts, crate::SOFTENING.powi(2), &mut far);
         let mut full = vec![V2::default(); b.len()];
-        crate::gravity::direct(&x, &y, &m, crate::SOFTENING.powi(2), &mut full);
-        for i in 0..b.len() {
+        let mut planets = m.clone();
+        planets[0] = 0.0;
+        crate::gravity::direct(&x, &y, &planets, crate::SOFTENING.powi(2), &mut full);
+        for i in 1..b.len() {
             let sum = far[i].plus(near.accel[i]);
             let scale = full[i].norm().max(1e-30);
             assert!(sum.minus(full[i]).norm() <= 1e-12 * scale, "body {i}");

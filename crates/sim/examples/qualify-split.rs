@@ -1,8 +1,8 @@
 //! Near/far split qualification: a giant with two authored moons inside a
-//! 512-body low-mass disk, 600 years. The production split (tree far field)
-//! is compared with the same split on direct far forces, isolating the tree's
-//! approximation, and with a uniform four-times-finer integration of the same
-//! tree forces, isolating the integrator. The disk leaves a gap around the
+//! 512-body low-mass disk, 600 years. The production Wisdom–Holman split
+//! (tree far field) is compared with the same split on direct far forces,
+//! isolating the tree's approximation, and with an independent integrator: a
+//! uniform eight-substep kick-drift-kick of the same tree forces. The disk leaves a gap around the
 //! giant's orbit: the probe is collisionless, and a grain diving inside what
 //! would be the giant's contact radius is an unresolved encounter in any
 //! scheme, not a property of the split. Writes JSON to stdout, progress to
@@ -102,12 +102,12 @@ fn main() {
         .map(|(i, _)| i)
         .collect();
     assert_eq!(moons.len(), 2);
-    // (name, exact far forces, uniform reference, coarse substeps)
+    // (name, exact far forces, uniform reference, reference substeps)
     let selected: Vec<String> = std::env::args().skip(2).collect();
     let plans: Vec<_> = [
-        ("split-tree", false, false, split::COARSE_SUBSTEPS),
-        ("split-direct", true, false, split::COARSE_SUBSTEPS),
-        ("uniform-tree", false, true, 4 * split::COARSE_SUBSTEPS),
+        ("split-tree", false, false, 0u32),
+        ("split-direct", true, false, 0),
+        ("uniform-tree", false, true, 8),
     ]
     .into_iter()
     .filter(|(name, ..)| selected.is_empty() || selected.iter().any(|s| s == name))
@@ -122,7 +122,11 @@ fn main() {
             p.set_uniform(uniform);
             let mut samples = vec![];
             for year in 1..=years {
-                p.advance_refined(512, substeps);
+                if uniform {
+                    p.advance_refined(512, substeps);
+                } else {
+                    p.advance(512);
+                }
                 if year % 25 == 0 || year == years {
                     let s = p.state();
                     samples.push(json!({"year":year,"balances":balances(&s),"state":s}));

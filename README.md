@@ -17,11 +17,12 @@ No claim of geological, atmospheric, or biological simulation.
 `celestial-sim` has no browser, renderer, wall clock, or OS randomness. Every action
 goes through `World::apply`, including those used by the UI and scenario tests.
 World time advances by 1/512 year per tick using four fixed leapfrog substeps, sixteen after moon creation, or thirty-two
-after applying disk migration. In systems of 512 or more bodies, every pair involving a body above the dust boundary is
-split at a cutoff scaled to its Hill radius (dust uses a small fixed one): the far part is summed by the mutual tree at two
-substeps and the near part, a few pairs such as a moon and its host, dust passing a giant or two grains passing each other,
-is integrated directly at thirty-two, so moons and migration no longer slow the whole swarm. These choices are
-independent of frame rate.
+after applying disk migration. Systems of 512 or more bodies use a Wisdom–Holman splitting in democratic heliocentric
+coordinates, as in WHFast, MERCURIUS and TRACE: every body follows its exact Kepler orbit about the star, and body–body
+forces are kicks. Each body–body pair is split at a cutoff scaled to its Hill radius (dust uses a small fixed one): the
+far part is summed by the mutual tree once per four ticks, and the near part, a few pairs such as a moon and its host,
+dust passing a giant or two grains passing each other, is integrated at thirty-two fine steps per tick inside the Kepler
+drift. These choices are independent of frame rate.
 The star responds to gravity. Current collisions conserve mass, material, linear momentum and angular momentum
 (unresolved spin stores angular momentum outside the resolved trajectories).
 Escape and disk-transfer ledgers support conservation checks between player edits.

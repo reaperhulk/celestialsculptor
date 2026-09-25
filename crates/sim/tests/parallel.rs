@@ -92,8 +92,12 @@ fn a_tick_can_fall_back_to_the_engine_mid_flight() {
                 w.tick_resume()
             };
         }
-        // The first tick has no cached forces; later ticks reuse the last evaluation.
-        assert_eq!(evaluations, w.substeps() as usize + usize::from(tick == 0));
+        // One far evaluation per step, at its end; the first tick also has no
+        // cached forces for its opening kick.
+        assert_eq!(
+            evaluations,
+            usize::from(tick == 0) + usize::from((tick + 1) % split::STEP_TICKS as usize == 0)
+        );
     }
     assert_eq!(w, reference);
     let mut bad = swarm(700, 0.3);
@@ -108,7 +112,9 @@ fn a_tick_can_fall_back_to_the_engine_mid_flight() {
     assert!(bad.force_compute_owned(&[3], rebuild));
     assert!(!bad.force_reduce(&out));
     assert!(bad.tick_pending());
-    assert!(bad.tick_local(rebuild).is_some());
+    // The engine takes over; the step's first tick needs no further forces.
+    assert!(bad.tick_local(rebuild).is_none());
+    assert!(!bad.tick_pending());
 }
 
 #[test]
