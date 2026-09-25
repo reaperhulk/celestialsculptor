@@ -7,13 +7,18 @@ const chromium = {
   },
 };
 // Specs whose behaviour does not depend on the viewport run once, in the
-// desktop project; layout, touch and screenshot specs run in every viewport.
+// desktop project. The rest run at desktop and phone (touch, high density);
+// tests tagged @layout, whose outcome depends on the layout, run in every
+// viewport, and @tablet adds the tablet layout.
 const viewportIndependent =
   /(challenges|device|engine|fallback|generation|gpu-compute|notebook|observatory|startup)\.spec\.js/;
 const viewport = (name, use) => ({
   name,
   use: { ...chromium, ...use },
   testIgnore: name === 'desktop' ? /gpu-compute\.spec\.js/ : viewportIndependent,
+  ...(['desktop', 'phone'].includes(name)
+    ? {}
+    : { grep: name === 'tablet' ? /@layout|@tablet/ : /@layout/ }),
 });
 export default defineConfig({
   testDir: './tests/browser',

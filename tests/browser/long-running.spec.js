@@ -1,11 +1,5 @@
 import { test, expect } from './fixtures.js';
-test('a dense restored system continues beyond year forty and pauses at 16x', async ({
-  page,
-}, testInfo) => {
-  test.skip(
-    !['desktop', 'phone'].includes(testInfo.project.name),
-    'Long reconstruction runs on representative desktop and touch viewports.',
-  );
+test('a dense restored system continues beyond year forty and pauses at 16x', async ({ page }) => {
   test.setTimeout(90000);
   await page.addInitScript(() => {
     localStorage.setItem(

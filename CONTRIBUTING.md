@@ -45,10 +45,10 @@ they are independent; deployment waits for all of them:
    native parity, replay, memory and worker behavior.
 3. Chromium integration at seven viewports, Firefox and WebKit engine tests,
    graphics fallback/recovery, keyboard and touch-related controls, persistence,
-   and representative desktop/phone screenshots, split across four machines
-   that each serve the exact build from step 2. Benchmarks and the scalar/SIMD
-   bit-for-bit comparison run on their own machine, as does each 600-year
-   qualification run.
+   and representative desktop/phone screenshots. Behaviour runs at desktop and
+   phone; tests tagged `@layout` run at all seven viewports. Benchmarks and the
+   scalar/SIMD bit-for-bit comparison run after the native checks, and each
+   600-year qualification run has its own machine.
 4. A release inventory and upload of the exact tested Pages artifact.
 5. On a successful `main` build, OIDC Pages deployment and verification of the
    public directory entrypoint, revision, every asset hash and WASM MIME type.

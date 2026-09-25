@@ -2,10 +2,6 @@ import { test, expect } from './fixtures.js';
 test('capture the playable desktop and phone presentation for release review', async ({
   page,
 }, testInfo) => {
-  test.skip(
-    !['desktop', 'phone'].includes(testInfo.project.name),
-    'Two representative review images cover the responsive layouts.',
-  );
   await page.goto('./');
   await expect(page.locator('#play')).toBeEnabled();
   await page.locator('#sandbox').click();
@@ -27,10 +23,6 @@ test('capture the playable desktop and phone presentation for release review', a
   await testInfo.attach('Playable system', { path, contentType: 'image/png' });
 });
 test('review a moon family at close range and the outcome notebook', async ({ page }, testInfo) => {
-  test.skip(
-    !['desktop', 'phone'].includes(testInfo.project.name),
-    'Representative camera and notebook layouts.',
-  );
   await page.goto('./?fps=1');
   await expect(page.locator('#play')).toBeEnabled();
   await page.locator('#generate').click();
@@ -60,10 +52,6 @@ test('review a moon family at close range and the outcome notebook', async ({ pa
 test('review the observation chart and comparative lesson on desktop and phone', async ({
   page,
 }, testInfo) => {
-  test.skip(
-    !['desktop', 'phone'].includes(testInfo.project.name),
-    'Representative scientific reading layouts.',
-  );
   await page.addInitScript(() =>
     localStorage.setItem(
       'celestial-sculptor.profile.v1',

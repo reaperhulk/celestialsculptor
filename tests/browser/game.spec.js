@@ -28,22 +28,26 @@ test('real worker launches a world, completes a goal, and unlocks the next', asy
   await expect(page.locator('#kind option[value="ice"]')).toBeEnabled();
 });
 
-test('viewport fits the game and keeps playback and creation reachable', async ({ page }) => {
-  const dimensions = await page.evaluate(() => ({
-    scroll: document.documentElement.scrollWidth,
-    scrollHeight: document.documentElement.scrollHeight,
-    width: innerWidth,
-    height: innerHeight,
-    body: document.body.getBoundingClientRect().height,
-    canvas: document.querySelector('canvas').getBoundingClientRect().height,
-  }));
-  expect(dimensions.scroll).toBeLessThanOrEqual(dimensions.width);
-  expect(dimensions.body).toBeLessThanOrEqual(dimensions.height + 1);
-  expect(dimensions.scrollHeight).toBeLessThanOrEqual(dimensions.height + 1);
-  expect(dimensions.canvas).toBeGreaterThan(170);
-  await expect(page.locator('#launch')).toBeInViewport();
-  await expect(page.locator('#play')).toBeInViewport();
-});
+test(
+  'viewport fits the game and keeps playback and creation reachable',
+  { tag: '@layout' },
+  async ({ page }) => {
+    const dimensions = await page.evaluate(() => ({
+      scroll: document.documentElement.scrollWidth,
+      scrollHeight: document.documentElement.scrollHeight,
+      width: innerWidth,
+      height: innerHeight,
+      body: document.body.getBoundingClientRect().height,
+      canvas: document.querySelector('canvas').getBoundingClientRect().height,
+    }));
+    expect(dimensions.scroll).toBeLessThanOrEqual(dimensions.width);
+    expect(dimensions.body).toBeLessThanOrEqual(dimensions.height + 1);
+    expect(dimensions.scrollHeight).toBeLessThanOrEqual(dimensions.height + 1);
+    expect(dimensions.canvas).toBeGreaterThan(170);
+    await expect(page.locator('#launch')).toBeInViewport();
+    await expect(page.locator('#play')).toBeInViewport();
+  },
+);
 
 test('autosave reload restores a paused experiment', async ({ page }) => {
   await page.locator('#launch').click();
@@ -61,15 +65,19 @@ test('autosave reload restores a paused experiment', async ({ page }) => {
   await expect(page.locator('#play')).toHaveText('▶ Run');
 });
 
-test('help and challenge map work with keyboard dismissal', async ({ page }) => {
-  await page.locator('#help').click();
-  await expect(page.locator('#help-dialog')).toBeVisible();
-  await page.keyboard.press('Escape');
-  await expect(page.locator('#help-dialog')).toBeHidden();
-  await page.locator('#campaign').click();
-  await expect(page.locator('.mission-choice')).toHaveCount(10);
-  await expect(page.locator('.mission-choice').nth(1)).toBeDisabled();
-});
+test(
+  'help and challenge map work with keyboard dismissal',
+  { tag: '@layout' },
+  async ({ page }) => {
+    await page.locator('#help').click();
+    await expect(page.locator('#help-dialog')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#help-dialog')).toBeHidden();
+    await page.locator('#campaign').click();
+    await expect(page.locator('.mission-choice')).toHaveCount(10);
+    await expect(page.locator('.mission-choice').nth(1)).toBeDisabled();
+  },
+);
 test('an inspected world can be nudged and the edit undone', async ({ page }) => {
   await page.locator('#sandbox').click();
   await page.locator('#launch').click();
@@ -152,20 +160,24 @@ test('rejected stellar conditions keep the existing mode and restore the control
   await page.locator('#launch').click();
   await expect(page.locator('#planet-count')).toHaveText('1');
 });
-test('notifications stay inside the scene and clear the primary controls', async ({ page }) => {
-  await page.locator('#sandbox').click();
-  await page.locator('#seed-belt').click();
-  await page.locator('#undo').click();
-  await page.locator('#undo').click();
-  await expect(page.locator('#toast')).toBeVisible();
-  const bounds = await page.evaluate(() => ({
-    toast: document.querySelector('#toast').getBoundingClientRect().toJSON(),
-    scene: document.querySelector('#universe').getBoundingClientRect().toJSON(),
-    launch: document.querySelector('#launch').getBoundingClientRect().toJSON(),
-  }));
-  expect(bounds.toast.bottom).toBeLessThanOrEqual(bounds.scene.bottom);
-  expect(bounds.toast.width).toBeLessThanOrEqual(await page.evaluate(() => innerWidth));
-});
+test(
+  'notifications stay inside the scene and clear the primary controls',
+  { tag: '@layout' },
+  async ({ page }) => {
+    await page.locator('#sandbox').click();
+    await page.locator('#seed-belt').click();
+    await page.locator('#undo').click();
+    await page.locator('#undo').click();
+    await expect(page.locator('#toast')).toBeVisible();
+    const bounds = await page.evaluate(() => ({
+      toast: document.querySelector('#toast').getBoundingClientRect().toJSON(),
+      scene: document.querySelector('#universe').getBoundingClientRect().toJSON(),
+      launch: document.querySelector('#launch').getBoundingClientRect().toJSON(),
+    }));
+    expect(bounds.toast.bottom).toBeLessThanOrEqual(bounds.scene.bottom);
+    expect(bounds.toast.width).toBeLessThanOrEqual(await page.evaluate(() => innerWidth));
+  },
+);
 test('scene keyboard controls work without repeating placements or stealing field input', async ({
   page,
 }) => {
