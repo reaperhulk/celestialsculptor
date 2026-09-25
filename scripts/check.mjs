@@ -6,7 +6,7 @@ import { assetManifest } from './integrity.mjs';
 import { localReferences } from './references.mjs';
 import { verifyToolchainContracts } from './contracts.mjs';
 import { verifyStyleTokens } from './style-contracts.mjs';
-import { verifyAssetBudget } from './budget.mjs';
+import { measurePayload, reportPayload } from './payload.mjs';
 import { minifySource, minified } from './minify.mjs';
 import { SAVE_VERSION } from '../web/version.js';
 import { resolve, dirname } from 'node:path';
@@ -70,7 +70,6 @@ await verifyToolchainContracts();
 
 verifyStyleTokens(await readFile('web/style.css', 'utf8'));
 
-console.log(
-  'Uncompressed asset bytes:',
-  verifyAssetBudget(build.assets, JSON.parse(await readFile('performance-budget.json', 'utf8'))),
+reportPayload(
+  measurePayload(build.assets, JSON.parse(await readFile('payload-targets.json', 'utf8'))),
 );
