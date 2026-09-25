@@ -29,6 +29,11 @@ assert.ok(
   (await readFile('dist/pkg/celestial_wasm_bg.wasm')).length > 8,
   'WASM artifact is missing',
 );
+// Link previews fetch the share image from the published site: it must ship.
+const site = html.match(/<meta property="og:url" content="([^"]+)">/)?.[1];
+const image = html.match(/<meta property="og:image" content="([^"]+)">/)?.[1];
+assert.ok(site && image?.startsWith(site), 'Open Graph image must live on the published site');
+await readFile(`dist/${image.slice(site.length)}`);
 console.log('Web modules, DOM contracts, and built entrypoints verified.');
 
 const build = JSON.parse(await readFile('dist/build-info.json', 'utf8'));
