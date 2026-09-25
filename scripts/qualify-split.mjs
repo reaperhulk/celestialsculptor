@@ -1,8 +1,8 @@
 // Gate for the near/far split: a giant with two authored moons inside a
 // 512-body low-mass disk, integrated for 600 years by the production scheme
-// (mutual tree far field at four coarse substeps, direct near field at eight
+// (mutual tree far field at two coarse substeps, direct near field at sixteen
 // fine steps each). Two comparisons: the same split with direct far forces
-// isolates the tree's approximation, and a uniform sixteen-substep integration
+// isolates the tree's approximation, and a uniform eight-substep integration
 // of the same tree forces isolates the integrator. The moons' elements are
 // measured relative to their host with the same budgets as the small moon
 // family; balances use the tree budgets.
@@ -110,7 +110,7 @@ const report = {
   physics: raw.physics,
   bodies: raw.bodies,
   scope:
-    'Giant with two authored moons inside a 512-body low-mass disk for 600 years: the production near/far split with the mutual tree, compared with the same split on direct far forces (tree approximation) and with a uniform sixteen-substep integration of the same tree forces (integrator). Moon elements are relative to the host.',
+    'Giant with two authored moons inside a 512-body low-mass disk for 600 years: the production near/far split with the mutual tree, compared with the same split on direct far forces (tree approximation) and with a uniform eight-substep integration of the same tree forces (integrator). Moon elements are relative to the host.',
   budgets,
   rows,
   passed: !failures.length,

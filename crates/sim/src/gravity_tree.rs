@@ -88,7 +88,7 @@ impl Tree {
         if cut_in.is_empty() {
             0.0
         } else {
-            order.iter().map(|&i| cut_in[i]).fold(0.0, f64::max)
+            order.iter().map(|&i| cut_in[i].abs()).fold(0.0, f64::max)
         }
     }
     /// `rebuild` re-partitions the tree from the current positions. Between the
@@ -400,7 +400,7 @@ impl Tree {
             n.max_cut = if cut.is_empty() {
                 0.0
             } else {
-                cut[s..e].iter().copied().fold(0.0, f64::max)
+                cut[s..e].iter().map(|c| c.abs()).fold(0.0, f64::max)
             };
             n.mass = m.mass;
             n.center = m.center;
@@ -624,7 +624,7 @@ pub(crate) fn direct_pair_cut(
     );
 }
 /// The far part of one pair whose cutoff `r_out` the caller resolved. Tree
-/// order never holds the star, so leaf pairs pass `cut[i].max(cut[j])`.
+/// order never holds the star, so leaf pairs pass the larger magnitude.
 #[inline]
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn direct_pair_far(
@@ -670,7 +670,7 @@ mod tests {
         let mut cuts = Vec::new();
         crate::split::cutoffs(&x, &y, &mass, &mut cuts);
         assert!(
-            cuts[1] > 0.1 && cuts[2] == 0.0,
+            cuts[1] > 0.1 && cuts[2] < 0.0,
             "fixture needs a giant and dust"
         );
         let soft2 = crate::SOFTENING.powi(2);

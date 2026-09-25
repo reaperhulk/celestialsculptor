@@ -46,7 +46,7 @@ pub(crate) fn block(
 }
 /// Row `i` against bodies `start..end`, which never include `i`; both sides of
 /// every pair are updated. An empty `cut` selects the plain force; otherwise
-/// each pair's far part is weighted by `cut[i].max(cut[j])`.
+/// each pair's far part is weighted by the larger cutoff magnitude.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn range(
     x: &[f64],
@@ -64,7 +64,7 @@ pub(crate) fn range(
         "a row never pairs a body with itself"
     );
     let (px, py, mi) = (x[i], y[i], mass[i]);
-    let ci = cut.get(i).copied().unwrap_or(0.0);
+    let ci = cut.get(i).map_or(0.0, |c| c.abs());
     for j in start..end {
         let dx = x[j] - px;
         let dy = y[j] - py;
@@ -72,7 +72,7 @@ pub(crate) fn range(
         let numerator = if cut.is_empty() {
             G
         } else {
-            G * crate::split::far_weight(raw, ci.max(cut[j]))
+            G * crate::split::far_weight(raw, ci.max(cut[j].abs()))
         };
         let r2 = raw + softening2;
         let s = numerator / (r2 * r2.sqrt());

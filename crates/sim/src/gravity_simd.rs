@@ -123,8 +123,8 @@ fn range_plain(
     }
 }
 /// The far kernel for a row with cutoffs: the same operations per lane as the
-/// scalar `direct_pair_far` with `cut[i].max(cut[j])`, so scalar and SIMD
-/// builds stay bit-identical. Rows never belong to the star.
+/// scalar kernel with the larger cutoff magnitude, so scalar and SIMD builds
+/// stay bit-identical. Rows never belong to the star.
 #[inline]
 #[allow(clippy::too_many_arguments)]
 fn range_cut(
@@ -141,6 +141,7 @@ fn range_cut(
     assert!(end <= x.len() && x.len() == y.len() && y.len() == mass.len() && end <= a.len());
     assert!(cut.len() == x.len());
     let p = V2::new(x[i], y[i]);
+    let ci = cut[i].abs();
     let mut j = start;
     // SAFETY: as in `range_plain`.
     while j + 1 < end {
@@ -154,11 +155,21 @@ fn range_cut(
         );
         let raw = f64x2_add(f64x2_mul(dx, dx), f64x2_mul(dy, dy));
         let r2 = f64x2_add(raw, f64x2_splat(softening2));
-        // Pairs where neither body has a cutoff have weight exactly 1, and
-        // G * 1.0 is G: such pairs skip the per-lane weight.
-        let numerator = if cut[i] != 0.0 || cut[j] != 0.0 || cut[j + 1] != 0.0 {
-            let w0 = crate::split::far_weight(f64x2_extract_lane::<0>(raw), cut[i].max(cut[j]));
-            let w1 = crate::split::far_weight(f64x2_extract_lane::<1>(raw), cut[i].max(cut[j + 1]));
+        // Pairs beyond their cutoff have weight exactly 1, and G * 1.0 is G:
+        // when both lanes are, they skip the per-lane weight.
+        let r_out = f64x2_max(
+            f64x2_splat(ci),
+            f64x2_abs(unsafe { v128_load(cut.as_ptr().add(j).cast()) }),
+        );
+        let numerator = if v128_any_true(f64x2_lt(raw, f64x2_mul(r_out, r_out))) {
+            let w0 = crate::split::far_weight(
+                f64x2_extract_lane::<0>(raw),
+                f64x2_extract_lane::<0>(r_out),
+            );
+            let w1 = crate::split::far_weight(
+                f64x2_extract_lane::<1>(raw),
+                f64x2_extract_lane::<1>(r_out),
+            );
             f64x2_mul(f64x2_splat(G), f64x2(w0, w1))
         } else {
             f64x2_splat(G)
@@ -185,7 +196,7 @@ fn range_cut(
         let d = V2::new(x[j], y[j]).minus(p);
         let raw = d.norm2();
         let r2 = raw + softening2;
-        let numerator = G * crate::split::far_weight(raw, cut[i].max(cut[j]));
+        let numerator = G * crate::split::far_weight(raw, ci.max(cut[j].abs()));
         let f = d.scale(numerator / (r2 * r2.sqrt()));
         a[i] = a[i].plus(f.scale(mass[j]));
         a[j] = a[j].minus(f.scale(mass[i]));

@@ -1,121 +1,275 @@
 {
   "schema": 1,
-  "physics": "newton-soft1e-4-mutual035-kdk4-near2hill8-moon16-disk32-edge025-v3",
+  "physics": "newton-soft1e-4-mutual035-kdk2-near2hill16-dust2e-3-moon16-disk32-edge025-v4",
   "bodies": 512,
   "debrisEarthMasses": 0.016,
-  "scope": "Constant 512-body collisionless cold disk; full 600-year tree lifetime, independently summed direct-force comparison at the same timestep. Low debris mass isolates force accumulation from hard encounters.",
+  "scope": "Constant 512-body collisionless cold disk; full 600-year tree lifetime, independently summed direct-force comparison at the same timestep. Low debris mass isolates force accumulation from hard encounters. Trajectory RMS covers bodies without a close encounter (inside one mutual Hill radius) in either run so far; at most 10% of bodies may have one.",
   "rows": [
     {
       "exact": false,
       "years": 600,
-      "maxRelativeEnergy": 8.072003867744526e-12,
-      "maxAngularResidual": 1.6199505116238494e-20,
-      "maxMomentumResidual": 9.581952890242505e-22
+      "maxRelativeEnergy": 1.4462301783590693e-11,
+      "maxAngularResidual": 2.2234614865425384e-21,
+      "maxMomentumResidual": 5.934778067917121e-22
     },
     {
       "exact": true,
       "years": 600,
-      "maxRelativeEnergy": 1.5189840470523986e-12,
-      "maxAngularResidual": 1.0905549195899117e-20,
-      "maxMomentumResidual": 1.4737664971610158e-21
+      "maxRelativeEnergy": 8.279792906282213e-12,
+      "maxAngularResidual": 7.835054762102278e-21,
+      "maxMomentumResidual": 8.106935768485043e-22
+    }
+  ],
+  "encountered": [
+    {
+      "body": 18,
+      "year": 217.994140625
+    },
+    {
+      "body": 36,
+      "year": 570.275390625
+    },
+    {
+      "body": 71,
+      "year": 298.17578125
+    },
+    {
+      "body": 72,
+      "year": 199.302734375
+    },
+    {
+      "body": 117,
+      "year": 81.552734375
+    },
+    {
+      "body": 122,
+      "year": 591.759765625
+    },
+    {
+      "body": 138,
+      "year": 81.552734375
+    },
+    {
+      "body": 143,
+      "year": 69.87890625
+    },
+    {
+      "body": 149,
+      "year": 390.439453125
+    },
+    {
+      "body": 152,
+      "year": 298.17578125
+    },
+    {
+      "body": 154,
+      "year": 444.36328125
+    },
+    {
+      "body": 180,
+      "year": 27.845703125
+    },
+    {
+      "body": 182,
+      "year": 199.302734375
+    },
+    {
+      "body": 188,
+      "year": 570.041015625
+    },
+    {
+      "body": 207,
+      "year": 5.66796875
+    },
+    {
+      "body": 222,
+      "year": 275.619140625
+    },
+    {
+      "body": 232,
+      "year": 69.87890625
+    },
+    {
+      "body": 235,
+      "year": 27.845703125
+    },
+    {
+      "body": 264,
+      "year": 570.275390625
+    },
+    {
+      "body": 285,
+      "year": 275.619140625
+    },
+    {
+      "body": 369,
+      "year": 271.025390625
+    },
+    {
+      "body": 385,
+      "year": 5.66796875
+    },
+    {
+      "body": 403,
+      "year": 570.041015625
+    },
+    {
+      "body": 408,
+      "year": 217.994140625
+    },
+    {
+      "body": 437,
+      "year": 271.025390625
+    },
+    {
+      "body": 463,
+      "year": 390.439453125
     }
   ],
   "trajectory": [
     {
       "year": 25,
-      "rmsPositionAu": 1.4173122121588646e-8
+      "rmsPositionAu": 1.2660146504183882e-8,
+      "encounteredBodies": 2,
+      "rmsAllBodiesAu": 1.4181964825090358e-8
     },
     {
       "year": 50,
-      "rmsPositionAu": 0.000008231367333155616
+      "rmsPositionAu": 3.437337121786367e-8,
+      "encounteredBodies": 4,
+      "rmsAllBodiesAu": 0.000009962988794208098
     },
     {
       "year": 75,
-      "rmsPositionAu": 0.000020720606403196955
+      "rmsPositionAu": 6.390231927309834e-8,
+      "encounteredBodies": 6,
+      "rmsAllBodiesAu": 0.000024917257911594393
     },
     {
       "year": 100,
-      "rmsPositionAu": 0.000031694608944057
+      "rmsPositionAu": 1.0285840113002029e-7,
+      "encounteredBodies": 8,
+      "rmsAllBodiesAu": 0.00003817791659619886
     },
     {
       "year": 125,
-      "rmsPositionAu": 0.00004503763023348257
+      "rmsPositionAu": 1.5396109148551764e-7,
+      "encounteredBodies": 8,
+      "rmsAllBodiesAu": 0.00005409821247769822
     },
     {
       "year": 150,
-      "rmsPositionAu": 0.000055696719277042966
+      "rmsPositionAu": 2.307016691769505e-7,
+      "encounteredBodies": 8,
+      "rmsAllBodiesAu": 0.00006700960085505657
     },
     {
       "year": 175,
-      "rmsPositionAu": 0.00006872584472451335
+      "rmsPositionAu": 2.8669366900933754e-7,
+      "encounteredBodies": 8,
+      "rmsAllBodiesAu": 0.00008257598730369879
     },
     {
       "year": 200,
-      "rmsPositionAu": 0.00008023487767945803
+      "rmsPositionAu": 3.717485143159197e-7,
+      "encounteredBodies": 10,
+      "rmsAllBodiesAu": 0.00009645044735624107
     },
     {
       "year": 225,
-      "rmsPositionAu": 0.00009202872847101031
+      "rmsPositionAu": 4.3385057387596473e-7,
+      "encounteredBodies": 12,
+      "rmsAllBodiesAu": 0.00011063733707934258
     },
     {
       "year": 250,
-      "rmsPositionAu": 0.00010482012646760431
+      "rmsPositionAu": 5.293363329509371e-7,
+      "encounteredBodies": 12,
+      "rmsAllBodiesAu": 0.00012593964162885342
     },
     {
       "year": 275,
-      "rmsPositionAu": 0.00011558853632592729
+      "rmsPositionAu": 5.965804279077285e-7,
+      "encounteredBodies": 14,
+      "rmsAllBodiesAu": 0.00013898504347036598
     },
     {
       "year": 300,
-      "rmsPositionAu": 0.0001290184631974338
+      "rmsPositionAu": 7.123941848242627e-7,
+      "encounteredBodies": 18,
+      "rmsAllBodiesAu": 0.00015485871127509575
     },
     {
       "year": 325,
-      "rmsPositionAu": 0.00013995596468536237
+      "rmsPositionAu": 8.190972085117009e-7,
+      "encounteredBodies": 18,
+      "rmsAllBodiesAu": 0.00016817736584767828
     },
     {
       "year": 350,
-      "rmsPositionAu": 0.00015278879675076067
+      "rmsPositionAu": 9.082779803687013e-7,
+      "encounteredBodies": 18,
+      "rmsAllBodiesAu": 0.00018313392427606748
     },
     {
       "year": 375,
-      "rmsPositionAu": 0.0001653643621236824
+      "rmsPositionAu": 0.0000011647712787488771,
+      "encounteredBodies": 18,
+      "rmsAllBodiesAu": 0.00019759203612346844
     },
     {
       "year": 400,
-      "rmsPositionAu": 0.00017673694962918555
+      "rmsPositionAu": 0.000002185581102307485,
+      "encounteredBodies": 20,
+      "rmsAllBodiesAu": 0.00020998499991931052
     },
     {
       "year": 425,
-      "rmsPositionAu": 0.00019039253617060268
+      "rmsPositionAu": 0.0000025418707258898134,
+      "encounteredBodies": 20,
+      "rmsAllBodiesAu": 0.00022569913856758495
     },
     {
       "year": 450,
-      "rmsPositionAu": 0.00020163845161891717
+      "rmsPositionAu": 0.0000037059085460048986,
+      "encounteredBodies": 21,
+      "rmsAllBodiesAu": 0.0002379961447550628
     },
     {
       "year": 475,
-      "rmsPositionAu": 0.00021485428230312638
+      "rmsPositionAu": 0.0000046747774645203435,
+      "encounteredBodies": 21,
+      "rmsAllBodiesAu": 0.00026700885217240204
     },
     {
       "year": 500,
-      "rmsPositionAu": 0.0002270490126441245
+      "rmsPositionAu": 0.000005301910307291115,
+      "encounteredBodies": 21,
+      "rmsAllBodiesAu": 0.0003057849623130307
     },
     {
       "year": 525,
-      "rmsPositionAu": 0.000239139451299233
+      "rmsPositionAu": 0.000006865366946079021,
+      "encounteredBodies": 21,
+      "rmsAllBodiesAu": 0.0003541811558367666
     },
     {
       "year": 550,
-      "rmsPositionAu": 0.00025231232276603187
+      "rmsPositionAu": 0.0000078507948788527,
+      "encounteredBodies": 21,
+      "rmsAllBodiesAu": 0.0004128691759799306
     },
     {
       "year": 575,
-      "rmsPositionAu": 0.0002635207937408794
+      "rmsPositionAu": 0.000009386120844918436,
+      "encounteredBodies": 25,
+      "rmsAllBodiesAu": 0.0004710622057372439
     },
     {
       "year": 600,
-      "rmsPositionAu": 0.00027206595383520076
+      "rmsPositionAu": 0.000010986071305895743,
+      "encounteredBodies": 26,
+      "rmsAllBodiesAu": 0.00160022174875775
     }
   ],
   "passed": true,

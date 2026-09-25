@@ -42,8 +42,8 @@ impl World {
         );
     }
     /// Substeps per tick. Small systems use the finest schedule a command has
-    /// selected. Tree-sized systems integrate with the near/far split: four
-    /// coarse substeps for the far field and `split::NEAR_STEPS` fine near
+    /// selected. Tree-sized systems integrate with the near/far split:
+    /// `split::COARSE_SUBSTEPS` coarse substeps for the far field and `split::NEAR_STEPS` fine near
     /// steps inside each, whatever moons or migration they hold.
     pub fn substeps(&self) -> u32 {
         if split::applies(self.bodies.len()) {
@@ -128,7 +128,8 @@ impl World {
             self.disk_angular_momentum += body.pos.cross(exchange);
         }
     }
-    /// Fixed KDK resolution: four substeps, sixteen after a moon is authored, thirty-two after disk migration.
+    /// Fixed KDK resolution below the tree threshold: four substeps, sixteen after a moon is authored,
+    /// thirty-two after disk migration; tree-sized systems use the near/far split.
     /// Display speed never changes the timestep.
     pub fn step(&mut self) {
         self.integrate_tick(self.substeps());

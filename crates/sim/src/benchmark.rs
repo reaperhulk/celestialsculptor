@@ -239,7 +239,12 @@ impl OrbitProbe {
     }
     /// Gameplay cadence: the same substep policy as a live world of this size.
     pub fn advance(&mut self, ticks: u32) {
-        self.advance_refined(ticks, 4);
+        let substeps = if crate::split::applies(self.velocity.len()) {
+            crate::split::COARSE_SUBSTEPS
+        } else {
+            4
+        };
+        self.advance_refined(ticks, substeps);
     }
     /// Qualification only: refine a fixed physical interval, independent of
     /// rendering. Tree-sized systems integrate with the near/far split exactly

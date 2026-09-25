@@ -29,23 +29,22 @@ resolution.
 
 Worlds of 512 or more bodies integrate with a near/far split (iteration 174).
 Every body above the dust boundary (0.5 Earth masses) carries a cutoff of twice
-its Hill radius; a pair's cutoff is the larger of the two, 0.6 AU for a massive
-body against the star, and zero for two grains of dust or dust against the
-star. Each pair force with a cutoff is divided by a smooth C² step into a near
+its Hill radius and dust a fixed 0.002 AU; a pair's cutoff is the larger of
+the two, 0.6 AU for a massive body against the star, and zero for dust against
+the star. Each pair force with a cutoff is divided by a smooth C² step into a near
 part inside the cutoff and a far part beyond it, the step spanning the outer
 half. The far parts are evaluated by the mutual tree, or by direct summation in
-exact runs, at four coarse substeps; the near parts, the few hundred pairs
-inside their cutoffs, are integrated directly at eight fine steps per coarse
-substep, 1/16384 year. Both parts are central pair forces, so each is
+exact runs, at two coarse substeps; the near parts, the few pairs inside their
+cutoffs, are integrated directly at sixteen fine steps per coarse substep,
+1/16384 year. Both parts are central pair forces, so each is
 Hamiltonian and pairwise symmetric: the composition is symplectic, momentum is
 conserved to rounding, and a moon, a migrating body near the inner disk edge or
-dust passing a giant is resolved at the fine step without slowing the swarm
-around it. Candidate near pairs are listed once per tick with a margin covering
+dust passing a giant or two grains passing each other is resolved at the fine
+step without slowing the swarm around it. Candidate near pairs are listed once per tick with a margin covering
 twice the distance a pair can close in a tick, so membership never depends on
-timing, and a tick with no candidate pair, such as any swarm of dust alone, runs
-the plain four-substep scheme unchanged. A two-substep schedule for large swarms was measured in iteration 173
-and rejected: the tree/direct trajectory gate below reached 0.0012 AU at 600
-years against the 0.001 AU limit.
+timing, and a tick with no candidate pair runs the plain two-substep scheme.
+Two coarse substeps (four before) halve the far-field work, about 1.6× faster
+per tick; the dust near field keeps close grain encounters at the fine step.
 
 Disk torque tapers smoothly between 0.35 and 0.25 AU and vanishes inside that
 inner edge. Disk impulses are split symmetrically around the gravitational step,
@@ -86,11 +85,21 @@ and 1,024-body massive swarm each run 600 years with the actual world engine.
 Collision, unresolved-disk and escape transfers are included in the balance.
 
 A separate collisionless 512-body disk keeps the tree selected for all 600 years
-and compares it with direct summation at the same timestep. A third fixture
+and compares it with direct summation at the same timestep. Its trajectory gate
+(0.0001 AU RMS) covers the bodies that have not yet had a close encounter,
+inside one mutual Hill radius, in either run; at most 10% of bodies may have
+one (26 of 511 do). A close pass magnifies any difference between two runs,
+whatever its source, so the plain RMS over all bodies measured where a few
+encounters happened to fall rather than the tree: the 0.00027 AU it recorded
+at four substeps was almost entirely one grain pair, and the two-substep
+schedule first failed its 0.001 AU limit (iteration 173, 0.0012 AU) through
+one pass at 0.4 Hill radii. Bodies without an encounter differ by 0.00001 AU
+RMS after 600 years, so the limit is ten times tighter than before, on the
+tree's own error. The full RMS stays in the report. A third fixture
 (`qualify-split`) places a giant with two authored moons inside a 512-body
 low-mass disk and runs 600 years three ways: the production split with the
 tree, the same split with direct far forces (isolating the tree's
-approximation) and a uniform sixteen-substep integration of the same tree
+approximation) and a uniform eight-substep integration of the same tree
 forces (isolating the integrator; a direct-summation reference at that
 resolution would take hours). The moons' elements relative to their host must
 stay within the moon-family budgets (axis 2e-3, eccentricity 2e-3, phase 0.2

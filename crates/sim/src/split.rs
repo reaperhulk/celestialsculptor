@@ -10,26 +10,30 @@
 //! symmetric: the composition stays symplectic and conserves momentum exactly,
 //! and with fixed schedules it replays bit for bit.
 //!
-//! Cutoffs scale with each body's Hill radius and only bodies massive enough
-//! to be more than dust carry one, so a moon orbiting a giant, or dust passing
-//! it, is a near pair while two grains of dust are never one: a swarm without
-//! such a body integrates exactly as before the split. Pairs between the star
-//! and a massive body use a fixed cutoff so the inner disk keeps fine steps.
+//! Cutoffs scale with each massive body's Hill radius, so a moon orbiting a
+//! giant, or dust passing it, is a near pair. Dust carries a small fixed
+//! cutoff, stored negated, so close dust–dust encounters also take fine
+//! steps while the star's pairs with dust stay entirely far. Pairs between
+//! the star and a massive body use a fixed cutoff so the inner disk keeps
+//! fine steps.
 use crate::{Body, DT, G, V2};
 
 /// Coarse substeps per tick: the far (tree) evaluations.
-pub const COARSE_SUBSTEPS: u32 = 4;
+pub const COARSE_SUBSTEPS: u32 = 2;
 /// Fine near steps per coarse substep: 32 near steps per tick, the resolution
 /// the migration world needed to keep its energy balance inside 2e-5.
-pub const NEAR_STEPS: u32 = 8;
+pub const NEAR_STEPS: u32 = 16;
 /// `r_out` as a multiple of the Hill radius; `r_in` is half of `r_out`, so an
 /// authored moon (apoapsis below 0.7 Hill radii) is fully a near pair.
 pub const CUT_SCALE: f64 = 2.0;
 /// `r_out` for pairs between the star and a massive body: the inner disk edge
 /// (0.25–0.35 AU) sits inside `r_in = 0.3`.
 pub const STAR_CUT: f64 = 0.6;
-/// Bodies below this mass (the dust boundary) carry no cutoff of their own.
+/// Bodies below this mass (the dust boundary) carry the dust cutoff.
 pub const FINE_MASS: f64 = 0.5 * crate::EARTH;
+/// `r_out` for dust–dust pairs: close encounters between grains take the
+/// fine steps, far beyond the softening length.
+pub const DUST_CUT: f64 = 2e-3;
 const INNER: f64 = 0.5;
 
 /// Whether a system of this many bodies integrates with the split.
@@ -38,7 +42,7 @@ pub fn applies(bodies: usize) -> bool {
 }
 
 /// Per-body cutoff radii `r_out` from positions and masses (the star first);
-/// dust carries none.
+/// dust carries `-DUST_CUT`, the sign marking it for the star rule.
 pub fn cutoffs(x: &[f64], y: &[f64], mass: &[f64], out: &mut Vec<f64>) {
     out.clear();
     if x.is_empty() {
@@ -47,7 +51,7 @@ pub fn cutoffs(x: &[f64], y: &[f64], mass: &[f64], out: &mut Vec<f64>) {
     out.push(STAR_CUT);
     for i in 1..x.len() {
         if mass[i] < FINE_MASS {
-            out.push(0.0);
+            out.push(-DUST_CUT);
             continue;
         }
         let r = V2::new(x[i] - x[0], y[i] - y[0]).norm();
@@ -55,15 +59,15 @@ pub fn cutoffs(x: &[f64], y: &[f64], mass: &[f64], out: &mut Vec<f64>) {
     }
 }
 
-/// A pair's cutoff: the larger of the two, except that the star's cutoff only
-/// applies against a massive body. Every kernel and the pair search use this.
+/// A pair's cutoff: the larger of the two magnitudes, except that the star
+/// and dust never form a near pair. Every kernel and the pair search use this.
 #[inline]
 pub fn pair_cut(cut: &[f64], i: usize, j: usize) -> f64 {
     let (a, b) = (cut[i], cut[j]);
-    if (i == 0 && b == 0.0) || (j == 0 && a == 0.0) {
+    if (i == 0 && b < 0.0) || (j == 0 && a < 0.0) {
         0.0
     } else {
-        a.max(b)
+        a.abs().max(b.abs())
     }
 }
 
@@ -106,8 +110,8 @@ impl PartialEq for Near {
 impl Near {
     /// Rebuild cutoffs and candidate pairs for the current bodies.
     pub fn prepare(&mut self, bodies: &[Body]) {
-        if !applies(bodies.len()) || !bodies.iter().skip(1).any(|b| b.mass >= FINE_MASS) {
-            // No body carries a cutoff: nothing to stage, the plain scheme runs.
+        if !applies(bodies.len()) {
+            // Too few bodies for the split: the plain scheme runs.
             self.clear();
             return;
         }
@@ -142,7 +146,7 @@ impl Near {
     }
     pub fn prepare_slices(&mut self, x: &[f64], y: &[f64], vx: &[f64], vy: &[f64], mass: &[f64]) {
         self.clear();
-        if !applies(x.len()) || !mass.iter().skip(1).any(|&m| m >= FINE_MASS) {
+        if !applies(x.len()) {
             return;
         }
         cutoffs(x, y, mass, &mut self.cuts);
@@ -186,8 +190,8 @@ impl Near {
 
 /// Every pair that can come inside its cutoff during one tick: separation
 /// below the pair's cutoff plus twice the distance the pair can close in a
-/// tick. Only pairs with a cutoff can qualify, so the search runs from the few
-/// massive bodies over a window of the x-sorted others.
+/// tick. Massive bodies scan a wide window of the x-sorted others; dust pairs
+/// only need a window of one dust cutoff plus their closing margin.
 pub fn near_pairs(
     x: &[f64],
     y: &[f64],
@@ -198,36 +202,57 @@ pub fn near_pairs(
 ) {
     out.clear();
     let n = x.len();
-    let massive: Vec<usize> = (1..n).filter(|&i| cuts[i] > 0.0).collect();
-    if massive.is_empty() {
+    if n < 2 {
         return;
     }
-    let cut_max = cuts.iter().fold(0.0, |a: f64, &b| a.max(b));
+    let cut_max = cuts.iter().fold(0.0, |a: f64, &b| a.max(b.abs()));
     let speed: Vec<f64> = (0..n).map(|i| V2::new(vx[i], vy[i]).norm()).collect();
     let speed_max = speed.iter().fold(0.0, |a: f64, &b| a.max(b));
     let mut order: Vec<usize> = (0..n).collect();
     order.sort_unstable_by(|&a, &b| x[a].total_cmp(&x[b]).then(a.cmp(&b)));
     let xs: Vec<f64> = order.iter().map(|&i| x[i]).collect();
-    for &i in &massive {
-        // Every pair limit is at most this window, so the scan is complete.
-        let window = cuts[i] + cut_max + 2.0 * DT * (speed[i] + speed_max);
-        let from = xs.partition_point(|&v| v < x[i] - window);
-        for &j in &order[from..] {
+    let check = |i: usize, j: usize, out: &mut Vec<(u32, u32)>| {
+        let cut = pair_cut(cuts, i, j);
+        if cut == 0.0 {
+            return;
+        }
+        let closing = V2::new(vx[j] - vx[i], vy[j] - vy[i]).norm();
+        let limit = cut + 2.0 * DT * closing;
+        let d = V2::new(x[j] - x[i], y[j] - y[i]);
+        if d.x.abs() <= limit && d.y.abs() <= limit && d.norm2() <= limit * limit {
+            out.push((i.min(j) as u32, i.max(j) as u32));
+        }
+    };
+    for i in 1..n {
+        if cuts[i] > 0.0 {
+            // Every pair limit is at most this window, so the scan is complete.
+            let window = cuts[i] + cut_max + 2.0 * DT * (speed[i] + speed_max);
+            let from = xs.partition_point(|&v| v < x[i] - window);
+            for &j in &order[from..] {
+                if x[j] - x[i] > window {
+                    break;
+                }
+                if j != i {
+                    check(i, j, out);
+                }
+            }
+        }
+    }
+    // Dust against dust: each pair once, from its lower x, forward only.
+    let dust_speed_max = (1..n)
+        .filter(|&i| cuts[i] < 0.0)
+        .fold(0.0, |a: f64, i| a.max(speed[i]));
+    for (k, &i) in order.iter().enumerate() {
+        if cuts[i] >= 0.0 {
+            continue;
+        }
+        let window = DUST_CUT + 2.0 * DT * (speed[i] + dust_speed_max);
+        for &j in &order[k + 1..] {
             if x[j] - x[i] > window {
                 break;
             }
-            if j == i {
-                continue;
-            }
-            let cut = pair_cut(cuts, i, j);
-            if cut == 0.0 {
-                continue;
-            }
-            let closing = V2::new(vx[j] - vx[i], vy[j] - vy[i]).norm();
-            let limit = cut + 2.0 * DT * closing;
-            let d = V2::new(x[j] - x[i], y[j] - y[i]);
-            if d.x.abs() <= limit && d.y.abs() <= limit && d.norm2() <= limit * limit {
-                out.push((i.min(j) as u32, i.max(j) as u32));
+            if cuts[j] < 0.0 {
+                check(i, j, out);
             }
         }
     }
@@ -280,17 +305,18 @@ mod tests {
         }
         // Zero cutoff: everything is far, so the split is the identity.
         assert_eq!(far_weight(1e-30, 0.0), 1.0);
-        // Dust pairs and star–dust pairs have no cutoff; massive pairs the larger.
-        let cuts = [STAR_CUT, 0.0, 0.4, 0.02];
+        // Star–dust pairs have no cutoff; every other pair the larger magnitude.
+        let cuts = [STAR_CUT, -DUST_CUT, 0.4, 0.001, -DUST_CUT];
         assert_eq!(pair_cut(&cuts, 0, 1), 0.0);
         assert_eq!(pair_cut(&cuts, 1, 0), 0.0);
         assert_eq!(pair_cut(&cuts, 0, 2), STAR_CUT);
         assert_eq!(pair_cut(&cuts, 1, 2), 0.4);
         assert_eq!(pair_cut(&cuts, 2, 3), 0.4);
-        assert_eq!(pair_cut(&cuts, 1, 3), 0.02);
+        assert_eq!(pair_cut(&cuts, 1, 3), DUST_CUT);
+        assert_eq!(pair_cut(&cuts, 1, 4), DUST_CUT);
     }
     #[test]
-    fn a_swarm_without_a_massive_body_keeps_the_plain_scheme() {
+    fn a_dust_swarm_lists_only_close_dust_pairs() {
         let mut w = crate::World::new(crate::Config {
             mission: None,
             ..crate::Config::default()
@@ -301,9 +327,27 @@ mod tests {
             disorder: 0.3,
         })
         .unwrap();
-        let mut near = Near::default();
-        near.prepare(&w.bodies);
-        assert!(!near.active && near.cuts.is_empty() && near.pairs.is_empty());
+        let b = &w.bodies;
+        let col = |f: fn(&Body) -> f64| b.iter().map(f).collect::<Vec<f64>>();
+        let (x, y, m) = (col(|p| p.pos.x), col(|p| p.pos.y), col(|p| p.mass));
+        let (vx, vy) = (col(|p| p.vel.x), col(|p| p.vel.y));
+        let mut cuts = Vec::new();
+        cutoffs(&x, &y, &m, &mut cuts);
+        assert!(cuts[1..].iter().all(|&c| c == -DUST_CUT));
+        let mut pairs = Vec::new();
+        near_pairs(&x, &y, &vx, &vy, &cuts, &mut pairs);
+        // Brute force: exactly the dust pairs within the cutoff plus margin.
+        let mut expected = Vec::new();
+        for i in 1..b.len() {
+            for j in i + 1..b.len() {
+                let limit = DUST_CUT + 2.0 * DT * b[i].vel.minus(b[j].vel).norm();
+                let d = b[j].pos.minus(b[i].pos);
+                if d.x.abs() <= limit && d.y.abs() <= limit && d.norm2() <= limit * limit {
+                    expected.push((i as u32, j as u32));
+                }
+            }
+        }
+        assert_eq!(pairs, expected);
     }
     #[test]
     fn near_pairs_cover_every_pair_that_can_reach_its_cutoff() {
@@ -343,7 +387,7 @@ mod tests {
         let mi = b.iter().position(|x| x.parent == Some(giant)).unwrap();
         assert!(near.pairs.contains(&(gi.min(mi) as u32, gi.max(mi) as u32)));
         // Brute force: every pair inside its cutoff + closing margin is listed,
-        // and dust pairs never are.
+        // and star–dust pairs never are.
         for i in 0..b.len() {
             for j in i + 1..b.len() {
                 let cut = pair_cut(&near.cuts, i, j);
@@ -353,7 +397,7 @@ mod tests {
                     assert!(listed, "{i} {j}");
                 }
                 if cut == 0.0 {
-                    assert!(!listed, "{i} {j} carry no cutoff");
+                    assert!(!listed, "{i} {j} is a star–dust pair");
                 }
             }
         }

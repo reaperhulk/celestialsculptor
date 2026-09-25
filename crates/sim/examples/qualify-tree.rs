@@ -2,6 +2,11 @@
 //! Optional arguments `tree` and/or `exact` run only those solvers, so CI can
 //! run each on its own machine; `scripts/qualify-tree.mjs` merges the outputs.
 //! With neither, both run in turn.
+//!
+//! Each run also records every body's first close encounter: a separation
+//! below `ENCOUNTER_HILL` mutual Hill radii. Such passes are physically
+//! chaotic, so the gate judges tree accuracy on the bodies that have not had
+//! one (and bounds how many have).
 use celestial_sim::{benchmark::OrbitProbe, *};
 use serde_json::json;
 fn balances(s: &[f64]) -> [f64; 4] {
@@ -17,6 +22,38 @@ fn balances(s: &[f64]) -> [f64; 4] {
         }
     }
     out
+}
+/// Close-encounter separation in mutual Hill radii: entering each other's
+/// Hill sphere.
+const ENCOUNTER_HILL: f64 = 1.0;
+/// Marks, for every body without one yet, a separation below its encounter
+/// distance at this tick: an x-sorted sweep, since the distances are small.
+fn mark_encounters(s: &[f64], tick: u64, first: &mut [Option<u64>]) {
+    let n = s.len() / 5;
+    let (x0, y0, m0) = (s[0], s[1], s[4]);
+    let r = |i: usize| (s[5 * i] - x0).hypot(s[5 * i + 1] - y0);
+    let hill = |i: usize, j: usize| {
+        ENCOUNTER_HILL * 0.5 * (r(i) + r(j)) * ((s[5 * i + 4] + s[5 * j + 4]) / (3.0 * m0)).cbrt()
+    };
+    let mut order: Vec<usize> = (1..n).collect();
+    order.sort_unstable_by(|&a, &b| s[5 * a].total_cmp(&s[5 * b]));
+    let (r_max, m_max) = (1..n).fold((0.0f64, 0.0f64), |(a, b), i| {
+        (a.max(r(i)), b.max(s[5 * i + 4]))
+    });
+    let window = ENCOUNTER_HILL * r_max * (2.0 * m_max / (3.0 * m0)).cbrt();
+    for (k, &i) in order.iter().enumerate() {
+        for &j in &order[k + 1..] {
+            if s[5 * j] - s[5 * i] > window {
+                break;
+            }
+            let d = (s[5 * j] - s[5 * i]).hypot(s[5 * j + 1] - s[5 * i + 1]);
+            if d < hill(i, j) {
+                for b in [i, j] {
+                    first[b].get_or_insert(tick);
+                }
+            }
+        }
+    }
 }
 fn main() {
     let mut w = World::new(Config {
@@ -59,15 +96,20 @@ fn main() {
         .map(|&exact| {
             let mut p = OrbitProbe::new(&initial, exact).unwrap();
             let mut samples = vec![];
-            for year in 1..=600 {
-                p.advance(512);
+            let mut first = vec![None; initial.len() / 5];
+            for year in 1..=600u64 {
+                // One tick at a time is bit-identical to `advance(512)`.
+                for tick in 0..512 {
+                    p.advance(1);
+                    mark_encounters(&p.state(), (year - 1) * 512 + tick + 1, &mut first);
+                }
                 if year % 25 == 0 {
                     let s = p.state();
                     samples.push(json!({"year":year,"balances":balances(&s),"state":s}));
                     eprintln!("persistent 512, exact={exact}: {year} years");
                 }
             }
-            json!({"exact":exact,"samples":samples})
+            json!({"exact":exact,"samples":samples,"first_encounter_tick":first})
         })
         .collect();
     println!(

@@ -1,7 +1,7 @@
 //! Near/far split qualification: a giant with two authored moons inside a
 //! 512-body low-mass disk, 600 years. The production split (tree far field)
 //! is compared with the same split on direct far forces, isolating the tree's
-//! approximation, and with a uniform sixteen-substep integration of the same
+//! approximation, and with a uniform four-times-finer integration of the same
 //! tree forces, isolating the integrator. The disk leaves a gap around the
 //! giant's orbit: the probe is collisionless, and a grain diving inside what
 //! would be the giant's contact radius is an unresolved encounter in any
@@ -105,9 +105,9 @@ fn main() {
     // (name, exact far forces, uniform reference, coarse substeps)
     let selected: Vec<String> = std::env::args().skip(2).collect();
     let plans: Vec<_> = [
-        ("split-tree", false, false, 4u32),
-        ("split-direct", true, false, 4),
-        ("uniform-tree", false, true, 16),
+        ("split-tree", false, false, split::COARSE_SUBSTEPS),
+        ("split-direct", true, false, split::COARSE_SUBSTEPS),
+        ("uniform-tree", false, true, 4 * split::COARSE_SUBSTEPS),
     ]
     .into_iter()
     .filter(|(name, ..)| selected.is_empty() || selected.iter().any(|s| s == name))
