@@ -30,8 +30,10 @@ export async function verifyToolchainContracts() {
     workflow.includes(`cargo install wasm-bindgen-cli --version ${bindgen} --locked`),
     'CI binding generator differs from the crate',
   );
-  for (const [, pin] of workflow.matchAll(/toolchain: ([^\n]+)/g))
-    assert.equal(pin, rust, 'CI Rust differs from rust-toolchain.toml');
+  // The pinned action installs the Rust release its commit is tagged with.
+  const pins = [...workflow.matchAll(/uses: dtolnay\/rust-toolchain@[0-9a-f]{40} # ([^\s]+)/g)];
+  assert.ok(pins.length > 0, 'CI must install Rust with the pinned toolchain action');
+  for (const [, pin] of pins) assert.equal(pin, rust, 'CI Rust differs from rust-toolchain.toml');
   for (const [, action] of workflow.matchAll(/uses: ([^\s#]+)/g))
     assert.match(action, /@[0-9a-f]{40}$/, 'Actions must use immutable commits');
   return { version, bindgen, rust };
