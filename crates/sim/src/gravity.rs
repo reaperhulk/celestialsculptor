@@ -149,14 +149,22 @@ impl Forces {
         self.complete = true;
         true
     }
-    /// Whether `output` already holds the accelerations for these bodies.
-    /// Cutoffs are deliberately not compared: a tick's opening kick reuses the
-    /// far forces of the previous tick's last evaluation, whose cutoffs differ
-    /// only by the fraction each body's host distance moved in one tick.
-    pub fn current(&self, bodies: &[Body], softening2: f64, tree_allowed: bool) -> bool {
+    /// Whether `output` already holds the accelerations for these bodies, as
+    /// far forces when `split` or whole forces otherwise. Cutoff values are
+    /// deliberately not compared: a step's opening kick reuses the far forces
+    /// of the previous step's last evaluation, whose cutoffs differ only by
+    /// the fraction each body's host distance moved in one step.
+    pub fn current(
+        &self,
+        bodies: &[Body],
+        softening2: f64,
+        tree_allowed: bool,
+        split: bool,
+    ) -> bool {
         let use_tree = tree_allowed && Self::tree_for(bodies.len());
         self.complete
             && self.use_tree == use_tree
+            && self.cuts.is_empty() != split
             && self.x.len() == bodies.len()
             && self.output.len() == bodies.len()
             && self.softening2.to_bits() == softening2.to_bits()
@@ -177,7 +185,7 @@ impl Forces {
         cuts: &[f64],
     ) {
         let use_tree = tree_allowed && Self::tree_for(bodies.len());
-        if self.current(bodies, softening2, tree_allowed) {
+        if self.current(bodies, softening2, tree_allowed, !cuts.is_empty()) {
             return;
         }
         self.stage(bodies, softening2, use_tree, cuts);

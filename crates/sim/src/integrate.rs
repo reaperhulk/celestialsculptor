@@ -48,7 +48,7 @@ impl World {
     /// split, one far step per `split::STEP_TICKS` ticks, whatever moons or
     /// migration they hold.
     pub fn substeps(&self) -> u32 {
-        if split::applies(self.bodies.len()) {
+        if self.next_split() {
             1
         } else {
             self.minimum_substeps
@@ -128,6 +128,15 @@ impl World {
     pub fn step(&mut self) {
         self.integrate_tick(self.substeps());
     }
+    /// Whether the next tick integrates with the split: decided by the body
+    /// count when it begins a step, else by the step in flight.
+    fn next_split(&self) -> bool {
+        if self.tick.is_multiple_of(split::STEP_TICKS) {
+            split::applies(self.bodies.len())
+        } else {
+            self.split_step
+        }
+    }
     pub(crate) fn integrate_tick(&mut self, substeps: u32) {
         self.integrate_tick_with_solver(substeps, true);
     }
@@ -147,10 +156,11 @@ impl World {
         }
         self.work_units += self.tick_work();
         self.merge_contacts(0.0);
-        if split::applies(self.bodies.len()) {
+        self.split_step = self.next_split();
+        if self.split_step {
             return self.wh_begin(tree_allowed);
         }
-        self.near.prepare(&self.bodies);
+        self.near.clear();
         // One partition per tick; a contact within the tick changes the body
         // set or moves bodies discontinuously, so it forces a fresh partition.
         self.pending.0 = Some(TickState {
@@ -165,7 +175,7 @@ impl World {
         });
         if self
             .forces
-            .current(&self.bodies, SOFTENING.powi(2), tree_allowed)
+            .current(&self.bodies, SOFTENING.powi(2), tree_allowed, false)
         {
             // Nothing moved since the last evaluation: the opening kick reuses
             // it, and the first evaluation inside the tick takes the rebuild.
@@ -250,7 +260,7 @@ impl World {
         if start
             && !self
                 .forces
-                .current(&self.bodies, SOFTENING.powi(2), tree_allowed)
+                .current(&self.bodies, SOFTENING.powi(2), tree_allowed, true)
         {
             return Some(true);
         }

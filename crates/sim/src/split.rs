@@ -39,7 +39,7 @@ pub const STAR_CUT: f64 = f64::MAX;
 pub const DUST_CUT: f64 = 2e-3;
 const INNER: f64 = 0.5;
 
-/// Whether a system of this many bodies integrates with the split.
+/// Whether a step beginning with this many bodies integrates with the split.
 pub fn applies(bodies: usize) -> bool {
     crate::gravity::Forces::tree_for(bodies)
 }
@@ -107,13 +107,9 @@ impl PartialEq for Near {
     }
 }
 impl Near {
-    /// Rebuild cutoffs and candidate pairs for the current bodies.
+    /// Rebuild cutoffs and candidate pairs for the current bodies. A step
+    /// begun with the split keeps it to its end, whatever the body count.
     pub fn prepare(&mut self, bodies: &[Body]) {
-        if !applies(bodies.len()) {
-            // Too few bodies for the split: the plain scheme runs.
-            self.clear();
-            return;
-        }
         self.stage(bodies);
         let vx: Vec<f64> = bodies.iter().map(|b| b.vel.x).collect();
         let vy: Vec<f64> = bodies.iter().map(|b| b.vel.y).collect();
@@ -125,7 +121,8 @@ impl Near {
         self.prepare_slices(&x, &y, &vx, &vy, &mass);
         (self.x, self.y, self.mass) = (x, y, mass);
     }
-    fn clear(&mut self) {
+    /// No split: the plain scheme runs.
+    pub(crate) fn clear(&mut self) {
         self.stale = true;
         self.active = false;
         self.accel.clear();
@@ -145,9 +142,6 @@ impl Near {
     }
     pub fn prepare_slices(&mut self, x: &[f64], y: &[f64], vx: &[f64], vy: &[f64], mass: &[f64]) {
         self.clear();
-        if !applies(x.len()) {
-            return;
-        }
         cutoffs(x, y, mass, &mut self.cuts);
         self.find_pairs(x, y, vx, vy);
     }
