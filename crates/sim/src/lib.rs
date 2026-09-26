@@ -389,6 +389,11 @@ pub struct World {
     pub config: Config,
     pub bodies: Vec<Body>,
     pub tick: u64,
+    /// Whether the step in flight integrates with the Wisdom–Holman split.
+    /// Chosen at the step's first tick, so a merge or command that crosses
+    /// the size threshold cannot switch schemes between its two kicks.
+    #[serde(default)]
+    pub(crate) split_step: bool,
     /// Sticky fixed resolution after an authored satellite is introduced.
     pub minimum_substeps: u32,
     pub spent: f64,
@@ -505,6 +510,7 @@ impl World {
             contact_search: contact_search::ContactSearch::default(),
             pending: integrate::PendingTick::default(),
             near: split::Near::default(),
+            split_step: false,
             history: history::History::default(),
             minimum_substeps: 4,
             resonances: vec![],
