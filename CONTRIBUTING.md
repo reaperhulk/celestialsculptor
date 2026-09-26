@@ -4,7 +4,7 @@ Install Rust using `rustup` (the checked-in toolchain pins Rust 1.90.0), Node 22
 and the matching WebAssembly binding generator:
 
 ```sh
-cargo install wasm-bindgen-cli --version 0.2.104 --locked
+cargo install wasm-bindgen-cli --version "$(node scripts/bindgen-version.mjs)" --locked
 npm ci --ignore-scripts
 cargo test --workspace --release --locked
 npm run lint
