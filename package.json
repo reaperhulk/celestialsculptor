@@ -32,7 +32,7 @@
     "compare:swarm": "node scripts/compare-swarm.mjs"
   },
   "devDependencies": {
-    "@playwright/test": "1.55.0",
+    "@playwright/test": "1.63.0",
     "esbuild": "0.28.2",
     "oxlint": "1.83.0",
     "prettier": "3.9.8"
