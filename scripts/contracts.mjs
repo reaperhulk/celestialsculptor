@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 export async function verifyToolchainContracts() {
-  const [cargo, wasm, toolchain, workflow, packageText, lockText] = await Promise.all(
+  const [cargo, wasm, toolchain, workflow, packageText, lockText, cargoLock] = await Promise.all(
     [
       'Cargo.toml',
       'crates/wasm/Cargo.toml',
@@ -9,6 +9,7 @@ export async function verifyToolchainContracts() {
       '.github/workflows/verify.yml',
       'package.json',
       'package-lock.json',
+      'Cargo.lock',
     ].map((path) => readFile(path, 'utf8')),
   );
   const version = cargo.match(/^version = "([^"]+)"/m)?.[1],
@@ -26,10 +27,22 @@ export async function verifyToolchainContracts() {
     'Rust and web application versions differ',
   );
   assert.equal(JSON.parse(lockText).version, version, 'NPM lockfile version differs');
-  assert.ok(
-    workflow.includes(`cargo install wasm-bindgen-cli --version ${bindgen} --locked`),
-    'CI binding generator differs from the crate',
+  assert.equal(
+    cargoLock.match(/name = "wasm-bindgen"\nversion = "([^"]+)"/)?.[1],
+    bindgen,
+    'Cargo.lock wasm-bindgen differs from the crate pin',
   );
+  // CI reads the pin (scripts/bindgen-version.mjs) rather than repeating it.
+  const installs = [
+    ...workflow.matchAll(/cargo install wasm-bindgen-cli --version (.+?) --locked/g),
+  ];
+  assert.ok(installs.length > 0, 'CI must install the binding generator');
+  for (const [, pinned] of installs)
+    assert.equal(
+      pinned,
+      '${{ steps.bindgen.outputs.version }}',
+      'CI binding generator must follow the crate',
+    );
   // The pinned action installs the Rust release its commit is tagged with.
   const pins = [...workflow.matchAll(/uses: dtolnay\/rust-toolchain@[0-9a-f]{40} # ([^\s]+)/g)];
   assert.ok(pins.length > 0, 'CI must install Rust with the pinned toolchain action');

@@ -91,7 +91,7 @@ Install Node 22 or newer and Rust through rustup. The repository pins Rust 1.90.
 and its WASM target. Install the matching binding generator and dependencies:
 
 ```sh
-cargo install wasm-bindgen-cli --version 0.2.128 --locked
+cargo install wasm-bindgen-cli --version "$(node scripts/bindgen-version.mjs)" --locked
 npm ci --ignore-scripts
 npm run verify
 npm run serve

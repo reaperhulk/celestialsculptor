@@ -45,14 +45,17 @@ jobs:
             scenario-results.json
             sweep-results.json
       - run: npm ci --ignore-scripts
+      - name: Read the pinned wasm-bindgen version
+        id: bindgen
+        run: echo "version=$(node scripts/bindgen-version.mjs)" >> "$GITHUB_OUTPUT"
       - name: Cache wasm-bindgen CLI
         id: bindgen-cache
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ~/.cargo/bin/wasm-bindgen
-          key: bindgen-${{ runner.os }}-0.2.128
+          key: bindgen-${{ runner.os }}-${{ steps.bindgen.outputs.version }}
       - if: steps.bindgen-cache.outputs.cache-hit != 'true'
-        run: cargo install wasm-bindgen-cli --version 0.2.128 --locked --force
+        run: cargo install wasm-bindgen-cli --version ${{ steps.bindgen.outputs.version }} --locked --force
       - run: npm run build
       - run: npm run bench
       - name: Compare scalar and SIMD physics and throughput
@@ -88,14 +91,17 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm run lint
       - run: npm run format:check
+      - name: Read the pinned wasm-bindgen version
+        id: bindgen
+        run: echo "version=$(node scripts/bindgen-version.mjs)" >> "$GITHUB_OUTPUT"
       - name: Cache wasm-bindgen CLI
         id: bindgen-cache
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ~/.cargo/bin/wasm-bindgen
-          key: bindgen-${{ runner.os }}-0.2.128
+          key: bindgen-${{ runner.os }}-${{ steps.bindgen.outputs.version }}
       - if: steps.bindgen-cache.outputs.cache-hit != 'true'
-        run: cargo install wasm-bindgen-cli --version 0.2.128 --locked --force
+        run: cargo install wasm-bindgen-cli --version ${{ steps.bindgen.outputs.version }} --locked --force
       - run: npm run build
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -168,14 +174,17 @@ jobs:
       - name: Require a native ARM64 runner
         run: node -e "require('node:assert/strict').equal(process.arch, 'arm64')"
       - run: npm ci --ignore-scripts
+      - name: Read the pinned wasm-bindgen version
+        id: bindgen
+        run: echo "version=$(node scripts/bindgen-version.mjs)" >> "$GITHUB_OUTPUT"
       - name: Cache ARM64 wasm-bindgen CLI
         id: bindgen-arm-cache
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ~/.cargo/bin/wasm-bindgen
-          key: bindgen-${{ runner.os }}-${{ runner.arch }}-0.2.128
+          key: bindgen-${{ runner.os }}-${{ runner.arch }}-${{ steps.bindgen.outputs.version }}
       - if: steps.bindgen-arm-cache.outputs.cache-hit != 'true'
-        run: cargo install wasm-bindgen-cli --version 0.2.128 --locked --force
+        run: cargo install wasm-bindgen-cli --version ${{ steps.bindgen.outputs.version }} --locked --force
       - run: cargo test --workspace --release --locked
       - run: npm run build
       - run: npm test
