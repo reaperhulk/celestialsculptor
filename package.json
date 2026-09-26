@@ -34,7 +34,7 @@
   "devDependencies": {
     "@playwright/test": "1.63.0",
     "esbuild": "0.28.2",
-    "oxlint": "1.83.0",
+    "oxlint": "1.85.0",
     "prettier": "3.9.8"
   },
   "license": "MIT"
