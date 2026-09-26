@@ -52,7 +52,7 @@ jobs:
           path: ~/.cargo/bin/wasm-bindgen
           key: bindgen-${{ runner.os }}-0.2.128
       - if: steps.bindgen-cache.outputs.cache-hit != 'true'
-        run: cargo install wasm-bindgen-cli --version 0.2.128 --locked
+        run: cargo install wasm-bindgen-cli --version 0.2.128 --locked --force
       - run: npm run build
       - run: npm run bench
       - name: Compare scalar and SIMD physics and throughput
@@ -95,7 +95,7 @@ jobs:
           path: ~/.cargo/bin/wasm-bindgen
           key: bindgen-${{ runner.os }}-0.2.128
       - if: steps.bindgen-cache.outputs.cache-hit != 'true'
-        run: cargo install wasm-bindgen-cli --version 0.2.128 --locked
+        run: cargo install wasm-bindgen-cli --version 0.2.128 --locked --force
       - run: npm run build
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -175,7 +175,7 @@ jobs:
           path: ~/.cargo/bin/wasm-bindgen
           key: bindgen-${{ runner.os }}-${{ runner.arch }}-0.2.128
       - if: steps.bindgen-arm-cache.outputs.cache-hit != 'true'
-        run: cargo install wasm-bindgen-cli --version 0.2.128 --locked
+        run: cargo install wasm-bindgen-cli --version 0.2.128 --locked --force
       - run: cargo test --workspace --release --locked
       - run: npm run build
       - run: npm test
