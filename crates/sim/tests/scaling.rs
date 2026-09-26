@@ -184,3 +184,36 @@ fn a_contact_found_by_the_full_sweep_renumbers_the_near_set() {
     assert_eq!(w.tick, 48);
     assert!(w.collisions > 2, "fixture must merge inside the split");
 }
+#[test]
+#[cfg_attr(
+    debug_assertions,
+    ignore = "large-system workload runs in the release profile"
+)]
+fn a_merge_below_the_split_size_finishes_its_step_with_the_split() {
+    for tick in [1, 3] {
+        let mut w = swarm(512);
+        w.advance(tick);
+        // Two worlds meet slowly inside this tick of the step and merge,
+        // leaving 511.
+        let (pos, vel) = (w.bodies[1].pos, w.bodies[1].vel);
+        let touch = w.bodies[1].radius + w.bodies[2].radius;
+        w.bodies[2].pos = pos.plus(V2::new(touch + 0.1 * DT, 0.));
+        w.bodies[2].vel = vel.minus(V2::new(0.2, 0.));
+        let initial = w.balances();
+        w.advance(1);
+        assert_eq!(w.bodies.len(), 511, "{:?}", w.events.last());
+        let restored = World::from_checkpoint(&w.checkpoint().unwrap(), &w.replay()).unwrap();
+        assert_eq!(restored, w);
+        // Switching schemes mid-step would close it with the star's whole
+        // attraction as a far kick.
+        w.advance(3 - tick);
+        let drift = w.balances().energy_balance - initial.energy_balance;
+        assert!(
+            drift.abs() < 1e-6 * initial.energy_balance.abs(),
+            "{tick}: {drift}"
+        );
+        let mut restored = restored;
+        restored.advance(3 - tick);
+        assert_eq!(restored, w);
+    }
+}
