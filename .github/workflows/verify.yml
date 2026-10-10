@@ -37,7 +37,7 @@ jobs:
         run: cargo run --release --locked -p celestial-sim --bin sculptor -- verify > scenario-results.json
       - name: Sweep seeded gameplay outcomes
         run: cargo run --release --locked -p celestial-sim --bin sculptor -- sweep > sweep-results.json
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: simulation-results
@@ -63,7 +63,7 @@ jobs:
       - run: npm run bench:gravity
       - run: npm run bench:tuning
       - run: npm run bench:scaling
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: performance-results
           path: |
@@ -103,7 +103,7 @@ jobs:
       - if: steps.bindgen-cache.outputs.cache-hit != 'true'
         run: cargo install wasm-bindgen-cli --version ${{ steps.bindgen.outputs.version }} --locked --force
       - run: npm run build
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: wasm-debug-symbols
           path: target/browser-symbols/celestial_wasm_bg.wasm
@@ -113,7 +113,7 @@ jobs:
       - run: npm test
       - run: npx playwright install --with-deps chromium firefox webkit
       - run: npm run test:browser
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: gpu-compute-results
@@ -123,20 +123,20 @@ jobs:
             test-results/**/gpu-mixed.json
             test-results/**/gpu-lifetime.json
           retention-days: 14
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: ui-previews
           path: test-results/**/review-*.png
           retention-days: 14
       - name: Keep the browser run report, including which tests needed a retry
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: browser-report
           path: test-results/browser-report.json
           retention-days: 14
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: failure()
         with:
           name: browser-failures
@@ -146,7 +146,7 @@ jobs:
             playwright-report
       - run: npm run qualify:devices -- dist/build-info.json
       - run: npm run report
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-report
           path: |
@@ -198,7 +198,7 @@ jobs:
         run: npx playwright test --project=gpu-metal --output=test-results-gpu
       - name: Execute recipes in ARM64 WebKit
         run: npx playwright test --project=webkit-engine
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: arm64-performance-and-browser-results
@@ -229,7 +229,7 @@ jobs:
       - run: node scripts/qualify-numerics.mjs numerics
         env:
           QUALIFICATION_PYTHON: .qualification-env/bin/python
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: long-run-numerical-evidence
@@ -264,7 +264,7 @@ jobs:
         with:
           node-version: 22
       - run: node scripts/qualify-run.mjs ${{ matrix.example }} ${{ matrix.args }} > ${{ matrix.output }}
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: long-run-${{ matrix.run }}
           path: ${{ matrix.output }}
@@ -285,7 +285,7 @@ jobs:
           merge-multiple: true
       - run: node scripts/qualify-tree.mjs tree-raw-tree.json tree-raw-exact.json
       - run: node scripts/qualify-split.mjs split-raw-split-tree.json split-raw-split-direct.json split-raw-uniform-tree.json
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
           name: long-run-qualification
