@@ -176,14 +176,25 @@ impl Near {
             .extend(self.pairs.iter().flat_map(|&(i, j)| [i, j]));
         self.members.sort_unstable();
         self.members.dedup();
+        self.accel.clear();
         self.accel.resize(x.len(), V2::default());
     }
     /// Near accelerations at the current positions (recomputed only when stale).
+    /// Runs at every fine step, so it reads and clears only the members.
     pub fn evaluate(&mut self, bodies: &[Body], soft2: f64) {
         if !self.stale {
             return;
         }
-        self.stage(bodies);
+        let n = bodies.len();
+        self.x.resize(n, 0.0);
+        self.y.resize(n, 0.0);
+        self.mass.resize(n, 0.0);
+        for &m in &self.members {
+            let b = &bodies[m as usize];
+            self.x[m as usize] = b.pos.x;
+            self.y[m as usize] = b.pos.y;
+            self.mass[m as usize] = b.mass;
+        }
         let (x, y, mass) = (
             std::mem::take(&mut self.x),
             std::mem::take(&mut self.y),
@@ -196,7 +207,10 @@ impl Near {
         if !self.stale {
             return;
         }
-        self.accel.resize(x.len(), V2::default());
+        // Only members are ever written, and `find_pairs` cleared the rest.
+        for &m in &self.members {
+            self.accel[m as usize] = V2::default();
+        }
         near_accelerations(x, y, mass, &self.cuts, &self.pairs, soft2, &mut self.accel);
         self.stale = false;
     }
@@ -205,7 +219,8 @@ impl Near {
 /// Every pair that can come inside its cutoff during one tick: separation
 /// below the pair's cutoff plus twice the distance the pair can close in a
 /// tick. Massive bodies scan a wide window of the x-sorted others; dust pairs
-/// only need a window of one dust cutoff plus their closing margin.
+/// only need a window of one dust cutoff plus their closing margin, in x and
+/// in y.
 pub fn near_pairs(
     x: &[f64],
     y: &[f64],
@@ -223,9 +238,6 @@ pub fn near_pairs(
     let cut_max = cuts[1..].iter().fold(0.0, |a: f64, &b| a.max(b.abs()));
     let speed: Vec<f64> = (0..n).map(|i| V2::new(vx[i], vy[i]).norm()).collect();
     let speed_max = speed.iter().fold(0.0, |a: f64, &b| a.max(b));
-    let mut order: Vec<usize> = (0..n).collect();
-    order.sort_unstable_by(|&a, &b| x[a].total_cmp(&x[b]).then(a.cmp(&b)));
-    let xs: Vec<f64> = order.iter().map(|&i| x[i]).collect();
     let check = |i: usize, j: usize, out: &mut Vec<(u32, u32)>| {
         if j == 0 {
             return;
@@ -238,8 +250,11 @@ pub fn near_pairs(
             out.push((i.min(j) as u32, i.max(j) as u32));
         }
     };
-    for i in 1..n {
-        if cuts[i] > 0.0 {
+    if cuts[1..].iter().any(|&c| c > 0.0) {
+        let mut order: Vec<usize> = (0..n).collect();
+        order.sort_unstable_by(|&a, &b| x[a].total_cmp(&x[b]).then(a.cmp(&b)));
+        let xs: Vec<f64> = order.iter().map(|&i| x[i]).collect();
+        for i in (1..n).filter(|&i| cuts[i] > 0.0) {
             // Every pair limit is at most this window, so the scan is complete.
             let window = cuts[i] + cut_max + 2.0 * DT * (speed[i] + speed_max);
             let from = xs.partition_point(|&v| v < x[i] - window);
@@ -253,21 +268,56 @@ pub fn near_pairs(
             }
         }
     }
-    // Dust against dust: each pair once, from its lower x, forward only.
+    // Dust against dust: each pair once, from its lower x, forward only. An
+    // x window crosses the whole disk in y, so dust is first cut into y bands
+    // at least as tall as any pair's limit: a pair is then in the same band
+    // or adjacent ones, and each band is swept in x against those three.
     let dust_speed_max = (1..n)
         .filter(|&i| cuts[i] < 0.0)
         .fold(0.0, |a: f64, i| a.max(speed[i]));
-    for (k, &i) in order.iter().enumerate() {
-        if cuts[i] >= 0.0 {
-            continue;
+    // Padded, so rounding in a limit or a band index never separates a pair.
+    let band = (DUST_CUT + 4.0 * DT * dust_speed_max) * (1.0 + 1e-6);
+    let y_min = (1..n)
+        .filter(|&i| cuts[i] < 0.0)
+        .fold(f64::INFINITY, |a, i| a.min(y[i]));
+    // (band, body) in the sweep's order: by band, then x, then index.
+    let mut dust: Vec<(i64, usize)> = (1..n)
+        .filter(|&i| cuts[i] < 0.0)
+        .map(|i| (((y[i] - y_min) / band) as i64, i))
+        .collect();
+    dust.sort_unstable_by(|&(a, i), &(b, j)| a.cmp(&b).then(x[i].total_cmp(&x[j])).then(i.cmp(&j)));
+    let mut runs: Vec<(i64, usize, usize)> = Vec::new();
+    for (k, &(b, _)) in dust.iter().enumerate() {
+        match runs.last_mut() {
+            Some(run) if run.0 == b => run.2 = k + 1,
+            _ => runs.push((b, k, k + 1)),
         }
-        let window = DUST_CUT + 2.0 * DT * (speed[i] + dust_speed_max);
-        for &j in &order[k + 1..] {
-            if x[j] - x[i] > window {
-                break;
-            }
-            if cuts[j] < 0.0 {
-                check(i, j, out);
+    }
+    let after = |i: usize, j: usize| x[j].total_cmp(&x[i]).then(j.cmp(&i)).is_gt();
+    for (r, &(b, start, end)) in runs.iter().enumerate() {
+        // The first body of each neighbouring band that follows `i` in x: it
+        // only moves forward as `i` does.
+        let below = r.checked_sub(1).map(|q| runs[q]).filter(|q| q.0 == b - 1);
+        let above = runs.get(r + 1).copied().filter(|q| q.0 == b + 1);
+        let mut from = [below.map_or(0, |q| q.1), above.map_or(0, |q| q.1)];
+        for k in start..end {
+            let i = dust[k].1;
+            let window = DUST_CUT + 2.0 * DT * (speed[i] + dust_speed_max);
+            let scan = |from: usize, end: usize, out: &mut Vec<(u32, u32)>| {
+                for &(_, j) in &dust[from..end] {
+                    if x[j] - x[i] > window {
+                        break;
+                    }
+                    check(i, j, out);
+                }
+            };
+            scan(k + 1, end, out);
+            for (side, run) in [below, above].into_iter().enumerate() {
+                let Some((_, _, run_end)) = run else { continue };
+                while from[side] < run_end && !after(i, dust[from[side]].1) {
+                    from[side] += 1;
+                }
+                scan(from[side], run_end, out);
             }
         }
     }
@@ -275,7 +325,8 @@ pub fn near_pairs(
     out.dedup();
 }
 
-/// Near accelerations: the near part of every candidate pair, in pair order.
+/// Adds the near part of every candidate pair to `out`, in pair order. The
+/// caller clears the pairs' members first.
 pub fn near_accelerations(
     x: &[f64],
     y: &[f64],
@@ -285,7 +336,6 @@ pub fn near_accelerations(
     soft2: f64,
     out: &mut [V2],
 ) {
-    out.fill(V2::default());
     for &(i, j) in pairs {
         let (i, j) = (i as usize, j as usize);
         let d = V2::new(x[j] - x[i], y[j] - y[i]);
@@ -364,6 +414,81 @@ mod tests {
             }
         }
         assert_eq!(pairs, expected);
+    }
+    /// The dust sweep without y bands: every later body inside the x window.
+    fn dust_pairs_by_x_window(
+        x: &[f64],
+        y: &[f64],
+        vx: &[f64],
+        vy: &[f64],
+        cuts: &[f64],
+    ) -> Vec<(u32, u32)> {
+        let n = x.len();
+        let speed: Vec<f64> = (0..n).map(|i| V2::new(vx[i], vy[i]).norm()).collect();
+        let fastest = (1..n)
+            .filter(|&i| cuts[i] < 0.0)
+            .fold(0.0, |a: f64, i| a.max(speed[i]));
+        let mut order: Vec<usize> = (1..n).filter(|&i| cuts[i] < 0.0).collect();
+        order.sort_unstable_by(|&a, &b| x[a].total_cmp(&x[b]).then(a.cmp(&b)));
+        let mut out = Vec::new();
+        for (k, &i) in order.iter().enumerate() {
+            let window = DUST_CUT + 2.0 * DT * (speed[i] + fastest);
+            for &j in &order[k + 1..] {
+                if x[j] - x[i] > window {
+                    break;
+                }
+                let limit = DUST_CUT + 2.0 * DT * V2::new(vx[j] - vx[i], vy[j] - vy[i]).norm();
+                let d = V2::new(x[j] - x[i], y[j] - y[i]);
+                if d.x.abs() <= limit && d.y.abs() <= limit && d.norm2() <= limit * limit {
+                    out.push((i.min(j) as u32, i.max(j) as u32));
+                }
+            }
+        }
+        out.sort_unstable();
+        out
+    }
+    #[test]
+    fn y_bands_list_exactly_the_pairs_of_the_x_window() {
+        let mut state = 7_u64;
+        let mut random = || {
+            state = state.wrapping_mul(6364136223846793005).wrapping_add(1);
+            (state >> 11) as f64 / (1_u64 << 53) as f64
+        };
+        // Dense, sparse, slow (bands far thinner than the disk), fast (one
+        // band), a distant straggler, and coincident coordinates.
+        for (n, extent, v) in [
+            (900, 0.3, 0.2),
+            (900, 5.0, 6.0),
+            (300, 0.05, 0.0),
+            (400, 0.2, 300.0),
+            (2, 1.0, 1.0),
+        ] {
+            let (mut x, mut y, mut vx, mut vy) = (vec![0.0], vec![0.0], vec![0.0], vec![0.0]);
+            for i in 1..n {
+                let grid = |v: f64| {
+                    if i % 3 == 0 {
+                        (v * 40.0).round() / 40.0
+                    } else {
+                        v
+                    }
+                };
+                x.push(grid(extent * (random() - 0.5)));
+                y.push(grid(extent * (random() - 0.5)));
+                vx.push(v * (random() - 0.5));
+                vy.push(v * (random() - 0.5));
+            }
+            x.push(1e7);
+            y.push(-1e7);
+            vx.push(0.0);
+            vy.push(0.0);
+            let mut cuts = vec![-DUST_CUT; x.len()];
+            cuts[0] = STAR_CUT;
+            let mut pairs = Vec::new();
+            near_pairs(&x, &y, &vx, &vy, &cuts, &mut pairs);
+            let expected = dust_pairs_by_x_window(&x, &y, &vx, &vy, &cuts);
+            assert_eq!(pairs, expected, "{n} bodies over {extent} at {v}");
+            assert!(n < 100 || !pairs.is_empty() || v == 300.0);
+        }
     }
     #[test]
     fn near_pairs_cover_every_pair_that_can_reach_its_cutoff() {
