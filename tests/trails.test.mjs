@@ -18,7 +18,7 @@ test('same-tick undo or import clears trails from the previous timeline', () => 
   updateTrails(trails, a, b);
   assert.equal(trails.get(1).length, 2);
   updateTrails(trails, b, c);
-  assert.deepEqual(trails.get(1), [[8, 0]]);
+  assert.deepEqual(trails.get(1), [[8, 0, 101]]);
   updateTrails(trails, c, c);
   assert.equal(trails.get(1).length, 1);
   updateTrails(trails, c, { ...c, bodies: c.bodies.slice(0, 1) });
@@ -34,7 +34,7 @@ test('long runs cap each path and omit the star', () => {
   }
   assert.equal(trails.size, 1);
   assert.equal(trails.get(1).length, 192);
-  assert.deepEqual(trails.get(1).at(-1), [999, 0]);
+  assert.deepEqual(trails.get(1).at(-1), [999, 0, 999]);
 });
 test('moon trails remove host motion and reset when the parent changes', () => {
   const trails = new Map(),
@@ -57,7 +57,7 @@ test('moon trails remove host motion and reset when the parent changes', () => {
   assert.equal(trails.get(2)[1][1], 0.2);
   const c = snapshot(2, 2, 0);
   updateTrails(trails, b, c, true);
-  assert.deepEqual(trails.get(2), [[2.1, 0.2]]);
+  assert.deepEqual(trails.get(2), [[2.1, 0.2, 2]]);
 });
 
 test('8192 bodies retain selected trails within a fixed global vertex budget', () => {

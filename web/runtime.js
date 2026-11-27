@@ -1,4 +1,5 @@
 import { PLAYBACK_SPEEDS, BASE_TICKS_PER_SECOND } from './playback.js';
+import { trailFrame } from './trail-samples.js';
 import { historyView } from './history-view.js';
 // Worker-owned controller. Its protocol is tested with real WASM without graphics.
 export class Runtime {
@@ -37,6 +38,9 @@ export class Runtime {
     this.timelineEnd = 0;
     this.eventPolicy = 'off';
     this.selectedBody = 0;
+    this.trailSamples = [];
+    this.sampleGeneration = -1;
+    this.sampleTick = 0;
   }
   state(id) {
     if (!this.sim) return;
@@ -45,8 +49,14 @@ export class Runtime {
     const snapshot = JSON.parse(
       packed ? this.sim.compact_snapshot(this.selectedBody) : this.sim.snapshot(),
     );
+    const samples = this.trailSamples
+      .splice(0)
+      .filter((sample) => this.sampleGeneration === this.generation && sample.tick < snapshot.tick);
+    this.sampleGeneration = this.generation;
+    this.sampleTick = snapshot.tick;
     this.send(
       {
+        trail_samples: samples,
         ...(packed ? { frame, frame_version: 1 } : {}),
         type: 'state',
         id,
@@ -61,7 +71,7 @@ export class Runtime {
         event_policy: this.eventPolicy,
         generation: this.generation,
       },
-      frame ? [frame.buffer] : [],
+      [...(frame ? [frame.buffer] : []), ...samples.map((sample) => sample.frame.buffer)],
     );
   }
   // Production message entrypoint. Replays yield between small WASM slices so
@@ -418,6 +428,13 @@ export class Runtime {
       phase = this.sim.tick_local();
     }
   }
+  captureTrailSample() {
+    const tick = this.sim.tick();
+    if (tick - this.sampleTick < 2) return;
+    this.sampleTick = tick;
+    this.trailSamples.push({ tick, frame: trailFrame(this.sim.body_frame(), this.selectedBody) });
+    if (this.trailSamples.length > 96) this.trailSamples.shift();
+  }
   async advanceParallel(ticks) {
     this.stepping = true;
     try {
@@ -427,6 +444,7 @@ export class Runtime {
       while (remaining > 0) {
         const serial = this.eventPolicy === 'off' ? null : this.sim.event_serial();
         await this.parallelTick();
+        if (this.speed >= 4) this.captureTrailSample();
         remaining -= 1;
         if (serial !== null && this.sim.event_serial() !== serial) {
           this.debt = 0;
@@ -464,7 +482,12 @@ export class Runtime {
       while (remaining > 0) {
         const count = large ? 1 : this.eventPolicy === 'off' ? remaining : Math.min(8, remaining);
         const serial = this.eventPolicy === 'off' ? null : this.sim.event_serial();
-        this.sim.advance(count);
+        if (this.speed >= 4) {
+          for (let advanced = 0; advanced < count; advanced += 2) {
+            this.sim.advance(Math.min(2, count - advanced));
+            this.captureTrailSample();
+          }
+        } else this.sim.advance(count);
         remaining -= count;
         if (serial !== null && this.sim.event_serial() !== serial) {
           this.debt = 0;

@@ -12,6 +12,7 @@ import {
   fitZoom,
 } from './appearance.js';
 import { BodyScale } from './body-scale.js';
+import { decodeTrailSamples } from './trail-samples.js';
 import { updateTrails } from './trails.js';
 import { PreviewCache } from './preview.js';
 
@@ -230,8 +231,9 @@ export class Renderer {
       this.state = state;
       return;
     }
-    updateTrails(this.trails, this.state, state, false, this.selected);
-    updateTrails(this.moonTrails, this.state, state, true, this.selected);
+    this.trailSamples = decodeTrailSamples(state.trail_samples);
+    updateTrails(this.trails, this.state, state, false, this.selected, this.trailSamples);
+    updateTrails(this.moonTrails, this.state, state, true, this.selected, this.trailSamples);
     const replaced =
       !this.state || state.generation !== this.state.generation || state.tick < this.state.tick;
     if (replaced || state.playing) this._encounterOverlay = null;
@@ -380,6 +382,11 @@ export class Renderer {
       this.state.playing,
       this.previousState?.generation === this.state.generation,
     );
+    const startTick = this.previousState?.tick ?? this.state.tick;
+    const drawnTick = startTick + alpha * (this.state.tick - startTick);
+    const nextIndex = this.trailSamples.findIndex((sample) => sample.tick > drawnTick);
+    const before = nextIndex < 0 ? this.trailSamples.at(-1) : this.trailSamples[nextIndex - 1];
+    const after = this.trailSamples[nextIndex];
     for (const body of this.state.bodies) {
       let position = this.displayPositions.get(body.id);
       if (!position) {
@@ -387,6 +394,19 @@ export class Renderer {
         this.displayPositions.set(body.id, position);
       }
       sampleBody(body, this.previousBodies.get(body.id), alpha, position);
+      if (this.trailSamples.length && alpha < 1) {
+        const left = before?.bodies.get(body.id);
+        const right = after?.bodies.get(body.id);
+        const from = left || this.previousBodies.get(body.id);
+        if (from && (left || right)) {
+          const to = right || body;
+          const t0 = left ? before.tick : startTick;
+          const t1 = right ? after.tick : this.state.tick;
+          const t = (drawnTick - t0) / (t1 - t0);
+          position.x = from.pos.x + (to.pos.x - from.pos.x) * t;
+          position.y = from.pos.y + (to.pos.y - from.pos.y) * t;
+        }
+      }
     }
     this.updateCamera(time * 1000);
     const animationTime = this.reduceMotion ? 0 : time;
@@ -453,7 +473,8 @@ export class Renderer {
           // reached yet while frames interpolate, so the trail ends at the drawn body.
           drawn = this.displayPositions.get(b.id);
         for (let i = 1; i < trail.length; i++) {
-          const last = i === trail.length - 1 && drawn;
+          if (trail[i - 1][2] > drawnTick) break;
+          const last = trail[i][2] >= drawnTick && drawn;
           lines.line(
             trail[i - 1][0] + ox,
             trail[i - 1][1] + oy,
@@ -462,6 +483,7 @@ export class Renderer {
             c,
             (i / trail.length) * 0.4,
           );
+          if (last) break;
         }
       }
     if (this.draft && this.previewVisible) {
