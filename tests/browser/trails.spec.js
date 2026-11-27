@@ -49,3 +49,47 @@ test('16× bodies and trail segments follow a tight circular orbit between snaps
   expect(result.endpointError).toBeLessThan(1e-6);
   expect(result.segments).toBeGreaterThan(8);
 });
+
+test('16× close stellar pass bends smoothly around periapsis', async ({ page }) => {
+  await page.goto('./');
+  const result = await page.evaluate(async () => {
+    const { default: init, Simulation } = await import('./pkg/celestial_wasm.js');
+    const { Runtime } = await import('./runtime.js');
+    const { Renderer } = await import('./renderer.js');
+    await init();
+    const renderer = new Renderer(document.body.appendChild(document.createElement('canvas')));
+    const runtime = new Runtime(Simulation, (m) => {
+      if (m.type === 'error') throw Error(m.message);
+      renderer.setState(m);
+    });
+    runtime.receive({ type: 'reset', config: { seed: 42, mission: null, star_mass: 1 } });
+    runtime.receive({
+      type: 'command',
+      command: { type: 'launch', kind: 'rocky', radius: 0.4, angle: 0, speed: 0.56 },
+    });
+    runtime.receive({ type: 'speed', value: 16 });
+    runtime.receive({ type: 'play', value: true });
+    runtime.advanceElapsed(1 / 30);
+    runtime.state();
+    renderer.zoom = 0.14;
+    renderer.draw(renderer.receivedAt + 1);
+    const lines = renderer.lineStream.view();
+    let turns = 0,
+      maxAngle = 0;
+    for (let i = 12; i < lines.length; i += 12) {
+      const x = lines[i],
+        y = lines[i + 1];
+      if (Math.hypot(x, y) > 0.1) continue;
+      const ax = x - lines[i - 12],
+        ay = y - lines[i - 11],
+        bx = lines[i + 6] - x,
+        by = lines[i + 7] - y;
+      const angle = Math.abs(Math.atan2(ax * by - ay * bx, ax * bx + ay * by));
+      maxAngle = Math.max(maxAngle, angle);
+      turns++;
+    }
+    return { turns, maxAngle };
+  });
+  expect(result.turns).toBeGreaterThan(10);
+  expect(result.maxAngle).toBeLessThan(0.3);
+});

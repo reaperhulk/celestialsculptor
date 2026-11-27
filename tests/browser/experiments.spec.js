@@ -25,37 +25,47 @@ test(
     await page.locator('#checkpoint-name').fill('Restart proof');
     await page.locator('#save-checkpoint').click();
     await expect(page.locator('.notebook-entry')).toHaveCount(1);
-    await page.reload();
-    await expect(page.locator('#sim-years')).toHaveText('0.03');
-    expect(
-      await page.evaluate(() =>
-        window.__restartMessages.some((m) => m.from_checkpoint && m.tick === 16),
-      ),
-    ).toBe(true);
-    await page.evaluate(async () => {
-      const db = await new Promise((resolve, reject) => {
-        const r = indexedDB.open('celestial-sculptor.checkpoints', 1);
-        r.onsuccess = () => resolve(r.result);
-        r.onerror = () => reject(r.error);
-      });
-      await new Promise((resolve, reject) => {
-        const tx = db.transaction('states', 'readwrite'),
-          store = tx.objectStore('states'),
-          r = store.getAllKeys();
-        r.onsuccess = () => r.result.forEach((key) => store.put('corrupt', key));
-        tx.oncomplete = resolve;
-        tx.onerror = () => reject(tx.error);
-      });
-      db.close();
-    });
-    await page.reload();
-    await expect(page.locator('#sim-years')).toHaveText('0.03');
-    await expect(page.locator('#planet-count')).toHaveText('1');
-    expect(
-      await page.evaluate(() =>
-        window.__restartMessages.some((m) => m.from_checkpoint && m.tick === 16),
-      ),
-    ).toBe(false);
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () => JSON.parse(localStorage.getItem('celestial-sculptor.experiment.v1')).end_tick,
+        ),
+      )
+      .toBe(16);
+    const reload = async () => {
+      await page.reload();
+      await expect(page.locator('#sim-years')).toHaveText('0.03');
+      await expect(page.locator('#planet-count')).toHaveText('1');
+      await expect(page.locator('#save-status')).toHaveText('Saved on this device');
+      return page.evaluate(() => window.__restartMessages);
+    };
+    const corrupt = (name) =>
+      page.evaluate(async (name) => {
+        const db = await new Promise((resolve, reject) => {
+          const r = indexedDB.open(name, 1);
+          r.onsuccess = () => resolve(r.result);
+          r.onerror = () => reject(r.error);
+        });
+        await new Promise((resolve, reject) => {
+          const tx = db.transaction('states', 'readwrite'),
+            store = tx.objectStore('states'),
+            r = store.getAllKeys();
+          r.onsuccess = () => r.result.forEach((key) => store.put('corrupt', key));
+          tx.oncomplete = resolve;
+          tx.onerror = () => reject(tx.error);
+        });
+        db.close();
+      }, name);
+    expect(await reload()).toHaveLength(0);
+    await corrupt('celestial-sculptor.sessions');
+    expect(await reload()).toContainEqual(
+      expect.objectContaining({ from_checkpoint: true, tick: 16 }),
+    );
+    await corrupt('celestial-sculptor.sessions');
+    await corrupt('celestial-sculptor.checkpoints');
+    expect(await reload()).toContainEqual(
+      expect.objectContaining({ operation: 'import', end_tick: 16, tick: 1 }),
+    );
     await page.evaluate(() => window.__testWorker.dispatchEvent(new Event('error')));
     await expect(page.locator('#reload')).toBeVisible();
     await page.locator('#reload').click();
