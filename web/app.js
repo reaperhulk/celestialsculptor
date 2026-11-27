@@ -58,6 +58,8 @@ let state = null,
   selectedBody = null,
   ready = false,
   restoring = true,
+  cancelRestore = false,
+  cancelledRestoreState = null,
   toastTimer;
 const storage = deviceStorage();
 const viewSettings = readViewSettings(
@@ -411,7 +413,7 @@ for (const button of document.querySelectorAll('[data-nudge]'))
 let lastUI = 0,
   lastEventSignature = '',
   lastObjectives = '';
-function renderState(next) {
+function renderState(next, forcePresent = false) {
   if (
     !state ||
     next.generation !== state.generation ||
@@ -420,7 +422,7 @@ function renderState(next) {
     next.tick < state.tick
   )
     frameLoop.frameMeter.reset(performance.now(), next.tick);
-  const present = shouldPresent(state, next, lastUI, performance.now());
+  const present = forcePresent || shouldPresent(state, next, lastUI, performance.now());
   if (state && next.speed !== state.speed) devicePanel.stop('playback speed changed');
   if (next.generation !== state?.generation) {
     frameLoop.frameMeter.reset(performance.now(), next.tick);
@@ -525,7 +527,7 @@ function renderState(next) {
   $('outcome-totals').textContent =
     `${s.collisions} mergers · ${s.grazes || 0} grazes · ${s.disruptions || 0} disruptions · ${s.ejections} escapes · ${s.absorbed} stellar impacts`;
   playback.observe(next);
-  $('play').disabled = !ready || restoring || s.exhausted;
+  $('play').disabled = !ready || (!next.busy && (restoring || s.exhausted));
   for (const id of ['step', 'undo', 'rewind', 'sandbox', 'campaign', 'clear', 'generate'])
     $(id).disabled = restoring;
   document.querySelector('.sculpt-panel').inert = restoring;
@@ -595,12 +597,18 @@ async function handleWorkerMessage(data) {
         restored = true;
         break;
       } catch {
+        if (cancelRestore) {
+          cancelledRestoreState = state;
+          $('save-status').textContent = 'Previous experiment saved · reload to resume';
+          toast('Replay cancelled. Reload to restore your save, or start sculpting here.');
+          break;
+        }
         /* Try backup before starting fresh. */
       }
     }
-    if (!restored) await reset(nextMission(profile));
+    if (!restored && !cancelRestore) await reset(nextMission(profile));
     restoring = false;
-    if (state) renderState(state);
+    if (state) renderState(state, true);
     await autosave();
   } else if (data.type === 'state') {
     renderState(data);
@@ -684,6 +692,17 @@ async function confirmReset(callback, onCancel = () => {}) {
 }
 async function saveSnapshot() {
   if (!ready || !state || restoring || state.busy) return;
+  if (cancelledRestoreState) {
+    // A periodic save of the empty startup world would erase the replay just cancelled.
+    const previous = cancelledRestoreState;
+    if (
+      state.generation === previous.generation &&
+      state.tick === previous.tick &&
+      state.observation_stamp[1] === previous.observation_stamp[1]
+    )
+      return;
+    cancelledRestoreState = null;
+  }
   const epoch = saveEpoch;
   try {
     const { replay } = await send('export');
@@ -851,10 +870,12 @@ for (const id of ['radius', 'speed'])
     $(id).value = $(id + '-range').value;
     updateDraft();
   };
-$('play').onclick = () =>
-  send('play', { value: state?.busy ? false : !playback.playing }).catch((error) =>
+$('play').onclick = () => {
+  if (restoring && state?.busy) cancelRestore = true;
+  return send('play', { value: state?.busy ? false : !playback.playing }).catch((error) =>
     toast(error.message),
   );
+};
 $('step').onclick = () => action('step');
 $('rewind').onclick = () => action('rewind');
 $('undo').onclick = () => action('undo').then(() => renderer?.trails.clear());

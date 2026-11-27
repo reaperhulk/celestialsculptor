@@ -1,6 +1,20 @@
 import { PLAYBACK_SPEEDS, BASE_TICKS_PER_SECOND } from './playback.js';
 import { trailFrame } from './trail-samples.js';
 import { historyView } from './history-view.js';
+// Let pending input run between replay slices without a nested timer's minimum delay.
+function yieldReplay() {
+  if (globalThis.scheduler?.postTask)
+    return globalThis.scheduler.postTask(() => {}, { priority: 'background' });
+  return new Promise((resolve) => {
+    const { port1, port2 } = new MessageChannel();
+    port1.onmessage = () => {
+      port1.close();
+      port2.close();
+      resolve();
+    };
+    port2.postMessage(null);
+  });
+}
 // Worker-owned controller. Its protocol is tested with real WASM without graphics.
 export class Runtime {
   constructor(
@@ -169,7 +183,7 @@ export class Runtime {
           reported = now;
         }
         if (now - slice >= 6) {
-          await new Promise((resolve) => setTimeout(resolve, 0));
+          await yieldReplay();
           slice = performance.now();
         }
       }
