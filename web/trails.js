@@ -1,3 +1,35 @@
+import { orbitCoordinate } from './motion.js';
+
+function appendSample(trail, body, host, tick) {
+  const x = body.pos.x - (host?.pos.x ?? 0),
+    y = body.pos.y - (host?.pos.y ?? 0);
+  if (!body.vel) {
+    trail.push([x, y, tick]);
+    return;
+  }
+  const vx = body.vel.x - (host?.vel?.x ?? 0),
+    vy = body.vel.y - (host?.vel?.y ?? 0);
+  const last = trail.at(-1);
+  if (last?.length === 5) {
+    const ticks = tick - last[2],
+      years = ticks / 512;
+    // Subdivide where the velocity changes direction, keeping straight paths cheap.
+    const turn =
+      (years * Math.hypot(vx - last[3], vy - last[4])) /
+      Math.max(1e-12, Math.hypot(x - last[0], y - last[1]));
+    const pieces = Math.min(16, Math.ceil(turn * 8));
+    for (let i = 1; i < pieces; i++) {
+      const t = i / pieces;
+      trail.push([
+        orbitCoordinate(last[0], x, last[3], vx, years, t),
+        orbitCoordinate(last[1], y, last[4], vy, years, t),
+        last[2] + t * ticks,
+      ]);
+    }
+  }
+  trail.push([x, y, tick, vx, vy]);
+}
+
 export function updateTrails(
   trails,
   previous,
@@ -45,14 +77,10 @@ export function updateTrails(
           trail.length = 0;
           continue;
         }
-        trail.push([
-          point.pos.x - (host?.pos.x || 0),
-          point.pos.y - (host?.pos.y || 0),
-          sample.tick,
-        ]);
+        appendSample(trail, point, host, sample.tick);
       }
     }
-    trail.push([body.pos.x - (parent?.pos.x || 0), body.pos.y - (parent?.pos.y || 0), state.tick]);
+    appendSample(trail, body, parent, state.tick);
     const limit = body.id === selected ? 192 : ordinary;
     if (trail.length > limit) trail.splice(0, trail.length - limit);
     trails.set(body.id, trail);

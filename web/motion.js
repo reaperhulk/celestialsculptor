@@ -1,3 +1,12 @@
+// Cubic Hermite interpolation uses the measured velocity at each end of a physics interval.
+export function orbitCoordinate(start, end, startVelocity, endVelocity, years, t) {
+  const chord = end - start;
+  return (
+    start +
+    t * chord +
+    t * (1 - t) * ((1 - t) * (years * startVelocity - chord) + t * (chord - years * endVelocity))
+  );
+}
 // Shared presentation sampling keeps a tracked body and its camera in the same frame.
 export function interpolationAlpha(time, received, previousReceived, playing, sameGeneration) {
   const interval = received - previousReceived;

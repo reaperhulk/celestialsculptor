@@ -2,7 +2,7 @@ import { project, unproject } from './geometry.js';
 import { VertexStream, PlanetStream, LINE_CAPACITY } from './vertices.js';
 import { planetVertex, planetFragment } from './planet-shaders.js';
 import { clampZoom, sceneContext } from './camera.js';
-import { interpolationAlpha, sampleBody, MotionSamples } from './motion.js';
+import { interpolationAlpha, sampleBody, MotionSamples, orbitCoordinate } from './motion.js';
 import {
   displayDiameter,
   contactRadius,
@@ -394,17 +394,18 @@ export class Renderer {
         this.displayPositions.set(body.id, position);
       }
       sampleBody(body, this.previousBodies.get(body.id), alpha, position);
-      if (this.trailSamples.length && alpha < 1) {
+      if (alpha < 1 && this.state.tick > startTick) {
         const left = before?.bodies.get(body.id);
         const right = after?.bodies.get(body.id);
         const from = left || this.previousBodies.get(body.id);
-        if (from && (left || right)) {
+        if (from?.vel && (right || body).vel) {
           const to = right || body;
           const t0 = left ? before.tick : startTick;
           const t1 = right ? after.tick : this.state.tick;
           const t = (drawnTick - t0) / (t1 - t0);
-          position.x = from.pos.x + (to.pos.x - from.pos.x) * t;
-          position.y = from.pos.y + (to.pos.y - from.pos.y) * t;
+          const years = (t1 - t0) / 512;
+          position.x = orbitCoordinate(from.pos.x, to.pos.x, from.vel.x, to.vel.x, years, t);
+          position.y = orbitCoordinate(from.pos.y, to.pos.y, from.vel.y, to.vel.y, years, t);
         }
       }
     }

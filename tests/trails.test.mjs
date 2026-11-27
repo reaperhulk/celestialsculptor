@@ -80,3 +80,28 @@ test('8192 bodies retain selected trails within a fixed global vertex budget', (
   updateTrails(trails, previous, { ...previous, tick: 201 }, true, 1);
   assert.ok(trails.size <= 265);
 });
+
+test('tight circular paths curve between measured physics positions', () => {
+  const trails = new Map(),
+    radius = 0.07,
+    omega = (2 * Math.PI) / radius ** 1.5;
+  let previous;
+  for (const tick of [0, 2]) {
+    const phase = (tick / 512) * omega,
+      next = state(1, tick);
+    next.bodies[1].pos = { x: radius * Math.cos(phase), y: radius * Math.sin(phase) };
+    next.bodies[1].vel = {
+      x: -radius * omega * Math.sin(phase),
+      y: radius * omega * Math.cos(phase),
+    };
+    updateTrails(trails, previous, next);
+    previous = next;
+  }
+  const path = trails.get(1);
+  assert.ok(path.length >= 8);
+  for (let i = 1; i < path.length; i++) {
+    const [ax, ay] = path[i - 1],
+      [bx, by] = path[i];
+    assert.ok(Math.hypot((ax + bx) / 2, (ay + by) / 2) > 0.98 * radius);
+  }
+});
