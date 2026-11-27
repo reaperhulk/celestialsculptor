@@ -120,3 +120,39 @@ fn schema_valid_but_hostile_checkpoint_fields_are_rejected() {
         );
     }
 }
+
+#[test]
+fn checkpoint_continues_exactly_at_every_split_phase() {
+    let mut w = World::new(Config {
+        mission: None,
+        ..Config::default()
+    })
+    .unwrap();
+    w.apply(Command::SeedSwarm {
+        count: 550,
+        disorder: 0.2,
+    })
+    .unwrap();
+    for radius in [1.0, 1.13] {
+        w.apply(Command::LaunchMass {
+            kind: Kind::Giant,
+            mass: 318.,
+            radius,
+            angle: 0.,
+            speed: 1.,
+        })
+        .unwrap();
+    }
+    for _ in 0..8 {
+        w.advance(1);
+        let mut restored = World::from_checkpoint(&w.checkpoint().unwrap(), &w.replay()).unwrap();
+        let mut uninterrupted = w.clone();
+        uninterrupted.advance(30);
+        restored.advance(30);
+        assert!(
+            restored == uninterrupted,
+            "diverged after checkpoint at {}",
+            w.tick
+        );
+    }
+}

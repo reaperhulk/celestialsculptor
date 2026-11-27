@@ -42,6 +42,16 @@ impl Forces {
         self.output.resize(bodies.len(), V2::default());
         self.output.fill(V2::default());
     }
+    pub(crate) fn restore_far(&mut self, bodies: &[Body], cuts: &[f64], output: Vec<V2>) {
+        self.stage(
+            bodies,
+            crate::SOFTENING.powi(2),
+            Self::tree_for(bodies.len()),
+            cuts,
+        );
+        self.output = output;
+        self.complete = true;
+    }
     /// Whether this many bodies use the tree, whose subtrees may be computed
     /// elsewhere.
     pub fn tree_for(bodies: usize) -> bool {

@@ -1,5 +1,5 @@
 //! Validated sandbox restart state. Portable/campaign imports still use commands.
-use crate::{Kind, Replay, SimError, World, MAX_BODIES, MAX_TICKS};
+use crate::{Kind, Replay, SimError, World, MAX_BODIES, MAX_TICKS, SOFTENING, V2};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
@@ -26,6 +26,10 @@ struct Checkpoint {
     schema: u32,
     physics: String,
     world: World,
+    #[serde(default)]
+    cuts: Vec<f64>,
+    #[serde(default)]
+    far: Vec<V2>,
 }
 
 #[derive(Serialize)]
@@ -33,6 +37,8 @@ struct CheckpointRef<'a> {
     schema: u32,
     physics: &'a str,
     world: &'a World,
+    cuts: &'a [f64],
+    far: &'a [V2],
 }
 
 impl World {
@@ -42,10 +48,29 @@ impl World {
                 "Campaigns are reconstructed from their commands".into(),
             ));
         }
+        if self.tick_pending() {
+            return Err(SimError::Sequence(
+                "Cannot checkpoint a partial tick".into(),
+            ));
+        }
+        // Split cutoffs stay fixed for a four-tick step. At the boundary the
+        // next opening kick can also reuse the previous closing acceleration.
+        let far = if self.split_step
+            && self.tick.is_multiple_of(crate::split::STEP_TICKS)
+            && self
+                .forces
+                .current(&self.bodies, SOFTENING.powi(2), true, true)
+        {
+            self.forces.output.as_slice()
+        } else {
+            &[]
+        };
         let text = serde_json::to_string(&CheckpointRef {
-            schema: 1,
+            schema: 2,
             physics: PHYSICS_ID,
             world: self,
+            cuts: &self.near.cuts,
+            far,
         })
         .map_err(|e| SimError::Unsupported(e.to_string()))?;
         if text.len() > MAX_CHECKPOINT_BYTES {
@@ -64,11 +89,11 @@ impl World {
         }
         let data: Checkpoint =
             serde_json::from_str(text).map_err(|e| SimError::Unsupported(e.to_string()))?;
-        let w = data.world;
+        let mut w = data.world;
         if replay.physics != PHYSICS_ID
             || replay.version != crate::SAVE_VERSION
             || replay.end_tick > MAX_TICKS
-            || data.schema != 1
+            || !(data.schema == 2 || (data.schema == 1 && !w.split_step))
             || data.physics != PHYSICS_ID
             || w.config.mission.is_some()
             || w.config != replay.config
@@ -156,6 +181,27 @@ impl World {
             return Err(SimError::Unsupported(
                 "Checkpoint contains invalid or oversized state".into(),
             ));
+        }
+        if data.cuts.len() > MAX_BODIES
+            || (!data.cuts.is_empty() && data.cuts[0] != crate::split::STAR_CUT)
+            || data.cuts.iter().any(|c| !c.is_finite())
+            || (!data.far.is_empty()
+                && (data.far.len() != w.bodies.len()
+                    || data.cuts.len() != w.bodies.len()
+                    || !w.split_step
+                    || !w.tick.is_multiple_of(crate::split::STEP_TICKS)))
+            || data
+                .far
+                .iter()
+                .any(|v| !v.x.is_finite() || !v.y.is_finite())
+        {
+            return Err(SimError::Unsupported(
+                "Invalid integrator checkpoint".into(),
+            ));
+        }
+        w.near.cuts = data.cuts;
+        if !data.far.is_empty() {
+            w.forces.restore_far(&w.bodies, &w.near.cuts, data.far);
         }
         Ok(w)
     }
