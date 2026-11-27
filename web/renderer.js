@@ -414,7 +414,7 @@ export class Renderer {
       canvas = this.canvas,
       r = canvas.getBoundingClientRect();
     this.dpr = Math.min(devicePixelRatio || 1, this.maxDpr);
-    this.bodyScale.update(this.state.bodies, this.displayPositions, r.height, this.zoom);
+    this.bodyScale.update(this.state.bodies, this.displayPositions, r.height, this.zoom, this.tilt);
     this.sceneLabel = sceneContext(
       this.state,
       this.center,

@@ -96,3 +96,53 @@ test(
       });
   },
 );
+
+test('round stellar surface fits within the projected contact radius at every zoom', async ({
+  page,
+}) => {
+  await page.goto('./');
+  const samples = await page.evaluate(async () => {
+    const { default: init, Simulation } = await import('./pkg/celestial_wasm.js');
+    const { Renderer } = await import('./renderer.js');
+    await init();
+    const sim = new Simulation(JSON.stringify({ seed: 42, mission: null, star_mass: 1 }));
+    const state = JSON.parse(sim.snapshot());
+    sim.free();
+    const canvas = document.body.appendChild(document.createElement('canvas'));
+    canvas.style.cssText = 'width:640px;height:480px';
+    const renderer = new Renderer(canvas);
+    renderer.setState(state);
+    const result = [];
+    for (const zoom of [0.12, 0.5, 1.5]) {
+      renderer.zoom = zoom;
+      renderer.draw(1);
+      const gl = renderer.gl;
+      const pixel = new Uint8Array(4);
+      for (const [x, y] of [
+        [1, 0],
+        [0, 1],
+      ]) {
+        // Equal screen-space offsets on either axis must cross the same bright limb.
+        for (const distance of [0.75, 1.25]) {
+          const r = state.bodies[0].radius * distance;
+          const [sx, sy] = renderer.toScreen(x * r * renderer.tilt, y * r);
+          gl.readPixels(
+            Math.floor(sx * renderer.dpr),
+            canvas.height - 1 - Math.floor(sy * renderer.dpr),
+            1,
+            1,
+            gl.RGBA,
+            gl.UNSIGNED_BYTE,
+            pixel,
+          );
+          result.push({ inside: distance < 1, brightness: pixel[0] });
+        }
+      }
+    }
+    return result;
+  });
+  for (const { inside, brightness } of samples) {
+    if (inside) expect(brightness).toBeGreaterThan(180);
+    else expect(brightness).toBeLessThan(110);
+  }
+});

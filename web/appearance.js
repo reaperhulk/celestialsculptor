@@ -1,8 +1,9 @@
-// Display scale exaggerates every body's contact radius by the same factor.
-// Volume-doubling therefore grows the visible radius by cbrt(2), at any zoom.
+// Sizes are sprite widths in CSS pixels, including space for the halo.
 export function bodyDiameter(body, height, zoom) {
-  if (body.kind === 'star')
-    return 120 * Math.cbrt(body.mass) * Math.min(1.15, height / 540) * Math.sqrt(3.5 / zoom);
+  if (body.kind === 'star') {
+    const radius = body.radius ?? contactRadius(body.kind, body.mass);
+    return (radius * height) / (2 * zoom * solidFraction(body.kind));
+  }
   const contact = 0.002 * Math.cbrt(body.mass / 3.003e-6);
   return Math.max(
     1,

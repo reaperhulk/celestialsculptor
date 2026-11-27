@@ -15,7 +15,7 @@ export class BodyScale {
     this.capacity = 2 ** Math.ceil(Math.log2(count));
     this.sizes = new Float64Array(this.capacity);
   }
-  update(bodies, positions, height, zoom) {
+  update(bodies, positions, height, zoom, tilt = 1) {
     this.ensure(bodies.length);
     for (let i = 0; i < bodies.length; i++) this.indices.set(bodies[i].id, i);
     for (const [id, index] of this.indices) if (bodies[index]?.id !== id) this.indices.delete(id);
@@ -29,7 +29,9 @@ export class BodyScale {
           q = positions.get(primary.id) || primary.pos;
         hill = hillRadius(body.mass, primary.mass, Math.hypot(p.x - q.x, p.y - q.y));
       }
-      this.sizes[i] = displayDiameter(body, height, zoom, hill);
+      // A round star fits inside the projected contact ellipse at its shorter radius.
+      const diameter = displayDiameter(body, height, zoom, hill);
+      this.sizes[i] = body.kind === 'star' ? diameter * tilt : diameter;
     }
   }
   diameter(id) {
