@@ -305,6 +305,19 @@ impl Simulation {
     pub fn checkpoint(&self) -> Result<String, JsValue> {
         self.world.checkpoint().map_err(js_error)
     }
+    pub fn session_checkpoint(&self) -> Result<String, JsValue> {
+        self.world.session_checkpoint().map_err(js_error)
+    }
+
+    pub fn restore_session(&mut self, checkpoint: &str, replay: &str) -> Result<(), JsValue> {
+        if replay.len() > 512_000 {
+            return Err(js_error("Experiment file is too large"));
+        }
+        let replay: Replay = serde_json::from_str(replay).map_err(js_error)?;
+        self.world = celestial_sim::World::from_session(checkpoint, &replay).map_err(js_error)?;
+        self.reconstruction = None;
+        Ok(())
+    }
     pub fn begin_checkpoint_import(
         &mut self,
         checkpoint: &str,

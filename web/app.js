@@ -158,6 +158,8 @@ async function sendRequest(type, data = {}, current = null) {
     if (['command', 'undo', 'rewind', 'step'].includes(type)) {
       clearTimeout(autosaveTimer);
       autosaveTimer = setTimeout(autosave, 250);
+    } else if (type === 'play' && !data.value) {
+      void autosave();
     }
     return reply;
   });
@@ -586,14 +588,19 @@ async function handleWorkerMessage(data) {
     ready = true;
     if (renderer) $('loading').hidden = true;
     document.body.dataset.ready = 'true';
-    let restored = false;
+    let restored = false,
+      restoreFailed = false;
     for (const replay of savedExperiments(storage)) {
       try {
         const data = parseReplay(replay);
         if (data.config.mission !== null && !canPlay(profile, data.config.mission)) continue;
         await send('reset', { config: data.config });
-        await send('import', { replay });
-        toast('Your experiment is restored, paused.');
+        await send('import', { replay, restore_session: true });
+        toast(
+          restoreFailed
+            ? 'The latest save could not be restored. Your backup is open, paused.'
+            : 'Your experiment is restored, paused.',
+        );
         restored = true;
         break;
       } catch {
@@ -603,10 +610,17 @@ async function handleWorkerMessage(data) {
           toast('Replay cancelled. Reload to restore your save, or start sculpting here.');
           break;
         }
-        /* Try backup before starting fresh. */
+        restoreFailed = true;
       }
     }
-    if (!restored && !cancelRestore) await reset(nextMission(profile));
+    if (!restored && !cancelRestore) {
+      await reset(nextMission(profile));
+      if (restoreFailed) {
+        cancelledRestoreState = state;
+        $('save-status').textContent = 'Restore failed · previous save kept';
+        toast('The saved experiment could not be restored. This is a fresh session.');
+      }
+    }
     restoring = false;
     if (state) renderState(state, true);
     await autosave();
@@ -705,10 +719,12 @@ async function saveSnapshot() {
   }
   const epoch = saveEpoch;
   try {
-    const { replay } = await send('export');
+    const { replay, snapshot_saved } = await send('autosave');
     if (epoch === saveEpoch && !restoring && !state?.busy)
       $('save-status').textContent = saveExperiment(storage, replay)
-        ? 'Saved on this device'
+        ? snapshot_saved
+          ? 'Saved on this device'
+          : 'Replay saved on this device'
         : 'Saving unavailable · export to keep';
   } catch {
     $('save-status').textContent = 'Save pending';

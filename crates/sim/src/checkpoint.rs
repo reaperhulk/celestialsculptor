@@ -48,6 +48,10 @@ impl World {
                 "Campaigns are reconstructed from their commands".into(),
             ));
         }
+        self.session_checkpoint()
+    }
+
+    pub fn session_checkpoint(&self) -> Result<String, SimError> {
         if self.tick_pending() {
             return Err(SimError::Sequence(
                 "Cannot checkpoint a partial tick".into(),
@@ -82,6 +86,15 @@ impl World {
     }
 
     pub fn from_checkpoint(text: &str, replay: &Replay) -> Result<Self, SimError> {
+        Self::read_checkpoint(text, replay, false)
+    }
+
+    /// Local reload only. A campaign snapshot must match the entire saved run.
+    pub fn from_session(text: &str, replay: &Replay) -> Result<Self, SimError> {
+        Self::read_checkpoint(text, replay, true)
+    }
+
+    fn read_checkpoint(text: &str, replay: &Replay, exact_session: bool) -> Result<Self, SimError> {
         if text.len() > MAX_CHECKPOINT_BYTES {
             return Err(SimError::Unsupported(
                 "Checkpoint exceeds its storage budget".into(),
@@ -95,7 +108,9 @@ impl World {
             || replay.end_tick > MAX_TICKS
             || !(data.schema == 2 || (data.schema == 1 && !w.split_step))
             || data.physics != PHYSICS_ID
-            || w.config.mission.is_some()
+            || (w.config.mission.is_some() && !exact_session)
+            || (exact_session
+                && (w.tick != replay.end_tick || w.commands.len() != replay.commands.len()))
             || w.config != replay.config
             || w.tick > replay.end_tick
             || w.tick > MAX_TICKS

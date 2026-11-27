@@ -1,6 +1,6 @@
 import init, { Simulation, launch_speed, missions } from './pkg/celestial_wasm.js';
 import { Runtime } from './runtime.js';
-import { CheckpointCache, IndexedCheckpointStore } from './checkpoints.js';
+import { CheckpointCache, IndexedCheckpointStore, SessionSnapshots } from './checkpoints.js';
 import { workDelay } from './work-schedule.js';
 import { ForcePool, helperCount } from './force-pool.js';
 
@@ -41,7 +41,16 @@ try {
   const runtime = new Runtime(
     Simulation,
     (message, transfer = []) => self.postMessage(message, transfer),
-    { checkpoints, provenance, forcePool },
+    {
+      checkpoints,
+      provenance,
+      forcePool,
+      sessions: globalThis.indexedDB
+        ? new SessionSnapshots(
+            new IndexedCheckpointStore(globalThis.indexedDB, 'celestial-sculptor.sessions'),
+          )
+        : null,
+    },
   );
   const report = (error, id) =>
     self.postMessage({ type: 'error', id, message: String(error?.message || error) });

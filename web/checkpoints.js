@@ -58,13 +58,14 @@ export class MemoryCheckpointStore {
   }
 }
 export class IndexedCheckpointStore {
-  constructor(indexedDB = globalThis.indexedDB) {
+  constructor(indexedDB = globalThis.indexedDB, name = 'celestial-sculptor.checkpoints') {
+    this.name = name;
     this.indexedDB = indexedDB;
     this.opening = null;
   }
   open() {
     return (this.opening ??= new Promise((resolve, reject) => {
-      const request = this.indexedDB.open('celestial-sculptor.checkpoints', 1);
+      const request = this.indexedDB.open(this.name, 1);
       request.onupgradeneeded = () => {
         request.result.createObjectStore('states');
         request.result.createObjectStore('index', { keyPath: 'key' });
@@ -232,6 +233,38 @@ export class CheckpointCache {
       }
     } catch {
       this.status = 'unavailable';
+    }
+    return null;
+  }
+}
+
+// Autosaves have a separate storage budget so a timeline seek or notebook
+// comparison cannot evict the session the page is about to reload.
+export class SessionSnapshots {
+  constructor(store) {
+    this.store = store;
+    this.savedReplay = null;
+  }
+  async save(sim, replay) {
+    if (this.savedReplay === replay) return true;
+    try {
+      // Capture before yielding: the worker can advance while IndexedDB writes.
+      const text = sim.session_checkpoint();
+      const encoded = bytes(text);
+      const [key, hash] = await Promise.all([digest(replay), digest(encoded)]);
+      await this.store.put({ key, bytes: encoded.length, saved: Date.now() }, { text, hash });
+      this.savedReplay = replay;
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  async load(replay) {
+    try {
+      const saved = await this.store.get(await digest(replay));
+      if (saved && (await digest(saved.text)) === saved.hash) return saved.text;
+    } catch {
+      // A missing or unreadable snapshot falls back to the portable replay.
     }
     return null;
   }

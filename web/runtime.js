@@ -24,6 +24,7 @@ export class Runtime {
       now = () => performance.now(),
       workBudgetMs = 6,
       checkpoints = null,
+      sessions = null,
       provenance = null,
       forcePool = null,
       parallelThreshold = 1024,
@@ -39,6 +40,7 @@ export class Runtime {
     this.now = now;
     this.workBudgetMs = workBudgetMs;
     this.checkpoints = checkpoints;
+    this.sessions = sessions;
     this.provenance = provenance;
     this.Simulation = Simulation;
     this.send = send;
@@ -105,6 +107,12 @@ export class Runtime {
       this.send({ type: 'error', id: message?.id, message: 'Unknown simulation command' });
       return;
     }
+    if (message.type === 'autosave' && this.sim) {
+      const replay = this.sim.export_replay();
+      return Promise.resolve(this.sessions?.save(this.sim, replay)).then((saved) =>
+        this.send({ type: 'export', id: message.id, replay, snapshot_saved: Boolean(saved) }),
+      );
+    }
     if (message.type === 'cache_checkpoint') {
       return (async () => {
         await this.checkpoints?.pending;
@@ -148,6 +156,17 @@ export class Runtime {
     const data = JSON.parse(input),
       temp = new this.Simulation(JSON.stringify(data.config));
     try {
+      if (operation.restoreSession) {
+        const text = await this.sessions?.load(input);
+        if (text) {
+          try {
+            temp.restore_session(text, input);
+            return temp;
+          } catch {
+            // The engine validates schema, physics and the exact command endpoint.
+          }
+        }
+      }
       temp.begin_import(input);
       const cached = await this.checkpoints?.nearest(data);
       if (cached) {
@@ -208,7 +227,11 @@ export class Runtime {
       return;
     }
     this.checkpoints?.capture(this.sim, { force: true });
-    const operation = { type, id };
+    const operation = {
+      type,
+      id,
+      restoreSession: type === 'import' && message.restore_session === true,
+    };
     this.operation = operation;
     this.playing = false;
     this.debt = 0;
